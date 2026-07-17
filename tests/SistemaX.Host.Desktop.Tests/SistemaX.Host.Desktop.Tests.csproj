@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="10.0.10" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <!-- Referencia o próprio Host.Desktop (não só os módulos) — precisa de BridgeEndpoints,
+       SessionStore, BearerSessionMiddleware e HostConfig REAIS para o teste de ponta-a-ponta
+       (decisão #5 do ADR-0003: login por PIN de verdade -> RBAC de verdade -> 403/200 de
+       verdade), em vez de duplicar essa fiação num fake. -->
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Hosts\SistemaX.Host.Desktop\SistemaX.Host.Desktop.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Identidade\SistemaX.Modules.Identidade.Domain\SistemaX.Modules.Identidade.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Identidade\SistemaX.Modules.Identidade.Application\SistemaX.Modules.Identidade.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Identidade\SistemaX.Modules.Identidade.Infrastructure\SistemaX.Modules.Identidade.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Abstractions\SistemaX.Modules.Abstractions\SistemaX.Modules.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\SharedKernel\SistemaX.SharedKernel\SistemaX.SharedKernel.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,67 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/Hosts/">
+    <Project Path="src/Hosts/SistemaX.Cloud.Api/SistemaX.Cloud.Api.csproj" />
+    <Project Path="src/Hosts/SistemaX.Host.Desktop/SistemaX.Host.Desktop.csproj" />
+    <Project Path="src/Hosts/SistemaX.Store.Server/SistemaX.Store.Server.csproj" />
+  </Folder>
+  <Folder Name="/src/Infrastructure/">
+    <Project Path="src/Infrastructure/SistemaX.Infrastructure.Hardware/SistemaX.Infrastructure.Hardware.csproj" />
+    <Project Path="src/Infrastructure/SistemaX.Infrastructure.Local/SistemaX.Infrastructure.Local.csproj" />
+    <Project Path="src/Infrastructure/SistemaX.Infrastructure.Sync/SistemaX.Infrastructure.Sync.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/" />
+  <Folder Name="/src/Modules/Abstractions/">
+    <Project Path="src/Modules/Abstractions/SistemaX.Modules.Abstractions/SistemaX.Modules.Abstractions.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Compras/">
+    <Project Path="src/Modules/Compras/SistemaX.Modules.Compras.Domain/SistemaX.Modules.Compras.Domain.csproj" />
+    <Project Path="src/Modules/Compras/SistemaX.Modules.Compras.Application/SistemaX.Modules.Compras.Application.csproj" />
+    <Project Path="src/Modules/Compras/SistemaX.Modules.Compras.Infrastructure/SistemaX.Modules.Compras.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Estoque/">
+    <Project Path="src/Modules/Estoque/SistemaX.Modules.Estoque.Domain/SistemaX.Modules.Estoque.Domain.csproj" />
+    <Project Path="src/Modules/Estoque/SistemaX.Modules.Estoque.Application/SistemaX.Modules.Estoque.Application.csproj" />
+    <Project Path="src/Modules/Estoque/SistemaX.Modules.Estoque.Infrastructure/SistemaX.Modules.Estoque.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Financeiro/">
+    <Project Path="src/Modules/Financeiro/SistemaX.Modules.Financeiro.Application/SistemaX.Modules.Financeiro.Application.csproj" />
+    <Project Path="src/Modules/Financeiro/SistemaX.Modules.Financeiro.Domain/SistemaX.Modules.Financeiro.Domain.csproj" />
+    <Project Path="src/Modules/Financeiro/SistemaX.Modules.Financeiro.Infrastructure/SistemaX.Modules.Financeiro.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Fiscal/">
+    <Project Path="src/Modules/Fiscal/SistemaX.Modules.Fiscal.Domain/SistemaX.Modules.Fiscal.Domain.csproj" />
+    <Project Path="src/Modules/Fiscal/SistemaX.Modules.Fiscal.Application/SistemaX.Modules.Fiscal.Application.csproj" />
+    <Project Path="src/Modules/Fiscal/SistemaX.Modules.Fiscal.Infrastructure/SistemaX.Modules.Fiscal.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Identidade/">
+    <Project Path="src/Modules/Identidade/SistemaX.Modules.Identidade.Domain/SistemaX.Modules.Identidade.Domain.csproj" />
+    <Project Path="src/Modules/Identidade/SistemaX.Modules.Identidade.Application/SistemaX.Modules.Identidade.Application.csproj" />
+    <Project Path="src/Modules/Identidade/SistemaX.Modules.Identidade.Infrastructure/SistemaX.Modules.Identidade.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/Vendas/">
+    <Project Path="src/Modules/Vendas/SistemaX.Modules.Vendas.Domain/SistemaX.Modules.Vendas.Domain.csproj" />
+    <Project Path="src/Modules/Vendas/SistemaX.Modules.Vendas.Application/SistemaX.Modules.Vendas.Application.csproj" />
+    <Project Path="src/Modules/Vendas/SistemaX.Modules.Vendas.Infrastructure/SistemaX.Modules.Vendas.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/src/SharedKernel/">
+    <Project Path="src/SharedKernel/SistemaX.SharedKernel/SistemaX.SharedKernel.csproj" />
+  </Folder>
+  <Folder Name="/src/Verticals/" />
+  <Folder Name="/src/Verticals/Assistencia/">
+    <Project Path="src/Verticals/Assistencia/SistemaX.Verticals.Assistencia/SistemaX.Verticals.Assistencia.csproj" />
+    <Project Path="src/Verticals/Assistencia/SistemaX.Verticals.Assistencia.Application/SistemaX.Verticals.Assistencia.Application.csproj" />
+    <Project Path="src/Verticals/Assistencia/SistemaX.Verticals.Assistencia.Infrastructure/SistemaX.Verticals.Assistencia.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/SistemaX.Modules.Abstractions.Tests/SistemaX.Modules.Abstractions.Tests.csproj" />
+    <Project Path="tests/SistemaX.Modules.Compras.Tests/SistemaX.Modules.Compras.Tests.csproj" />
+    <Project Path="tests/SistemaX.Modules.Estoque.Tests/SistemaX.Modules.Estoque.Tests.csproj" />
+    <Project Path="tests/SistemaX.Modules.Financeiro.Tests/SistemaX.Modules.Financeiro.Tests.csproj" />
+    <Project Path="tests/SistemaX.Modules.Fiscal.Tests/SistemaX.Modules.Fiscal.Tests.csproj" />
+    <Project Path="tests/SistemaX.Modules.Identidade.Tests/SistemaX.Modules.Identidade.Tests.csproj" />
+    <Project Path="tests/SistemaX.Modules.Vendas.Tests/SistemaX.Modules.Vendas.Tests.csproj" />
+    <Project Path="tests/SistemaX.Verticals.Assistencia.Tests/SistemaX.Verticals.Assistencia.Tests.csproj" />
+    <Project Path="tests/SistemaX.Host.Desktop.Tests/SistemaX.Host.Desktop.Tests.csproj" />
+  </Folder>
+</Solution>

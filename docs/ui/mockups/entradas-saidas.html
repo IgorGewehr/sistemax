@@ -1,0 +1,891 @@
+<style>
+  :root {
+    --bg: 210 40% 98%;
+    --surface: 0 0% 100%;
+    --surface-2: 210 40% 96.5%;
+    --fg: 222 47% 11%;
+    --muted: 215 16% 47%;
+    --faint: 215 20% 65%;
+    --border: 214 32% 90%;
+    --primary: 0 72% 51%;
+    --primary-soft: 0 72% 96%;
+    --pos: 152 58% 40%;
+    --pos-soft: 152 55% 94%;
+    --warn: 32 90% 44%;
+    --warn-soft: 38 92% 94%;
+    --crit: 349 78% 48%;
+    --crit-soft: 349 80% 96%;
+    --ring: 0 72% 51%;
+    --shadow: 220 40% 20%;
+    --mono: "SF Mono", ui-monospace, "JetBrains Mono", "Cascadia Code", Menlo, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  }
+  /* Tema CLARO é o padrão do produto — dark só via toggle explícito (data-theme="dark"). */
+  :root[data-theme="light"] {
+    --bg: 210 40% 98%; --surface: 0 0% 100%; --surface-2: 210 40% 96.5%;
+    --fg: 222 47% 11%; --muted: 215 16% 47%; --faint: 215 20% 65%; --border: 214 32% 90%;
+    --primary: 0 72% 51%; --primary-soft: 0 72% 96%; --pos: 152 58% 40%; --pos-soft: 152 55% 94%;
+    --warn: 32 90% 44%; --warn-soft: 38 92% 94%; --crit: 349 78% 48%; --crit-soft: 349 80% 96%; --shadow: 220 40% 20%;
+  }
+  :root[data-theme="dark"] {
+    --bg: 222 47% 5%; --surface: 220 40% 7.5%; --surface-2: 218 34% 11%;
+    --fg: 210 40% 96%; --muted: 215 20% 60%; --faint: 215 18% 42%; --border: 215 25% 16%;
+    --primary: 0 72% 58%; --primary-soft: 0 45% 13%; --pos: 152 55% 50%; --pos-soft: 152 40% 12%;
+    --warn: 38 92% 55%; --warn-soft: 36 45% 13%; --crit: 350 85% 62%; --crit-soft: 349 45% 14%; --shadow: 222 60% 2%;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: hsl(var(--bg)); color: hsl(var(--fg));
+    font-family: var(--sans); -webkit-font-smoothing: antialiased;
+    font-size: 14px; line-height: 1.5;
+  }
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .eyebrow { text-transform: uppercase; letter-spacing: 0.08em; font-size: 11px; font-weight: 600; color: hsl(var(--muted)); }
+
+  /* ---- App shell ---- */
+  .app { display: grid; grid-template-columns: 60px 1fr; min-height: 100vh; }
+  .rail {
+    background: hsl(var(--surface)); border-right: 1px solid hsl(var(--border));
+    display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 0;
+  }
+  .rail .logo {
+    width: 34px; height: 34px; border-radius: 10px; margin-bottom: 10px;
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(0 72% 40%));
+    display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 15px;
+    box-shadow: 0 4px 14px hsl(var(--primary) / 0.4);
+  }
+  .rail button {
+    width: 40px; height: 40px; border-radius: 11px; border: 0; background: transparent;
+    color: hsl(var(--faint)); cursor: pointer; display: grid; place-items: center; transition: .15s;
+  }
+  .rail button svg { width: 20px; height: 20px; }
+  .rail button:hover { background: hsl(var(--surface-2)); color: hsl(var(--fg)); }
+  .rail button.active { background: hsl(var(--primary-soft)); color: hsl(var(--primary)); }
+  .rail .spacer { flex: 1; }
+
+  .main { min-width: 0; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 26px 32px 100px; }
+
+  /* ---- Header ---- */
+  header.page { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 22px; flex-wrap: wrap; }
+  header.page h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; margin: 4px 0 2px; text-wrap: balance; }
+  header.page .sub { color: hsl(var(--muted)); font-size: 13.5px; max-width: 60ch; }
+  .head-actions { display: flex; align-items: center; gap: 10px; }
+  .period { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border: 1px solid hsl(var(--border));
+    border-radius: 10px; background: hsl(var(--surface)); font-weight: 600; font-size: 13px; }
+  .btn-ghost { padding: 8px 11px; border-radius: 10px; border: 1px solid hsl(var(--border)); background: hsl(var(--surface));
+    color: hsl(var(--fg)); cursor: pointer; font-size: 13px; display: inline-flex; gap: 6px; align-items: center; transition: .12s; }
+  .btn-ghost:hover { background: hsl(var(--surface-2)); }
+
+  /* ---- Cards ---- */
+  .card { background: hsl(var(--surface)); border: 1px solid hsl(var(--border)); border-radius: 16px;
+    box-shadow: 0 1px 2px hsl(var(--shadow) / 0.06), 0 8px 24px -18px hsl(var(--shadow) / 0.5); }
+
+  /* KPI row */
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 14px; }
+  .kpi { padding: 16px 18px; position: relative; overflow: hidden; }
+  .kpi .lbl { display: flex; align-items: center; gap: 6px; }
+  .kpi .val { font-size: 26px; font-weight: 700; margin-top: 10px; letter-spacing: -0.02em; }
+  .kpi .val small { font-size: 14px; font-weight: 600; color: hsl(var(--muted)); }
+  .kpi .delta { display: inline-flex; align-items: center; gap: 5px; font-size: 12.5px; font-weight: 600; margin-top: 7px; }
+  .kpi .delta.up { color: hsl(var(--pos)); }
+  .kpi .delta.down { color: hsl(var(--crit)); }
+  .kpi .delta.crit { color: hsl(var(--crit)); }
+  .kpi .delta .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex: none; }
+  .kpi .foot { font-size: 12px; color: hsl(var(--muted)); margin-top: 3px; }
+  .kpi.hero::after { content: ""; position: absolute; inset: 0; background: radial-gradient(120% 90% at 100% 0, hsl(var(--primary) / 0.10), transparent 60%); pointer-events: none; }
+  .spark { margin-top: 9px; height: 32px; width: 100%; display: block; }
+
+  /* Info tooltip (ⓘ competência) */
+  .info-wrap { position: relative; display: inline-flex; }
+  .info-btn { border: 0; background: none; padding: 0; margin: 0; color: hsl(var(--muted)); cursor: help; font-size: 12px; line-height: 1; }
+  .info-pop { position: absolute; top: 130%; left: 50%; transform: translateX(-50%); width: 230px; background: hsl(var(--fg));
+    color: hsl(var(--bg)); font-size: 12px; font-weight: 500; line-height: 1.5; padding: 10px 12px; border-radius: 10px;
+    z-index: 20; display: none; box-shadow: 0 12px 30px -10px hsl(var(--shadow) / .6); }
+  .info-wrap:hover .info-pop, .info-wrap:focus-within .info-pop { display: block; }
+
+  /* Bridge note — tradução caixa × competência (D.4) */
+  .bridge-note { display: flex; align-items: flex-start; gap: 8px; font-size: 12px; color: hsl(var(--muted));
+    background: hsl(var(--surface-2) / .7); border: 1px solid hsl(var(--border)); border-radius: 12px;
+    padding: 10px 14px; margin: 0 0 16px; }
+  .bridge-note svg { flex: none; margin-top: 1px; color: hsl(var(--muted)); width: 14px; height: 14px; }
+  .bridge-note b { color: hsl(var(--fg)); font-weight: 700; }
+
+  /* Consultor */
+  .consultor { display: flex; gap: 14px; padding: 16px 18px; margin-bottom: 16px; align-items: flex-start;
+    background:
+      linear-gradient(hsl(var(--surface)), hsl(var(--surface))) padding-box,
+      linear-gradient(120deg, hsl(var(--primary) / 0.5), hsl(var(--border) / 0.2)) border-box;
+    border: 1px solid transparent; border-radius: 16px; }
+  .consultor .icon { flex: none; width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center;
+    background: hsl(var(--primary-soft)); color: hsl(var(--primary)); }
+  .consultor .icon svg { width: 20px; height: 20px; }
+  .consultor h3 { margin: 1px 0 5px; font-size: 13px; letter-spacing: -0.01em; }
+  .consultor p { margin: 0; font-size: 13.5px; line-height: 1.6; color: hsl(var(--fg)); }
+  .consultor b { color: hsl(var(--primary)); font-weight: 700; }
+  .consultor-cta { background: none; border: 0; color: hsl(var(--primary)); font: inherit; font-weight: 700; cursor: pointer; padding: 0; }
+  .consultor-cta:hover { text-decoration: underline; }
+
+  /* 2-col */
+  .grid2 { display: grid; grid-template-columns: 1.15fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .card h2.sec { font-size: 13px; font-weight: 700; letter-spacing: -0.01em; padding: 15px 18px 0; margin: 0; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .card h2.sec .hint { font-weight: 500; font-size: 12px; color: hsl(var(--muted)); }
+
+  /* Bars */
+  .bars { padding: 14px 18px 18px; display: flex; flex-direction: column; gap: 12px; }
+  .bar-click { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; width: 100%;
+    border: 0; background: none; font: inherit; color: inherit; cursor: pointer; text-align: left; padding: 8px 9px; border-radius: 11px; transition: background .12s; }
+  .bar-click:hover { background: hsl(var(--surface-2)); }
+  .bar-click:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+  .bar-click .name { font-weight: 600; font-size: 13px; display: inline-flex; align-items: center; }
+  .bar-click .amt { font-size: 12.5px; color: hsl(var(--muted)); }
+  .bar-click .pct { font-weight: 700; font-size: 12.5px; }
+  .dot { width: 9px; height: 9px; border-radius: 3px; flex: none; margin-right: 8px; }
+  .track { grid-column: 1 / -1; height: 8px; border-radius: 6px; background: hsl(var(--surface-2)); overflow: hidden; }
+  .fill { height: 100%; border-radius: 6px; }
+  .warn-badge { font-size: 10.5px; font-weight: 700; color: hsl(var(--warn)); background: hsl(var(--warn-soft));
+    padding: 2px 7px; border-radius: 6px; margin-left: 8px; white-space: nowrap; }
+
+  /* Stat tiles */
+  .stats { padding: 14px 18px 18px; display: flex; flex-direction: column; gap: 11px; }
+  .stat, .stat-click { padding: 12px 14px; border-radius: 12px; background: hsl(var(--surface-2)); }
+  .stat-click { display: block; width: 100%; text-align: left; border: 0; cursor: pointer; transition: filter .12s; font: inherit; color: inherit; }
+  .stat-click:hover { filter: brightness(0.97); }
+  :root[data-theme="dark"] .stat-click:hover { filter: brightness(1.22); }
+  .stat-click:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+  .stat .k { font-size: 12px; color: hsl(var(--muted)); font-weight: 600; }
+  .stat .v { font-size: 23px; font-weight: 700; margin-top: 4px; letter-spacing: -0.02em; }
+  .stat .v small { font-size: 13px; font-weight: 600; color: hsl(var(--muted)); }
+  .stat .s { font-size: 12px; color: hsl(var(--faint)); margin-top: 2px; }
+  .split-bar { display: flex; height: 9px; border-radius: 6px; overflow: hidden; margin-top: 9px; border: 1px solid hsl(var(--border)); }
+  .split-bar .seg-fixo { background: hsl(var(--primary)); }
+  .split-bar .seg-var { background: hsl(var(--surface)); }
+
+  /* Chart (colunas + média tracejada) */
+  .chart { padding: 12px 18px 2px; }
+  .chart svg { width: 100%; height: auto; display: block; }
+  .chart .zero { stroke: hsl(var(--border)); stroke-width: 1; }
+  .chart .mlabel { fill: hsl(var(--muted)); font-size: 9px; font-family: var(--sans); }
+  .chart rect.colbg { transition: opacity .12s; }
+  .chart rect.colbg:hover { opacity: .74; }
+  .legend { display: flex; gap: 16px; padding: 6px 18px 16px; font-size: 12px; color: hsl(var(--muted)); flex-wrap: wrap; }
+  .legend .lg { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 14px; height: 0; border-top: 2px dashed hsl(var(--muted)); display: inline-block; }
+  .legend i.solid { border-top: none; height: 10px; border-radius: 3px; }
+
+  .secleft { display: inline-flex; align-items: center; gap: 8px; }
+  .back { border: 0; background: hsl(var(--surface-2)); color: hsl(var(--fg)); width: 26px; height: 26px; border-radius: 8px;
+    cursor: pointer; font-size: 15px; line-height: 1; display: inline-grid; place-items: center; transition: .12s; flex: none; }
+  .back:hover { background: hsl(var(--primary-soft)); color: hsl(var(--primary)); }
+  .card.anim > * { animation: cardin .22s ease both; }
+  @keyframes cardin { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .card.anim > * { animation: none; } }
+  #cardEsq, #cardDir { min-height: 300px; }
+
+  /* Tabs + subhead */
+  .tabs { display: flex; gap: 2px; border-bottom: 1px solid hsl(var(--border)); margin-bottom: 16px; overflow-x: auto; }
+  .tab { padding: 10px 14px; font-size: 13.5px; font-weight: 600; color: hsl(var(--muted)); border: 0; background: none; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; transition: .15s; }
+  .tab:hover { color: hsl(var(--fg)); }
+  .tab.active { color: hsl(var(--primary)); border-bottom-color: hsl(var(--primary)); }
+  .subhead { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+  .seg { display: inline-flex; background: hsl(var(--surface-2)); border: 1px solid hsl(var(--border)); border-radius: 11px; padding: 3px; gap: 2px; }
+  .seg button { padding: 7px 13px; border: 0; background: none; border-radius: 8px; font-size: 13px; font-weight: 600; color: hsl(var(--muted)); cursor: pointer; }
+  .seg button.active { background: hsl(var(--surface)); color: hsl(var(--fg)); box-shadow: 0 1px 3px hsl(var(--shadow) / 0.2); }
+
+  /* Filtro ativo (chip removível acima da tabela) */
+  .filter-bar { display: flex; align-items: center; gap: 8px; margin: -2px 0 10px; font-size: 12.5px; color: hsl(var(--muted)); min-height: 26px; }
+  .filter-chip { display: inline-flex; align-items: center; gap: 6px; background: hsl(var(--primary-soft)); color: hsl(var(--primary));
+    font-weight: 700; padding: 5px 8px 5px 12px; border-radius: 999px; animation: cardin .18s ease both; }
+  .filter-chip button { border: 0; background: none; color: inherit; cursor: pointer; font-size: 15px; line-height: 1; padding: 0 2px; }
+
+  /* Table */
+  .tbl-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; min-width: 720px; }
+  thead th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: hsl(var(--muted));
+    font-weight: 600; padding: 12px 16px; border-bottom: 1px solid hsl(var(--border)); }
+  thead th.r, tbody td.r { text-align: right; }
+  tbody td { padding: 12px 16px; border-bottom: 1px solid hsl(var(--border) / 0.6); font-size: 13.5px; vertical-align: middle; }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr.data-row:hover { background: hsl(var(--surface-2) / 0.6); }
+  tbody tr.clickable { cursor: pointer; }
+  .row-desc b { font-weight: 600; }
+  .row-desc small { display: block; color: hsl(var(--muted)); font-size: 11.5px; font-weight: 500; margin-top: 1px; }
+  .cat-cell { display: inline-flex; align-items: center; font-size: 13px; color: hsl(var(--muted)); }
+  .val-mono { font-weight: 700; }
+  .val-mono.pos { color: hsl(var(--pos)); }
+  .val-mono.neg { color: hsl(var(--crit)); }
+  .chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+  .chip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .chip.previsto { color: hsl(var(--muted)); background: hsl(var(--surface-2)); }
+  .chip.pago { color: hsl(var(--pos)); background: hsl(var(--pos-soft)); }
+  .chip.atrasado { color: hsl(var(--crit)); background: hsl(var(--crit-soft)); }
+  .status-cell small { display: block; color: hsl(var(--muted)); font-size: 11px; margin-top: 3px; }
+  .act-btn { font-size: 11.5px; font-weight: 700; padding: 5px 10px; border-radius: 8px; border: 1px solid; background: transparent; cursor: pointer; white-space: nowrap; transition: .12s; }
+  .act-btn.baixa { color: hsl(var(--primary)); border-color: hsl(var(--primary) / .35); }
+  .act-btn.baixa:hover { background: hsl(var(--primary-soft)); }
+  .act-btn.cobrar { color: hsl(var(--crit)); border-color: hsl(var(--crit) / .35); }
+  .act-btn.cobrar:hover { background: hsl(var(--crit-soft)); }
+  .act-btn:disabled { opacity: .5; cursor: default; }
+
+  tr.divider-row td { padding: 6px 16px !important; border-bottom: 0 !important; background: hsl(var(--surface-2) / .4); }
+  .divider-line { display: flex; align-items: center; gap: 10px; }
+  .divider-line::before, .divider-line::after { content: ''; flex: 1; height: 1px; background: hsl(var(--border)); }
+  .divider-line span { font-size: 11px; font-weight: 700; letter-spacing: .05em; color: hsl(var(--primary)); text-transform: uppercase; white-space: nowrap; }
+
+  tr.summary-row td { text-align: center; font-size: 12.5px; color: hsl(var(--muted)); padding: 13px 16px !important; }
+  tr.summary-row a { color: hsl(var(--primary)); font-weight: 700; text-decoration: none; }
+  tr.summary-row a:hover { text-decoration: underline; }
+
+  .theme-toggle { position: fixed; top: 14px; right: 16px; z-index: 10; }
+  .fab { position: fixed; right: 26px; bottom: 26px; width: 54px; height: 54px; border-radius: 50%; border: 0;
+    background: hsl(var(--primary)); color: #fff; display: grid; place-items: center; cursor: pointer;
+    box-shadow: 0 8px 24px hsl(var(--primary) / 0.45); z-index: 15; transition: transform .12s, filter .12s; }
+  .fab:hover { filter: brightness(1.06); transform: translateY(-2px); }
+  .fab svg { width: 24px; height: 24px; }
+
+  /* Modais */
+  .modal-backdrop { position: fixed; inset: 0; background: hsl(222 47% 4% / .5); backdrop-filter: blur(2px);
+    display: none; align-items: center; justify-content: center; z-index: 50; padding: 20px; }
+  .modal-backdrop.open { display: flex; }
+  .modal { background: hsl(var(--surface)); border: 1px solid hsl(var(--border)); border-radius: 18px; width: 100%; max-width: 440px;
+    box-shadow: 0 24px 60px -20px hsl(var(--shadow) / .6); animation: modalIn .18s ease both; position: relative; }
+  @keyframes modalIn { from { opacity: 0; transform: translateY(8px) scale(.98); } to { opacity: 1; transform: none; } }
+  .modal .m-head { padding: 18px 20px 4px; }
+  .modal .m-head .eyebrow { display: block; margin-bottom: 4px; }
+  .modal .m-head h3 { margin: 0; font-size: 17px; font-weight: 700; letter-spacing: -0.01em; }
+  .modal .m-head p { margin: 6px 0 0; font-size: 13px; color: hsl(var(--muted)); line-height: 1.5; }
+  .modal .m-body { padding: 16px 20px; display: flex; flex-direction: column; gap: 14px; max-height: 60vh; overflow-y: auto; }
+  .modal .m-foot { padding: 4px 20px 20px; display: flex; gap: 10px; justify-content: flex-end; }
+  .m-close { position: absolute; top: 14px; right: 14px; }
+  .btn-sm { padding: 7px 12px; border-radius: 9px; border: 1px solid hsl(var(--border)); background: hsl(var(--surface));
+    color: hsl(var(--fg)); font-size: 13px; font-weight: 600; cursor: pointer; }
+  .btn-sm:hover { background: hsl(var(--surface-2)); }
+  .btn-sm.primary { border-color: transparent; background: hsl(var(--primary)); color: #fff; }
+  .btn-sm.primary:hover { filter: brightness(1.06); }
+  .btn-sm.primary:disabled { opacity: .45; cursor: not-allowed; filter: none; }
+
+  .field label { display: block; font-size: 12px; font-weight: 600; color: hsl(var(--muted)); margin-bottom: 6px; }
+  .field input, .field select { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid hsl(var(--border));
+    background: hsl(var(--surface-2)); color: hsl(var(--fg)); font-size: 14px; font-family: var(--mono); }
+  .field input:focus, .field select:focus { outline: 2px solid hsl(var(--ring)); outline-offset: 1px; }
+  .field select { font-family: var(--sans); }
+  .field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .field-check { display: flex; align-items: flex-start; gap: 9px; font-size: 12.5px; color: hsl(var(--muted)); background: hsl(var(--surface-2)); padding: 10px 12px; border-radius: 10px; cursor: pointer; }
+  .field-check input { margin-top: 2px; }
+  .field-check b { color: hsl(var(--fg)); }
+
+  .acct-list { display: flex; flex-direction: column; gap: 8px; }
+  .acct-opt { display: flex; align-items: center; justify-content: space-between; padding: 11px 13px; border-radius: 11px;
+    border: 1.5px solid hsl(var(--border)); background: hsl(var(--surface-2)); cursor: pointer; font-size: 13.5px; font-weight: 600; transition: .12s; width: 100%; text-align: left; color: hsl(var(--fg)); font-family: var(--sans); }
+  .acct-opt:hover { border-color: hsl(var(--primary) / .4); }
+  .acct-opt.sel { border-color: hsl(var(--primary)); background: hsl(var(--primary-soft)); color: hsl(var(--primary)); }
+  .acct-opt .tag { font-size: 11px; font-weight: 600; color: hsl(var(--muted)); }
+  .acct-opt.sel .tag { color: hsl(var(--primary)); }
+
+  .reveal { background: hsl(var(--surface-2)); border-radius: 12px; padding: 13px 14px; display: flex; flex-direction: column; gap: 8px; }
+  .reveal .row { display: flex; justify-content: space-between; align-items: center; font-size: 13.5px; gap: 10px; }
+  .reveal .row span:first-child { color: hsl(var(--muted)); }
+
+  /* Toast */
+  .toast-wrap { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); z-index: 60; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+  .toast { background: hsl(var(--fg)); color: hsl(var(--bg)); padding: 11px 18px; border-radius: 12px; font-size: 13px; font-weight: 600;
+    box-shadow: 0 12px 30px -10px hsl(var(--shadow) / .6); animation: toastIn .2s ease both, toastOut .25s ease 2.8s forwards; }
+  @keyframes toastIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  @keyframes toastOut { to { opacity: 0; transform: translateY(-6px); } }
+
+  @media (max-width: 860px) {
+    .kpis { grid-template-columns: repeat(2, 1fr); }
+    .grid2 { grid-template-columns: 1fr; }
+    .field-row { grid-template-columns: 1fr; }
+    .app { grid-template-columns: 0 1fr; }
+    .rail { display: none; }
+    .wrap { padding: 22px 18px 90px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<button class="btn-ghost theme-toggle" onclick="(function(){var r=document.documentElement;var d=(r.getAttribute('data-theme')|| (matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'))==='dark';r.setAttribute('data-theme',d?'light':'dark');})()">◐ tema</button>
+
+<div class="app">
+  <nav class="rail" aria-label="Navegação">
+    <div class="logo">S</div>
+    <button title="Início"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10.5 12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1z"/></svg></button>
+    <button class="active" title="Financeiro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg></button>
+    <button title="Vendas / PDV"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2 3h3l2.4 12.5a1 1 0 0 0 1 .8h9.2a1 1 0 0 0 1-.8L21 7H6"/></svg></button>
+    <button title="Estoque"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/></svg></button>
+    <button title="Clientes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M17 5.5a3 3 0 0 1 0 5.6M22 20a6 6 0 0 0-4-5.7"/></svg></button>
+    <div class="spacer"></div>
+    <button title="Ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 2h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12a7 7 0 0 0 .1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 22h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6A7 7 0 0 0 19 12z"/></svg></button>
+  </nav>
+
+  <main class="main">
+    <div class="wrap">
+      <header class="page">
+        <div>
+          <div class="eyebrow">Financeiro · Entradas &amp; Saídas</div>
+          <h1>Entradas &amp; Saídas</h1>
+          <div class="sub">Tudo que entrou, saiu — e o que ainda vem. É aqui que você planeja.</div>
+        </div>
+        <div class="head-actions">
+          <div class="period">Julho 2026 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></div>
+        </div>
+      </header>
+
+      <nav class="tabs" aria-label="Seções do Financeiro">
+        <button class="tab">Visão geral</button>
+        <button class="tab active">Entradas &amp; saídas</button>
+        <button class="tab">Recorrentes</button>
+        <button class="tab">Bancário</button>
+        <button class="tab">Fluxo de caixa</button>
+        <button class="tab">Relatórios</button>
+      </nav>
+
+      <div class="subhead">
+        <div class="seg" id="segFiltro">
+          <button class="active" data-seg="tudo">Tudo</button>
+          <button data-seg="receber">A receber</button>
+          <button data-seg="pagar">A pagar</button>
+        </div>
+      </div>
+
+      <!-- KPIs -->
+      <section class="kpis">
+        <div class="card kpi hero">
+          <div class="lbl eyebrow">A receber em aberto</div>
+          <div class="val num">R$ 7.479</div>
+          <div class="delta crit"><span class="dot"></span> R$ 1.890 atrasado</div>
+          <svg class="spark" viewBox="0 0 260 34" preserveAspectRatio="none" aria-hidden="true">
+            <defs><linearGradient id="gRec" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="hsl(var(--primary))" stop-opacity="0.28"/><stop offset="1" stop-color="hsl(var(--primary))" stop-opacity="0"/></linearGradient></defs>
+            <path d="M0,22 L52,20 L104,24 L156,15 L208,12 L260,9" fill="none" stroke="hsl(var(--primary))" stroke-width="2" stroke-linecap="round"/>
+            <path d="M0,22 L52,20 L104,24 L156,15 L208,12 L260,9 L260,34 L0,34 Z" fill="url(#gRec)"/>
+            <circle cx="260" cy="9" r="3" fill="hsl(var(--primary))"/>
+          </svg>
+          <div class="foot">12 parcelas em aberto</div>
+        </div>
+        <div class="card kpi">
+          <div class="lbl eyebrow">A pagar em aberto</div>
+          <div class="val num">R$ 7.210</div>
+          <div class="delta">maior: <b class="num" style="font-weight:700">Folha</b> · 30/07</div>
+          <div class="foot">3 lançamentos abertos</div>
+        </div>
+        <div class="card kpi">
+          <div class="lbl eyebrow">Resultado do mês
+            <span class="info-wrap"><button class="info-btn" aria-label="O que é competência?">ⓘ</button>
+              <span class="info-pop">Competência: conta o que foi vendido/gasto, mesmo sem o dinheiro ter mudado de mão ainda.</span>
+            </span>
+          </div>
+          <div class="val num">R$ 4.230</div>
+          <div class="delta up"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 17 17 7M7 7h10v10"/></svg> ▲ 9% vs junho</div>
+          <div class="foot">regime de competência</div>
+        </div>
+        <div class="card kpi">
+          <div class="lbl eyebrow">Como fecha o mês</div>
+          <div class="val num">+R$ 3.580</div>
+          <div class="delta">projeção do caixa</div>
+          <div class="foot">se tudo que vence em julho for pago</div>
+        </div>
+      </section>
+
+      <!-- Tradução caixa × competência (D.4) -->
+      <div class="bridge-note">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-5M12 8h.01"/></svg>
+        <div><b>R$ 4.230</b> de resultado (competência) é maior que os <b>R$ 3.580</b> previstos no caixa porque <b>R$ 650</b> de um contrato fechado este mês só entram em agosto.</div>
+      </div>
+
+      <!-- Super Consultor -->
+      <div class="consultor">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 0 0-4 12.7V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.3A7 7 0 0 0 12 2z"/><path d="M9 21h6"/></svg></div>
+        <div>
+          <h3>Super Consultor</h3>
+          <p><b>Gasto com Fornecedores subiu 42%</b> vs sua média de R$ 2.183 — os 3 pagamentos deste mês somam R$ 3.100. <button class="consultor-cta" id="ctaVerFornecedores">Ver os 3 →</button></p>
+        </div>
+      </div>
+
+      <!-- Análise interativa: Para onde foi o dinheiro ⇄ Raio-X do mês -->
+      <section class="grid2">
+        <div class="card" id="cardEsq"></div>
+        <div class="card" id="cardDir"></div>
+      </section>
+
+      <!-- Linha do tempo -->
+      <div class="card">
+        <h2 class="sec">Linha do tempo <span class="hint" id="tlHint">carregando…</span></h2>
+        <div style="padding:0 18px;">
+          <div class="filter-bar" id="filterBar"></div>
+        </div>
+        <div class="tbl-wrap">
+          <table>
+            <thead>
+              <tr><th>Data</th><th>Descrição</th><th>Categoria</th><th>Status</th><th class="r">Valor</th><th class="r">Ação</th></tr>
+            </thead>
+            <tbody id="tlBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<button class="fab" title="Lançar" aria-label="Lançar" id="fabLancar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg></button>
+
+<!-- Modal: Dar baixa -->
+<div class="modal-backdrop" id="modalBaixa" role="presentation">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mbTitle">
+    <button class="btn-ghost m-close" id="mbClose" aria-label="Fechar">✕</button>
+    <div class="m-head">
+      <span class="eyebrow" id="mbEyebrow">Dar baixa</span>
+      <h3 id="mbTitle">—</h3>
+      <p id="mbDesc">—</p>
+    </div>
+    <div class="m-body">
+      <div class="acct-list" id="mbAccts">
+        <button class="acct-opt" type="button" data-acc="Itaú PJ">Itaú PJ <span class="tag">banco</span></button>
+        <button class="acct-opt" type="button" data-acc="Nubank PJ">Nubank PJ <span class="tag">banco</span></button>
+        <button class="acct-opt" type="button" data-acc="Stone">Stone <span class="tag">banco</span></button>
+        <button class="acct-opt" type="button" data-acc="Caixa da loja">Caixa da loja <span class="tag">espécie</span></button>
+      </div>
+    </div>
+    <div class="m-foot">
+      <button class="btn-sm" id="mbCancel">Cancelar</button>
+      <button class="btn-sm primary" id="mbConfirmar" disabled>Confirmar baixa</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Lançamento rápido -->
+<div class="modal-backdrop" id="modalLancar" role="presentation">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mlTitle">
+    <button class="btn-ghost m-close" id="mlClose" aria-label="Fechar">✕</button>
+    <div class="m-head">
+      <span class="eyebrow">Lançamento rápido</span>
+      <h3 id="mlTitle">Novo lançamento</h3>
+      <p>Registre uma entrada ou saída. Dá pra ajustar tudo depois.</p>
+    </div>
+    <div class="m-body">
+      <div class="seg" id="mlTipo" style="align-self:flex-start;">
+        <button class="active" data-tipo="entrada">Entrada</button>
+        <button data-tipo="saida">Saída</button>
+      </div>
+      <div class="field">
+        <label for="mlDesc">Descrição</label>
+        <input type="text" id="mlDesc" placeholder="Ex.: Recebimento Padaria Central" style="font-family:var(--sans)">
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label for="mlCategoria">Categoria</label>
+          <select id="mlCategoria"></select>
+        </div>
+        <div class="field">
+          <label for="mlValor">Valor</label>
+          <input type="number" id="mlValor" min="0" step="1" placeholder="0">
+        </div>
+      </div>
+      <div class="field">
+        <label for="mlVencimento">Vencimento</label>
+        <input type="date" id="mlVencimento" value="2026-07-16">
+      </div>
+      <label class="field-check">
+        <input type="checkbox" id="mlRecorrente">
+        <span>🔁 <b>Isso se repete todo mês</b> — depois de salvar, dá pra configurar a recorrência completa em Recorrentes.</span>
+      </label>
+      <button class="btn-ghost" type="button" id="mlAnexo" style="align-self:flex-start;">📎 Anexar nota/foto</button>
+    </div>
+    <div class="m-foot">
+      <button class="btn-sm" id="mlCancel">Cancelar</button>
+      <button class="btn-sm primary" id="mlSalvar">Salvar lançamento</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Detalhe do lançamento (read-only) -->
+<div class="modal-backdrop" id="modalDetalhe" role="presentation">
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="mdTitle">
+    <button class="btn-ghost m-close" id="mdClose" aria-label="Fechar">✕</button>
+    <div class="m-head">
+      <span class="eyebrow">Lançamento realizado</span>
+      <h3 id="mdTitle">—</h3>
+      <p id="mdSub">—</p>
+    </div>
+    <div class="m-body">
+      <div class="reveal" id="mdReveal"></div>
+    </div>
+    <div class="m-foot">
+      <button class="btn-sm primary" id="mdOk">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script>
+(function () {
+  var brl = function (n) { return 'R$ ' + Math.round(n).toLocaleString('pt-BR'); };
+  var MESES = ['Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul'];
+  var TODAY = '2026-07-16';
+  var CAT_LABEL = { folha: 'Folha', fornecedores: 'Fornecedores', aluguel: 'Aluguel', impostos: 'Impostos', software: 'Software', marketing: 'Marketing', servicos: 'Serviços' };
+
+  // ---------- Categorias de despesa (ResumoPorCategoria) ----------
+  var categories = [
+    { id: 'folha', nome: 'Folha', cor: 'var(--primary)', fixo: true, total: 4900, hist: [4600, 4600, 4900, 4900, 4900, 4900], maior: { desc: 'Folha de julho', valor: 4900 } },
+    { id: 'fornecedores', nome: 'Fornecedores', cor: 'var(--fg) / 0.62', fixo: false, total: 3100, hist: [2150, 2300, 2050, 2240, 2175, 3100], maior: { desc: 'Distribuidora Sul · 15/07', valor: 1630 } },
+    { id: 'aluguel', nome: 'Aluguel', cor: 'var(--fg) / 0.48', fixo: true, total: 2100, hist: [2100, 2100, 2100, 2100, 2100, 2100], maior: { desc: 'Aluguel da loja', valor: 2100 } },
+    { id: 'impostos', nome: 'Impostos', cor: 'var(--fg) / 0.36', fixo: false, total: 1240, hist: [980, 1120, 1050, 1190, 1200, 1240], maior: { desc: 'DAS · 06/07', valor: 1240 } },
+    { id: 'software', nome: 'Software', cor: 'var(--fg) / 0.26', fixo: true, total: 540, hist: [420, 430, 460, 490, 510, 540], maior: { desc: 'Assinatura ERP · 03/07', valor: 330 } },
+    { id: 'marketing', nome: 'Marketing', cor: 'var(--fg) / 0.18', fixo: false, total: 310, hist: [150, 220, 280, 200, 260, 310], maior: { desc: 'Anúncios Instagram · 07/07', valor: 310 } }
+  ];
+  var TOTAL_DESPESAS = categories.reduce(function (a, c) { return a + c.total; }, 0);
+  var maxCatTotal = categories[0].total;
+
+  function avg5(cat) { return cat.hist.slice(0, 5).reduce(function (a, b) { return a + b; }, 0) / 5; }
+  function variacao(cat) { var a = avg5(cat); return (cat.total - a) / a * 100; }
+  function isAnomalia(cat) { return cat.total >= 1000 && variacao(cat) > 15; }
+
+  // ---------- Linha do tempo (ExtratoUnificado: MovimentoFinanceiro + Parcela) ----------
+  var rows = [
+    { id: 'r1', data: '2026-08-30', desc: 'Contrato Consultoria Nortex', sub: 'compet. julho · vence agosto', cat: 'servicos', tipo: 'entrada', status: 'previsto', valor: 650 },
+    { id: 'r2', data: '2026-07-30', desc: 'Folha de julho', sub: null, cat: 'folha', tipo: 'saida', status: 'previsto', valor: 4900 },
+    { id: 'r3', data: '2026-07-29', desc: 'Prefeitura de Ilhota', sub: 'serviço mensal', cat: 'servicos', tipo: 'entrada', status: 'previsto', valor: 2500 },
+    { id: 'r4', data: '2026-07-28', desc: 'Aluguel da loja', sub: null, cat: 'aluguel', tipo: 'saida', status: 'previsto', valor: 2100 },
+    { id: 'r5', data: '2026-07-26', desc: 'Distribuidora Norte', sub: 'contrato de serviço', cat: 'servicos', tipo: 'entrada', status: 'previsto', valor: 1200 },
+    { id: 'r6', data: '2026-07-22', desc: 'Recebimento Maria', sub: 'serviços prestados', cat: 'servicos', tipo: 'entrada', status: 'previsto', valor: 890 },
+    { id: 'r7', data: '2026-07-20', desc: 'Assinatura contábil', sub: null, cat: 'software', tipo: 'saida', status: 'previsto', valor: 210 },
+    { id: 'r8', data: '2026-07-18', desc: 'Mensalidade Auto Peças Silva', sub: null, cat: 'servicos', tipo: 'entrada', status: 'previsto', valor: 349 },
+    { id: 'r9', data: '2026-07-15', desc: 'Distribuidora Sul', sub: null, cat: 'fornecedores', tipo: 'saida', status: 'pago', conta: 'Itaú PJ', valor: 1630, origem: 'Nota fiscal de compra' },
+    { id: 'r10', data: '2026-07-14', desc: 'PIX recebido · Mercado São João', sub: null, cat: 'servicos', tipo: 'entrada', status: 'pago', conta: 'Itaú PJ', valor: 349, origem: 'PIX recebido' },
+    { id: 'r11', data: '2026-07-12', desc: 'Mensalidade João', sub: null, cat: 'servicos', tipo: 'entrada', status: 'atrasado', diasAtraso: 4, valor: 430 },
+    { id: 'r12', data: '2026-07-10', desc: 'Distribuidora Norte', sub: 'insumos', cat: 'fornecedores', tipo: 'saida', status: 'pago', conta: 'Nubank PJ', valor: 780, origem: 'Boleto' },
+    { id: 'r13', data: '2026-07-09', desc: 'Recebimento à vista · Studio Vega', sub: null, cat: 'servicos', tipo: 'entrada', status: 'pago', conta: 'Nubank PJ', valor: 220, origem: 'PIX recebido' },
+    { id: 'r14', data: '2026-07-08', desc: 'Atacadão Fornecedor X', sub: null, cat: 'fornecedores', tipo: 'saida', status: 'pago', conta: 'Itaú PJ', valor: 690, origem: 'Nota fiscal de compra' },
+    { id: 'r15', data: '2026-07-07', desc: 'Anúncios Instagram', sub: null, cat: 'marketing', tipo: 'saida', status: 'pago', conta: 'Nubank PJ', valor: 310, origem: 'Cartão de crédito' },
+    { id: 'r16', data: '2026-07-06', desc: 'DAS · Impostos', sub: null, cat: 'impostos', tipo: 'saida', status: 'pago', conta: 'Itaú PJ', valor: 1240, origem: 'Guia DAS' },
+    { id: 'r17', data: '2026-07-05', desc: 'Mensalidade Padaria Pão Quente', sub: null, cat: 'servicos', tipo: 'entrada', status: 'atrasado', diasAtraso: 11, valor: 220 },
+    { id: 'r18', data: '2026-07-04', desc: 'PIX recebido · Comércio Bela Vista', sub: null, cat: 'servicos', tipo: 'entrada', status: 'pago', conta: 'Itaú PJ', valor: 480, origem: 'PIX recebido' },
+    { id: 'r19', data: '2026-07-03', desc: 'Assinatura ERP', sub: null, cat: 'software', tipo: 'saida', status: 'pago', conta: 'Nubank PJ', valor: 330, origem: 'Cartão de crédito' },
+    { id: 'r20', data: '2026-06-08', desc: 'Venda avulsa · Mercado Ideal', sub: null, cat: 'servicos', tipo: 'entrada', status: 'atrasado', diasAtraso: 38, valor: 690 },
+    { id: 'r21', data: '2026-06-02', desc: 'Consultoria pontual · Estúdio Foco', sub: null, cat: 'servicos', tipo: 'entrada', status: 'atrasado', diasAtraso: 44, valor: 550 }
+  ];
+  var nextRowN = 22;
+
+  function fmtData(iso) { var p = iso.split('-'); return p[2] + '/' + p[1]; }
+  function insertSorted(newRow) {
+    var idx = -1;
+    for (var i = 0; i < rows.length; i++) { if (rows[i].data < newRow.data) { idx = i; break; } }
+    if (idx === -1) rows.push(newRow); else rows.splice(idx, 0, newRow);
+  }
+
+  // ---------- Filtros ----------
+  var segFiltro = 'tudo';
+  var activeFilter = null; // {type:'categoria'|'status', value, label}
+
+  function passaFiltro(r) {
+    if (segFiltro === 'receber' && r.tipo !== 'entrada') return false;
+    if (segFiltro === 'pagar' && r.tipo !== 'saida') return false;
+    if (activeFilter) {
+      if (activeFilter.type === 'categoria' && r.cat !== activeFilter.value) return false;
+      if (activeFilter.type === 'status' && r.status !== 'atrasado') return false;
+    }
+    return true;
+  }
+
+  function setFiltro(f) {
+    activeFilter = f;
+    renderFilterBar();
+    renderTabela();
+    document.getElementById('cardEsq').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+
+  function renderFilterBar() {
+    var el = document.getElementById('filterBar');
+    if (!activeFilter) { el.innerHTML = ''; return; }
+    el.innerHTML = '<span>Filtrando por:</span><span class="filter-chip">' + activeFilter.label + ' <button aria-label="Limpar filtro" id="clearFilter">✕</button></span>';
+    document.getElementById('clearFilter').addEventListener('click', function () { setFiltro(null); });
+  }
+
+  // ---------- Render tabela ----------
+  function statusCellHtml(r) {
+    if (r.status === 'pago') return '<span class="chip pago">Pago</span><small>· ' + r.conta + '</small>';
+    if (r.status === 'atrasado') return '<span class="chip atrasado">Atrasado ' + r.diasAtraso + 'd</span>';
+    return '<span class="chip previsto">Previsto</span>';
+  }
+  function acaoCellHtml(r) {
+    if (r.status === 'previsto') return '<button class="act-btn baixa" data-act="baixa" data-id="' + r.id + '">Dar baixa</button>';
+    if (r.status === 'atrasado') return '<button class="act-btn cobrar" data-act="cobrar" data-id="' + r.id + '">Cobrar</button>';
+    return '';
+  }
+  function rowHtml(r) {
+    var sign = r.tipo === 'entrada' ? 'pos' : 'neg';
+    var prefix = r.tipo === 'entrada' ? '+' : '−';
+    var clickable = r.status === 'pago' ? ' clickable' : '';
+    return '<tr class="data-row' + clickable + '" data-id="' + r.id + '">' +
+      '<td class="num">' + fmtData(r.data) + '</td>' +
+      '<td class="row-desc"><b>' + r.desc + '</b>' + (r.sub ? '<small>' + r.sub + '</small>' : '') + '</td>' +
+      '<td><span class="cat-cell">' + CAT_LABEL[r.cat] + '</span></td>' +
+      '<td class="status-cell">' + statusCellHtml(r) + '</td>' +
+      '<td class="r val-mono num ' + sign + '">' + prefix + brl(r.valor) + '</td>' +
+      '<td class="r">' + acaoCellHtml(r) + '</td>' +
+      '</tr>';
+  }
+  var dividerHtml = '<tr class="divider-row"><td colspan="6"><div class="divider-line"><span>Hoje · 16/07</span></div></td></tr>';
+  var summaryHtml = '<tr class="summary-row"><td colspan="6">+ 12 vendas menores no PDV este mês (R$ 9.782) · <a href="#" id="verExtratoLink">Ver extrato completo →</a></td></tr>';
+
+  function renderTabela() {
+    var html = '';
+    var dividerDone = false;
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i];
+      if (!dividerDone && r.data <= TODAY) { html += dividerHtml; dividerDone = true; }
+      if (passaFiltro(r)) html += rowHtml(r);
+      if (r.id === 'r19' && segFiltro !== 'pagar' && !activeFilter) html += summaryHtml;
+    }
+    document.getElementById('tlBody').innerHTML = html;
+    bindTabela();
+    var atrasados = rows.filter(function (r) { return r.status === 'atrasado'; }).length;
+    document.getElementById('tlHint').textContent = rows.length + ' lançamentos · ' + atrasados + ' atrasados';
+  }
+
+  function bindTabela() {
+    document.querySelectorAll('[data-act="baixa"]').forEach(function (b) {
+      b.addEventListener('click', function (e) { e.stopPropagation(); abrirBaixa(b.dataset.id); });
+    });
+    document.querySelectorAll('[data-act="cobrar"]').forEach(function (b) {
+      b.addEventListener('click', function (e) {
+        e.stopPropagation();
+        var r = rows.find(function (x) { return x.id === b.dataset.id; });
+        b.textContent = 'Enviada ✓'; b.disabled = true;
+        toast('Cobrança enviada por WhatsApp para ' + r.desc + '.');
+      });
+    });
+    document.querySelectorAll('tr.clickable').forEach(function (tr) {
+      tr.addEventListener('click', function () { abrirDetalhe(tr.dataset.id); });
+    });
+    var link = document.getElementById('verExtratoLink');
+    if (link) link.addEventListener('click', function (e) { e.preventDefault(); toast('Levaria para Bancário → extrato do período.'); });
+  }
+
+  // ---------- grid2: Para onde foi o dinheiro ⇄ Raio-X do mês ----------
+  var cardEsq = document.getElementById('cardEsq');
+  var cardDir = document.getElementById('cardDir');
+
+  function barsHtml() {
+    var rowsHtml = categories.map(function (c) {
+      var w = Math.round(c.total / maxCatTotal * 100);
+      var pct = Math.round(c.total / TOTAL_DESPESAS * 100);
+      var badge = isAnomalia(c) ? '<span class="warn-badge">▲ ' + Math.round(variacao(c)) + '%</span>' : '';
+      return '<button class="bar-click" data-id="' + c.id + '">' +
+        '<span class="name"><span class="dot" style="background:hsl(' + c.cor + ')"></span>' + c.nome + badge + '</span>' +
+        '<span class="amt num">' + brl(c.total) + '</span>' +
+        '<div class="track"><div class="fill" style="width:' + w + '%;background:hsl(' + c.cor + ')"></div></div>' +
+        '<span class="pct num">' + pct + '%</span></button>';
+    }).join('');
+    return '<div class="bars">' + rowsHtml + '</div>';
+  }
+
+  function raioXHtml() {
+    var fixo = categories.filter(function (c) { return c.fixo; }).reduce(function (a, c) { return a + c.total; }, 0);
+    var fixoPct = Math.round(fixo / TOTAL_DESPESAS * 100);
+    var varPct = 100 - fixoPct;
+    var leader = null, leaderVar = -Infinity;
+    categories.forEach(function (c) { var v = variacao(c); if (c.total >= 1000 && v > leaderVar) { leaderVar = v; leader = c; } });
+    return '<div class="stats">' +
+      '<div class="stat"><div class="k">Fixo × variável</div>' +
+      '<div class="v num">' + fixoPct + '<small>%</small> <span style="color:hsl(var(--muted));font-weight:600;font-size:14px;font-family:var(--sans)"> · ' + varPct + '<small>%</small></span></div>' +
+      '<div class="split-bar"><div class="seg-fixo" style="width:' + fixoPct + '%"></div><div class="seg-var" style="width:' + varPct + '%"></div></div>' +
+      '<div class="s">fixo · variável do mês</div></div>' +
+      '<div class="stat"><div class="k">Quem mais subiu</div><div class="v" style="font-size:18px;">' + leader.nome + ' <span class="num" style="color:hsl(var(--warn));font-weight:700;">+' + Math.round(leaderVar) + '%</span></div><div class="s">vs a média dos últimos 5 meses</div></div>' +
+      '<button class="stat-click" id="tileAtrasados"><div class="k">Atrasados há mais de 30 dias</div>' +
+      '<div class="v num" style="color:hsl(var(--crit))">' + brl(1240) + ' <small style="color:hsl(var(--muted));font-weight:600;font-family:var(--sans)">· 2 clientes</small></div>' +
+      '<div class="s">clique para ver na linha do tempo →</div></button></div>';
+  }
+
+  function svgColunas(cat) {
+    var baseline = 106, x0 = 20, x1 = 326, slot = (x1 - x0) / 6, bw = 26;
+    var a5 = avg5(cat);
+    var max = Math.max.apply(null, cat.hist) * 1.18;
+    var f = 82 / max;
+    var bars = '';
+    cat.hist.forEach(function (v, i) {
+      var h = Math.max(v * f, 2), x = x0 + slot * i + (slot - bw) / 2, y = baseline - h;
+      var isLast = i === cat.hist.length - 1;
+      var fill = (isLast && isAnomalia(cat)) ? 'hsl(var(--warn))' : ('hsl(' + cat.cor + ')');
+      bars += '<rect class="colbg" x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + bw + '" height="' + h.toFixed(1) + '" rx="4" fill="' + fill + '"><title>' + MESES[i] + ' · ' + brl(v) + '</title></rect>';
+    });
+    var avgY = baseline - a5 * f;
+    var labels = MESES.map(function (m, i) { var x = x0 + slot * i + slot / 2; return '<text class="mlabel" x="' + x.toFixed(1) + '" y="122" text-anchor="middle">' + m + '</text>'; }).join('');
+    return '<svg viewBox="0 0 340 132" role="img" aria-label="' + cat.nome + ' nos últimos 6 meses">' +
+      '<line class="zero" x1="' + x0 + '" y1="' + baseline + '" x2="' + x1 + '" y2="' + baseline + '"/>' +
+      '<line x1="' + x0 + '" y1="' + avgY.toFixed(1) + '" x2="' + x1 + '" y2="' + avgY.toFixed(1) + '" stroke="hsl(var(--muted))" stroke-width="1.3" stroke-dasharray="4 3"/>' +
+      bars + labels + '</svg>';
+  }
+
+  function tilesCategoria(cat) {
+    var a5 = avg5(cat), pct = Math.round(cat.total / TOTAL_DESPESAS * 100);
+    return '<div class="stats">' +
+      '<div class="stat"><div class="k">Média histórica (5 meses)</div><div class="v num">' + brl(a5) + '</div><div class="s">antes deste mês</div></div>' +
+      '<div class="stat"><div class="k">Maior lançamento do mês</div><div class="v num">' + brl(cat.maior.valor) + '</div><div class="s">' + cat.maior.desc + '</div></div>' +
+      '<div class="stat"><div class="k">% do total do mês</div><div class="v num">' + pct + '<small>%</small></div><div class="s">de tudo que saiu em julho</div></div>' +
+      '</div>';
+  }
+
+  function overview() {
+    cardEsq.innerHTML = '<h2 class="sec">Para onde foi o dinheiro <span class="hint">clique numa categoria p/ ver 6 meses →</span></h2>' + barsHtml();
+    cardDir.innerHTML = '<h2 class="sec">Raio-X do mês</h2>' + raioXHtml();
+    var tile = document.getElementById('tileAtrasados');
+    if (tile) tile.addEventListener('click', function () { setFiltro({ type: 'status', value: 'atrasado', label: 'Atrasados' }); });
+  }
+  function drill(cat) {
+    cardEsq.innerHTML = '<h2 class="sec"><span class="secleft"><button class="back" aria-label="Voltar">←</button> ' + cat.nome + '</span><span class="hint">6 meses · sua média em tracejado</span></h2>' +
+      '<div class="chart">' + svgColunas(cat) + '</div>' +
+      '<div class="legend"><span class="lg"><i class="solid" style="background:hsl(' + cat.cor + ')"></i>Gasto do mês</span><span class="lg"><i></i>Sua média (5m)</span></div>';
+    cardDir.innerHTML = '<h2 class="sec">' + cat.nome + ' <span class="hint">raio-x da categoria</span></h2>' + tilesCategoria(cat);
+  }
+  function anim() { [cardEsq, cardDir].forEach(function (c) { c.classList.remove('anim'); void c.offsetWidth; c.classList.add('anim'); }); }
+  function bindGrid() {
+    cardEsq.querySelectorAll('.bar-click').forEach(function (b) { b.addEventListener('click', function () { go(b.dataset.id); }); });
+    var back = cardEsq.querySelector('.back'); if (back) back.addEventListener('click', function () { go(null); });
+  }
+  function go(id) { if (id) drill(categories.find(function (c) { return c.id === id; })); else overview(); anim(); bindGrid(); }
+
+  // ---------- Modal: Dar baixa ----------
+  var modalBaixa = document.getElementById('modalBaixa');
+  var mbTitle = document.getElementById('mbTitle');
+  var mbDesc = document.getElementById('mbDesc');
+  var mbConfirmar = document.getElementById('mbConfirmar');
+  var mbRowId = null, mbAcctSel = null;
+
+  function abrirBaixa(rowId) {
+    var r = rows.find(function (x) { return x.id === rowId; });
+    mbRowId = rowId; mbAcctSel = null;
+    mbTitle.textContent = r.desc;
+    mbDesc.textContent = brl(r.valor) + (r.status === 'atrasado' ? ' · atrasado há ' + r.diasAtraso + ' dias.' : ' · vence em ' + fmtData(r.data) + '.') +
+      ' Confirme por qual conta isso ' + (r.tipo === 'entrada' ? 'entrou' : 'saiu') + '.';
+    document.querySelectorAll('#mbAccts .acct-opt').forEach(function (b) { b.classList.remove('sel'); });
+    mbConfirmar.disabled = true;
+    modalBaixa.classList.add('open');
+  }
+  function fecharBaixa() { modalBaixa.classList.remove('open'); }
+  document.querySelectorAll('#mbAccts .acct-opt').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.querySelectorAll('#mbAccts .acct-opt').forEach(function (x) { x.classList.remove('sel'); });
+      b.classList.add('sel'); mbAcctSel = b.dataset.acc; mbConfirmar.disabled = false;
+    });
+  });
+  mbConfirmar.addEventListener('click', function () {
+    var r = rows.find(function (x) { return x.id === mbRowId; });
+    r.status = 'pago'; r.conta = mbAcctSel; r.origem = 'Baixa manual'; delete r.diasAtraso;
+    fecharBaixa(); renderTabela();
+    var destino = mbAcctSel === 'Caixa da loja' ? 'Fluxo de Caixa' : 'Bancário';
+    toast('✓ Baixado em ' + mbAcctSel + ' — já aparece em ' + destino + '.');
+  });
+  document.getElementById('mbCancel').addEventListener('click', fecharBaixa);
+  document.getElementById('mbClose').addEventListener('click', fecharBaixa);
+  modalBaixa.addEventListener('click', function (e) { if (e.target === modalBaixa) fecharBaixa(); });
+
+  // ---------- Modal: Lançamento rápido ----------
+  var modalLancar = document.getElementById('modalLancar');
+  var mlTipo = document.getElementById('mlTipo');
+  var mlCategoria = document.getElementById('mlCategoria');
+  var mlDesc = document.getElementById('mlDesc');
+  var mlValor = document.getElementById('mlValor');
+  var mlVencimento = document.getElementById('mlVencimento');
+  var mlRecorrente = document.getElementById('mlRecorrente');
+  var lancTipoAtual = 'entrada';
+  var CATS_ENTRADA = ['Serviços', 'Produtos', 'Outra receita'];
+  var CATS_SAIDA = ['Folha', 'Fornecedores', 'Aluguel', 'Impostos', 'Software', 'Marketing', 'Outra despesa'];
+
+  function popularCategorias() {
+    var opts = lancTipoAtual === 'entrada' ? CATS_ENTRADA : CATS_SAIDA;
+    mlCategoria.innerHTML = opts.map(function (o) { return '<option>' + o + '</option>'; }).join('');
+  }
+  mlTipo.querySelectorAll('button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      mlTipo.querySelectorAll('button').forEach(function (x) { x.classList.remove('active'); });
+      b.classList.add('active'); lancTipoAtual = b.dataset.tipo; popularCategorias();
+    });
+  });
+  document.getElementById('mlAnexo').addEventListener('click', function (e) {
+    e.target.textContent = '📎 Nota anexada ✓';
+  });
+  function abrirLancar() {
+    lancTipoAtual = 'entrada';
+    mlTipo.querySelectorAll('button').forEach(function (x) { x.classList.remove('active'); });
+    mlTipo.querySelector('[data-tipo="entrada"]').classList.add('active');
+    popularCategorias();
+    mlDesc.value = ''; mlValor.value = ''; mlVencimento.value = TODAY; mlRecorrente.checked = false;
+    document.getElementById('mlAnexo').textContent = '📎 Anexar nota/foto';
+    modalLancar.classList.add('open');
+    setTimeout(function () { mlDesc.focus(); }, 30);
+  }
+  function fecharLancar() { modalLancar.classList.remove('open'); }
+  document.getElementById('fabLancar').addEventListener('click', abrirLancar);
+  document.getElementById('mlCancel').addEventListener('click', fecharLancar);
+  document.getElementById('mlClose').addEventListener('click', fecharLancar);
+  modalLancar.addEventListener('click', function (e) { if (e.target === modalLancar) fecharLancar(); });
+  document.getElementById('mlSalvar').addEventListener('click', function () {
+    if (!mlDesc.value.trim() || !mlValor.value || Number(mlValor.value) <= 0 || !mlVencimento.value) {
+      toast('Preencha descrição, valor e vencimento.'); return;
+    }
+    var catMap = { 'Serviços': 'servicos', 'Produtos': 'servicos', 'Outra receita': 'servicos', 'Folha': 'folha', 'Fornecedores': 'fornecedores', 'Aluguel': 'aluguel', 'Impostos': 'impostos', 'Software': 'software', 'Marketing': 'marketing', 'Outra despesa': 'marketing' };
+    var novo = {
+      id: 'r' + (nextRowN++), data: mlVencimento.value, desc: mlDesc.value.trim(),
+      sub: mlRecorrente.checked ? 'lançamento recorrente' : null,
+      cat: catMap[mlCategoria.value] || 'servicos', tipo: lancTipoAtual, status: 'previsto', valor: Number(mlValor.value)
+    };
+    insertSorted(novo);
+    fecharLancar(); renderTabela();
+    toast('Lançamento criado ✓ — apareceu na linha do tempo.');
+  });
+
+  // ---------- Modal: Detalhe (read-only) ----------
+  var modalDetalhe = document.getElementById('modalDetalhe');
+  function abrirDetalhe(rowId) {
+    var r = rows.find(function (x) { return x.id === rowId; });
+    document.getElementById('mdTitle').textContent = r.desc;
+    document.getElementById('mdSub').textContent = fmtData(r.data) + ' · ' + (r.tipo === 'entrada' ? '+' : '−') + brl(r.valor);
+    document.getElementById('mdReveal').innerHTML =
+      '<div class="row"><span>Categoria</span><b>' + CAT_LABEL[r.cat] + '</b></div>' +
+      '<div class="row"><span>Conta</span><b>' + r.conta + '</b></div>' +
+      '<div class="row"><span>Origem</span><b>' + (r.origem || '—') + '</b></div>' +
+      '<div class="row"><span>Conciliação</span><span class="chip pago">✓ Conciliado</span></div>';
+    modalDetalhe.classList.add('open');
+  }
+  function fecharDetalhe() { modalDetalhe.classList.remove('open'); }
+  document.getElementById('mdOk').addEventListener('click', fecharDetalhe);
+  document.getElementById('mdClose').addEventListener('click', fecharDetalhe);
+  modalDetalhe.addEventListener('click', function (e) { if (e.target === modalDetalhe) fecharDetalhe(); });
+
+  // ---------- Segmented Tudo / A receber / A pagar ----------
+  document.getElementById('segFiltro').querySelectorAll('button').forEach(function (b) {
+    b.addEventListener('click', function () {
+      document.getElementById('segFiltro').querySelectorAll('button').forEach(function (x) { x.classList.remove('active'); });
+      b.classList.add('active'); segFiltro = b.dataset.seg; renderTabela();
+    });
+  });
+
+  // ---------- Consultor CTA ----------
+  document.getElementById('ctaVerFornecedores').addEventListener('click', function () {
+    setFiltro({ type: 'categoria', value: 'fornecedores', label: 'Fornecedores' });
+  });
+
+  // ---------- Toast ----------
+  function toast(msg) {
+    var wrap = document.getElementById('toastWrap');
+    var el = document.createElement('div');
+    el.className = 'toast'; el.textContent = msg;
+    wrap.appendChild(el);
+    setTimeout(function () { el.remove(); }, 3200);
+  }
+
+  // Escape fecha qualquer modal aberto
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape') return;
+    [modalBaixa, modalLancar, modalDetalhe].forEach(function (m) { m.classList.remove('open'); });
+  });
+
+  // ---------- Boot ----------
+  go(null);
+  renderFilterBar();
+  renderTabela();
+})();
+</script>

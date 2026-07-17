@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Microsoft.AspNetCore.TestHost" Version="10.0.0" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+  <!-- Demais tipos ASP.NET Core (IEndpointRouteBuilder, HttpContext, ...) vêm do shared
+       framework, mesma decisão de FrameworkReference do próprio SistemaX.Modules.Abstractions —
+       ver o comentário lá: funciona em projeto de biblioteca comum sem exigir Sdk.Web. -->
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Modules\Abstractions\SistemaX.Modules.Abstractions\SistemaX.Modules.Abstractions.csproj" />
+    <ProjectReference Include="..\..\src\SharedKernel\SistemaX.SharedKernel\SistemaX.SharedKernel.csproj" />
+
+    <ProjectReference Include="..\..\src\Modules\Estoque\SistemaX.Modules.Estoque.Domain\SistemaX.Modules.Estoque.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Estoque\SistemaX.Modules.Estoque.Application\SistemaX.Modules.Estoque.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Estoque\SistemaX.Modules.Estoque.Infrastructure\SistemaX.Modules.Estoque.Infrastructure.csproj" />
+
+    <ProjectReference Include="..\..\src\Modules\Vendas\SistemaX.Modules.Vendas.Domain\SistemaX.Modules.Vendas.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Vendas\SistemaX.Modules.Vendas.Application\SistemaX.Modules.Vendas.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Vendas\SistemaX.Modules.Vendas.Infrastructure\SistemaX.Modules.Vendas.Infrastructure.csproj" />
+
+    <ProjectReference Include="..\..\src\Modules\Financeiro\SistemaX.Modules.Financeiro.Domain\SistemaX.Modules.Financeiro.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Financeiro\SistemaX.Modules.Financeiro.Application\SistemaX.Modules.Financeiro.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Financeiro\SistemaX.Modules.Financeiro.Infrastructure\SistemaX.Modules.Financeiro.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

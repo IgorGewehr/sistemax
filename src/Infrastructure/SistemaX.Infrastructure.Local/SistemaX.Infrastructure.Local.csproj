@@ -1,0 +1,27 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\SharedKernel\SistemaX.SharedKernel\SistemaX.SharedKernel.csproj" />
+    <!-- F0 do plano de inteligência do Financeiro (docs/financeiro/inteligencia-arquitetura.md,
+         ADR-0005): o ledger append-only e o motor de projeções implementam os ports
+         IIntegrationEventLedgerStore/IProjection declarados em Modules.Abstractions/Runtime — a
+         mesma direção de dependência (Infra conhece o kernel, nunca o inverso) já usada por todo
+         módulo de negócio que implementa IIntegrationEventHandler<T>. -->
+    <ProjectReference Include="..\..\Modules\Abstractions\SistemaX.Modules.Abstractions\SistemaX.Modules.Abstractions.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="10.0.10" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.10" />
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="10.0.10" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.10" />
+    <PackageReference Include="Microsoft.Extensions.Options" Version="10.0.10" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+</Project>

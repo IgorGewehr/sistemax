@@ -1,0 +1,1212 @@
+<title>Compras — SistemaX</title>
+<style>
+  :root {
+    /* Neutros/marca herdados do saas-erp — mesma identidade de financeiro-assinaturas.html/estoque.html */
+    --bg: 210 40% 98%;
+    --surface: 0 0% 100%;
+    --surface-2: 210 40% 96.5%;
+    --fg: 222 47% 11%;
+    --muted: 215 16% 47%;
+    --faint: 215 20% 65%;
+    --border: 214 32% 90%;
+    --primary: 0 72% 51%;
+    --primary-soft: 0 72% 96%;
+    --pos: 152 58% 40%;
+    --pos-soft: 152 55% 94%;
+    --warn: 32 90% 44%;
+    --warn-soft: 38 92% 94%;
+    --crit: 349 78% 48%;
+    --crit-soft: 349 80% 96%;
+    --info: 217 80% 52%;
+    --info-soft: 217 70% 95%;
+    --ring: 0 72% 51%;
+    --shadow: 220 40% 20%;
+    --mono: "SF Mono", ui-monospace, "JetBrains Mono", "Cascadia Code", Menlo, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  }
+  /* Tema CLARO é o padrão do produto — dark só via toggle explícito. */
+  :root[data-theme="light"] {
+    --bg: 210 40% 98%; --surface: 0 0% 100%; --surface-2: 210 40% 96.5%;
+    --fg: 222 47% 11%; --muted: 215 16% 47%; --faint: 215 20% 65%; --border: 214 32% 90%;
+    --primary: 0 72% 51%; --primary-soft: 0 72% 96%; --pos: 152 58% 40%; --pos-soft: 152 55% 94%;
+    --warn: 32 90% 44%; --warn-soft: 38 92% 94%; --crit: 349 78% 48%; --crit-soft: 349 80% 96%;
+    --info: 217 80% 52%; --info-soft: 217 70% 95%; --shadow: 220 40% 20%;
+  }
+  :root[data-theme="dark"] {
+    --bg: 222 47% 5%; --surface: 220 40% 7.5%; --surface-2: 218 34% 11%;
+    --fg: 210 40% 96%; --muted: 215 20% 60%; --faint: 215 18% 42%; --border: 215 25% 16%;
+    --primary: 0 72% 58%; --primary-soft: 0 45% 13%; --pos: 152 55% 50%; --pos-soft: 152 40% 12%;
+    --warn: 38 92% 55%; --warn-soft: 36 45% 13%; --crit: 350 85% 62%; --crit-soft: 349 45% 14%;
+    --info: 213 90% 68%; --info-soft: 217 45% 14%; --shadow: 222 60% 2%;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: 222 47% 5%; --surface: 220 40% 7.5%; --surface-2: 218 34% 11%;
+      --fg: 210 40% 96%; --muted: 215 20% 60%; --faint: 215 18% 42%; --border: 215 25% 16%;
+      --primary: 0 72% 58%; --primary-soft: 0 45% 13%; --pos: 152 55% 50%; --pos-soft: 152 40% 12%;
+      --warn: 38 92% 55%; --warn-soft: 36 45% 13%; --crit: 350 85% 62%; --crit-soft: 349 45% 14%;
+      --info: 213 90% 68%; --info-soft: 217 45% 14%; --shadow: 222 60% 2%;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: hsl(var(--bg)); color: hsl(var(--fg));
+    font-family: var(--sans); -webkit-font-smoothing: antialiased;
+    font-size: 14px; line-height: 1.5;
+  }
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .eyebrow { text-transform: uppercase; letter-spacing: 0.08em; font-size: 11px; font-weight: 600; color: hsl(var(--muted)); }
+
+  /* ---- App shell ---- */
+  .app { display: grid; grid-template-columns: 60px 1fr; min-height: 100vh; }
+  .rail { background: hsl(var(--surface)); border-right: 1px solid hsl(var(--border));
+    display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 0; }
+  .rail .logo { width: 34px; height: 34px; border-radius: 10px; margin-bottom: 10px;
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(0 72% 40%));
+    display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 15px;
+    box-shadow: 0 4px 14px hsl(var(--primary) / 0.4); }
+  .rail button { width: 40px; height: 40px; border-radius: 11px; border: 0; background: transparent;
+    color: hsl(var(--faint)); cursor: pointer; display: grid; place-items: center; transition: .15s; }
+  .rail button svg { width: 20px; height: 20px; }
+  .rail button:hover { background: hsl(var(--surface-2)); color: hsl(var(--fg)); }
+  .rail button.active { background: hsl(var(--primary-soft)); color: hsl(var(--primary)); }
+  .rail .spacer { flex: 1; }
+
+  .main { min-width: 0; }
+  .wrap { max-width: 1240px; margin: 0 auto; padding: 26px 32px 60px; }
+
+  /* ---- Header ---- */
+  header.page { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 18px; flex-wrap: wrap; }
+  header.page h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; margin: 4px 0 2px; text-wrap: balance; }
+  header.page .sub { color: hsl(var(--muted)); font-size: 13.5px; max-width: 64ch; }
+  .head-actions { display: flex; align-items: center; gap: 10px; }
+  .period { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border: 1px solid hsl(var(--border));
+    border-radius: 10px; background: hsl(var(--surface)); font-weight: 600; font-size: 13px; white-space: nowrap; }
+  .btn-primary { display: inline-flex; align-items: center; gap: 7px; padding: 9px 15px; border-radius: 10px; border: 0;
+    background: hsl(var(--primary)); color: #fff; font-weight: 600; font-size: 13.5px; cursor: pointer;
+    box-shadow: 0 4px 14px hsl(var(--primary) / 0.35); transition: transform .12s, filter .12s; white-space: nowrap; }
+  .btn-primary:hover { filter: brightness(1.06); transform: translateY(-1px); }
+  .btn-primary:disabled { opacity: .45; cursor: not-allowed; transform: none; box-shadow: none; }
+  .btn-ghost { padding: 8px 11px; border-radius: 10px; border: 1px solid hsl(var(--border)); background: hsl(var(--surface));
+    color: hsl(var(--fg)); cursor: pointer; font-size: 13px; display: inline-flex; gap: 6px; align-items: center; white-space: nowrap; }
+  .btn-ghost:hover { background: hsl(var(--surface-2)); }
+  .btn-mini { padding: 5px 10px; border-radius: 8px; border: 1px solid hsl(var(--border)); background: hsl(var(--surface));
+    color: hsl(var(--fg)); cursor: pointer; font-size: 12px; font-weight: 600; }
+  .btn-mini:hover { background: hsl(var(--surface-2)); }
+  .btn-mini.primary { border-color: hsl(var(--pos)); color: hsl(var(--pos)); background: hsl(var(--pos-soft)); }
+  .btn-mini.primary:hover { background: hsl(var(--pos-soft)); filter: brightness(0.97); }
+  .btn-mini.crit { border-color: hsl(var(--crit)); color: hsl(var(--crit)); background: hsl(var(--crit-soft)); }
+
+  /* ---- Cards ---- */
+  .card { background: hsl(var(--surface)); border: 1px solid hsl(var(--border)); border-radius: 16px;
+    box-shadow: 0 1px 2px hsl(var(--shadow) / 0.06), 0 8px 24px -18px hsl(var(--shadow) / 0.5); }
+
+  /* KPI row */
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 16px; }
+  .kpi { padding: 16px 18px; position: relative; overflow: hidden; text-align: left; border: 1px solid hsl(var(--border)); }
+  .kpi.clickable { cursor: pointer; transition: border-color .12s, transform .12s; }
+  .kpi.clickable:hover { border-color: hsl(var(--primary) / .45); transform: translateY(-1px); }
+  .kpi.clickable.active { border-color: hsl(var(--primary)); background: hsl(var(--primary-soft)); }
+  .kpi .lbl { display: flex; align-items: center; gap: 6px; }
+  .kpi .val { font-size: 25px; font-weight: 700; margin-top: 10px; letter-spacing: -0.02em; }
+  .kpi .val small { font-size: 14px; font-weight: 600; color: hsl(var(--muted)); }
+  .kpi .delta { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; font-weight: 600; margin-top: 7px; }
+  .kpi .delta.up { color: hsl(var(--pos)); }
+  .kpi .delta.down { color: hsl(var(--crit)); }
+  .kpi .delta.warn { color: hsl(var(--warn)); }
+  .kpi .foot { font-size: 12px; color: hsl(var(--muted)); margin-top: 3px; }
+  .kpi.hero::after { content: ""; position: absolute; inset: 0; background: radial-gradient(120% 90% at 100% 0, hsl(var(--primary) / 0.10), transparent 60%); pointer-events: none; }
+  .spark { margin-top: 10px; height: 30px; width: 100%; display: block; }
+
+  /* Consultor */
+  .consultor { display: flex; gap: 14px; padding: 16px 18px; margin-bottom: 16px; align-items: flex-start;
+    background: linear-gradient(hsl(var(--surface)), hsl(var(--surface))) padding-box,
+      linear-gradient(120deg, hsl(var(--primary) / 0.5), hsl(var(--border) / 0.2)) border-box;
+    border: 1px solid transparent; border-radius: 16px; }
+  .consultor .icon { flex: none; width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center;
+    background: hsl(var(--primary-soft)); color: hsl(var(--primary)); }
+  .consultor .icon svg { width: 20px; height: 20px; }
+  .consultor h3 { margin: 1px 0 5px; font-size: 13px; letter-spacing: -0.01em; }
+  .consultor p { margin: 0; font-size: 13.5px; line-height: 1.6; color: hsl(var(--fg)); }
+  .consultor b { color: hsl(var(--primary)); font-weight: 700; }
+  .consultor .bad { color: hsl(var(--crit)); font-weight: 700; }
+  .consultor .good { color: hsl(var(--pos)); font-weight: 700; }
+
+  /* 2-col drill */
+  .grid2 { display: grid; grid-template-columns: 1.15fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .card h2.sec { font-size: 13px; font-weight: 700; letter-spacing: -0.01em; padding: 15px 18px 0; margin: 0; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .card h2.sec .hint { font-weight: 500; font-size: 12px; color: hsl(var(--muted)); }
+  #cardEsq, #cardDir { min-height: 250px; }
+  .bars { padding: 12px 12px 16px; display: flex; flex-direction: column; gap: 2px; }
+  .bar-click { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; width: 100%;
+    border: 0; background: none; font: inherit; color: inherit; cursor: pointer; text-align: left; padding: 9px 10px; border-radius: 11px; transition: background .12s; }
+  .bar-click:hover { background: hsl(var(--surface-2)); }
+  .bar-click:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+  .bar-click .name { font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 8px; }
+  .bar-click .amt { font-size: 12.5px; color: hsl(var(--muted)); }
+  .track { grid-column: 1 / -1; height: 8px; border-radius: 6px; background: hsl(var(--surface-2)); overflow: hidden; }
+  .fill { height: 100%; border-radius: 6px; }
+  .bar-click .pct { font-weight: 700; font-size: 12.5px; }
+  .dot { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+  .secleft { display: inline-flex; align-items: center; gap: 8px; }
+  .back { border: 0; background: hsl(var(--surface-2)); color: hsl(var(--fg)); width: 26px; height: 26px; border-radius: 8px;
+    cursor: pointer; font-size: 15px; line-height: 1; display: inline-grid; place-items: center; transition: .12s; flex: none; }
+  .back:hover { background: hsl(var(--primary-soft)); color: hsl(var(--primary)); }
+  .card.anim > * { animation: cardin .22s ease both; }
+  @keyframes cardin { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .card.anim > * { animation: none; } }
+
+  .chart { padding: 10px 18px 6px; }
+  .chart svg { width: 100%; height: auto; display: block; }
+  .chart .zero { stroke: hsl(var(--border)); stroke-width: 1; }
+  .chart .mlabel { fill: hsl(var(--muted)); font-size: 9px; font-family: var(--sans); }
+  .chart .alabel { fill: hsl(var(--muted)); font-size: 9.5px; font-family: var(--mono); font-weight: 600; }
+  .chart rect { transition: opacity .12s; }
+  .chart rect:hover { opacity: .78; }
+  .legend { display: flex; gap: 16px; padding: 0 18px 14px; font-size: 12px; color: hsl(var(--muted)); flex-wrap: wrap; }
+  .legend .lg { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+  .stats { padding: 14px 18px 18px; display: flex; flex-direction: column; gap: 11px; }
+  .stat { padding: 12px 14px; border-radius: 12px; background: hsl(var(--surface-2)); }
+  .stat .k { font-size: 12px; color: hsl(var(--muted)); font-weight: 600; }
+  .stat .v { font-size: 22px; font-weight: 700; margin-top: 4px; letter-spacing: -0.02em; }
+  .stat .v small { font-size: 13px; font-weight: 600; color: hsl(var(--muted)); }
+  .stat .v.warn { color: hsl(var(--warn)); }
+  .stat .v.crit { color: hsl(var(--crit)); }
+  .stat .s { font-size: 12px; color: hsl(var(--faint)); margin-top: 2px; }
+  .stat-link { display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; font-size: 12.5px; font-weight: 700;
+    color: hsl(var(--primary)); background: none; border: 0; cursor: pointer; padding: 0; }
+  .stat-link:hover { text-decoration: underline; }
+
+  /* Segmented + filtros */
+  .subhead { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
+  .seg { display: inline-flex; background: hsl(var(--surface-2)); border: 1px solid hsl(var(--border)); border-radius: 11px; padding: 3px; gap: 2px; }
+  .seg button { padding: 7px 13px; border: 0; background: none; border-radius: 8px; font-size: 13px; font-weight: 600; color: hsl(var(--muted)); cursor: pointer; }
+  .seg button.active { background: hsl(var(--surface)); color: hsl(var(--fg)); box-shadow: 0 1px 3px hsl(var(--shadow) / 0.2); }
+  .filtros { display: flex; gap: 9px; align-items: center; }
+  .search-box { display: flex; align-items: center; gap: 7px; padding: 8px 12px; border: 1px solid hsl(var(--border));
+    border-radius: 10px; background: hsl(var(--surface)); min-width: 190px; }
+  .search-box svg { color: hsl(var(--faint)); flex: none; }
+  .search-box input { border: 0; outline: 0; background: none; font: inherit; color: hsl(var(--fg)); width: 100%; }
+  .search-box input::placeholder { color: hsl(var(--faint)); }
+  select.mini { padding: 8px 10px; border: 1px solid hsl(var(--border)); border-radius: 10px; background: hsl(var(--surface));
+    color: hsl(var(--fg)); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+
+  /* Table */
+  .tbl-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; min-width: 640px; }
+  thead th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: hsl(var(--muted));
+    font-weight: 600; padding: 12px 16px; border-bottom: 1px solid hsl(var(--border)); white-space: nowrap; }
+  thead th.r, tbody td.r { text-align: right; }
+  tbody td { padding: 12px 16px; border-bottom: 1px solid hsl(var(--border) / 0.6); font-size: 13.5px; vertical-align: middle; }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr.clickable { cursor: pointer; }
+  tbody tr.clickable:hover { background: hsl(var(--surface-2) / 0.6); }
+  .name-main { font-weight: 600; }
+  .name-sub { color: hsl(var(--muted)); font-size: 12px; }
+  .val-mono { font-weight: 600; }
+  .chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+  .chip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+  .chip.recebida { color: hsl(var(--pos)); background: hsl(var(--pos-soft)); }
+  .chip.conferir { color: hsl(var(--info)); background: hsl(var(--info-soft)); }
+  .chip.divergente { color: hsl(var(--warn)); background: hsl(var(--warn-soft)); }
+  .chip.estornada, .chip.faint { color: hsl(var(--faint)); background: hsl(var(--surface-2)); }
+  .chip.ativo { color: hsl(var(--pos)); background: hsl(var(--pos-soft)); }
+  .chip.bloqueado, .chip.crit { color: hsl(var(--crit)); background: hsl(var(--crit-soft)); }
+  .foot-note { padding: 11px 18px 15px; font-size: 12px; color: hsl(var(--muted)); border-top: 1px solid hsl(var(--border) / 0.7); }
+
+  .theme-toggle { position: fixed; top: 14px; right: 16px; z-index: 10; }
+
+  /* ================= CONFERÊNCIA (entrada de nota) ================= */
+  .conf-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 16px; flex-wrap: wrap; }
+  .conf-head .titles { display: flex; flex-direction: column; gap: 2px; }
+  .conf-head .titles .t1 { font-size: 12px; color: hsl(var(--muted)); font-weight: 600; }
+  .conf-head .titles h1 { font-size: 20px; font-weight: 700; margin: 0; letter-spacing: -0.01em; }
+  .conf-head .chave { font-family: var(--mono); font-size: 11px; color: hsl(var(--faint)); letter-spacing: 0.02em; }
+  .conf-grid { display: grid; grid-template-columns: 1.55fr 1fr; gap: 16px; align-items: start; }
+  .conf-left, .conf-right { display: flex; flex-direction: column; gap: 14px; }
+  .itens-head { display: flex; align-items: center; justify-content: space-between; padding: 15px 18px 0; }
+  .itens-head .cnt { font-size: 13px; font-weight: 700; }
+  .itens-head .legenda { font-size: 12px; color: hsl(var(--muted)); display: flex; gap: 10px; flex-wrap: wrap; }
+  .itens-head .legenda span { display: inline-flex; align-items: center; gap: 4px; }
+
+  .item-row { padding: 11px 18px; border-bottom: 1px solid hsl(var(--border) / 0.6); }
+  .item-row:last-child { border-bottom: 0; }
+  .item-row.ignorado { opacity: .55; }
+  .item-top { display: flex; align-items: flex-start; gap: 10px; }
+  .mdot { width: 9px; height: 9px; border-radius: 50%; flex: none; margin-top: 6px; }
+  .mdot.auto { background: hsl(var(--pos)); }
+  .mdot.sugerido { background: hsl(var(--warn)); }
+  .mdot.semmatch { background: hsl(var(--crit)); }
+  .mdot.ignorado { background: hsl(var(--faint)); }
+  .item-info { flex: 1; min-width: 0; }
+  .item-nome { font-weight: 600; font-size: 13.5px; }
+  .item-nome .tag { font-weight: 600; font-size: 10.5px; padding: 2px 7px; border-radius: 999px; margin-left: 7px; text-transform: uppercase; letter-spacing: .03em; }
+  .tag.auto { background: hsl(var(--pos-soft)); color: hsl(var(--pos)); }
+  .tag.sugerido { background: hsl(var(--warn-soft)); color: hsl(var(--warn)); }
+  .tag.semmatch { background: hsl(var(--crit-soft)); color: hsl(var(--crit)); }
+  .tag.ignorado { background: hsl(var(--surface-2)); color: hsl(var(--faint)); }
+  .item-nf { font-size: 12px; color: hsl(var(--muted)); margin-top: 2px; }
+  .item-custo { display: flex; align-items: baseline; gap: 8px; margin-top: 3px; font-size: 12.5px; }
+  .item-custo .v { font-weight: 700; }
+  .delta { font-weight: 700; font-size: 12px; }
+  .delta.up-bad { color: hsl(var(--warn)); }
+  .delta.up-crit { color: hsl(var(--crit)); }
+  .delta.down-good { color: hsl(var(--pos)); }
+  .delta.flat { color: hsl(var(--faint)); }
+  .delta.novo { color: hsl(var(--info)); font-weight: 600; }
+  .item-actions { margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  .item-sugestao { font-size: 12.5px; background: hsl(var(--warn-soft)); color: hsl(var(--fg)); padding: 8px 10px; border-radius: 10px; margin-top: 8px; }
+  .item-sugestao b { color: hsl(var(--warn)); }
+  .item-fator { font-size: 12px; color: hsl(var(--muted)); margin-top: 6px; }
+  .item-fator input { width: 62px; padding: 3px 6px; border: 1px solid hsl(var(--border)); border-radius: 6px; font: inherit; font-size: 12px; }
+  .colapsados-toggle { padding: 10px 18px 14px; }
+
+  .breakdown { padding: 14px 18px 6px; display: flex; flex-direction: column; gap: 8px; }
+  .bd-row { display: flex; justify-content: space-between; font-size: 13px; }
+  .bd-row.sub { color: hsl(var(--muted)); }
+  .bd-row.total { font-weight: 700; font-size: 14.5px; border-top: 1px solid hsl(var(--border)); padding-top: 9px; margin-top: 3px; }
+  .bd-check { font-size: 12px; color: hsl(var(--pos)); display: flex; align-items: center; gap: 5px; padding: 8px 0 12px; }
+  .bd-rateio { font-size: 12px; color: hsl(var(--muted)); padding: 0 18px 14px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid hsl(var(--border) / 0.7); padding-top: 10px; }
+
+  .parcela-row { display: flex; justify-content: space-between; align-items: center; padding: 9px 18px; border-bottom: 1px solid hsl(var(--border) / 0.6); font-size: 13px; }
+  .parcela-row:last-of-type { border-bottom: 0; }
+  .parcela-row .n { color: hsl(var(--muted)); }
+  .parcela-check { display: flex; align-items: center; gap: 8px; padding: 12px 18px 14px; font-size: 12.5px; color: hsl(var(--muted)); border-top: 1px solid hsl(var(--border) / 0.7); margin-top: 4px; }
+  .parcela-foot { font-size: 12px; color: hsl(var(--muted)); padding: 0 18px 14px; }
+
+  .footer-bar { position: sticky; bottom: 0; margin-top: 4px; background: hsl(var(--surface)); border: 1px solid hsl(var(--border));
+    border-radius: 16px; padding: 13px 18px; display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
+    box-shadow: 0 -6px 22px -14px hsl(var(--shadow) / 0.5); }
+  .footer-bar .efeito { font-size: 12.5px; color: hsl(var(--muted)); }
+  .footer-bar .efeito b { color: hsl(var(--fg)); font-weight: 700; }
+  .footer-actions { display: flex; gap: 10px; align-items: center; }
+  .aviso-bloqueio { font-size: 12px; color: hsl(var(--warn)); font-weight: 600; }
+
+  .banner-readonly { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-radius: 12px; margin-bottom: 14px; font-size: 13px; }
+  .banner-readonly.pos { background: hsl(var(--pos-soft)); color: hsl(155 40% 22%); }
+  .banner-readonly.faint { background: hsl(var(--surface-2)); color: hsl(var(--muted)); }
+  .banner-readonly.warn { background: hsl(var(--warn-soft)); color: hsl(28 60% 26%); margin-top: 8px; }
+
+  /* Three-way match (pedido × nota × físico) */
+  .tw-wrap { padding: 4px 18px 16px; }
+  .tw-row { padding: 13px 0; border-bottom: 1px solid hsl(var(--border) / 0.6); }
+  .tw-row:last-child { border-bottom: 0; }
+  .tw-nome { font-weight: 700; font-size: 13.5px; margin-bottom: 6px; }
+  .tw-cols { display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 10px; align-items: center; font-size: 13px; }
+  .tw-col .k { font-size: 10.5px; text-transform: uppercase; letter-spacing: .05em; color: hsl(var(--muted)); font-weight: 700; margin-bottom: 2px; }
+  .tw-col .v { font-weight: 600; }
+  .tw-col .v.miss { color: hsl(var(--faint)); }
+  .tw-col input.fis { width: 72px; padding: 5px 7px; border: 1px solid hsl(var(--border)); border-radius: 7px; font: inherit; font-size: 13px; }
+  .tw-delta { font-weight: 700; text-align: right; }
+  .tw-ok { color: hsl(var(--pos)); font-size: 16px; }
+  .tw-bad { color: hsl(var(--crit)); font-size: 16px; }
+  .divergencia { margin-top: 9px; padding: 10px 12px; border-radius: 11px; font-size: 12.5px; }
+  .divergencia.w { background: hsl(var(--warn-soft)); border: 1px solid hsl(var(--warn) / 0.25); }
+  .divergencia.c { background: hsl(var(--crit-soft)); border: 1px solid hsl(var(--crit) / 0.25); }
+  .divergencia .msg { font-weight: 700; margin-bottom: 7px; }
+  .divergencia.w .msg { color: hsl(var(--warn)); }
+  .divergencia.c .msg { color: hsl(var(--crit)); }
+  .radios { display: flex; gap: 14px; flex-wrap: wrap; }
+  .radios label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-weight: 500; }
+  .radios input { accent-color: hsl(var(--primary)); }
+  .tw-status-foot { padding: 12px 18px; border-top: 1px solid hsl(var(--border)); font-size: 13px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+  .tw-status-foot .pend { color: hsl(var(--warn)); font-weight: 700; }
+  .tw-status-foot .resolved { color: hsl(var(--pos)); font-weight: 700; }
+
+  /* ================= FORNECEDOR (drill) ================= */
+  .forn-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+  .forn-head .titulo { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
+  .forn-head .meta { color: hsl(var(--muted)); font-size: 13px; margin-top: 3px; }
+  .forn-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 16px; }
+  .forn-stats .stat-card { padding: 14px 16px; }
+  .forn-stats .stat-card .k { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; font-weight: 700; color: hsl(var(--muted)); }
+  .forn-stats .stat-card .v { font-size: 21px; font-weight: 700; margin-top: 8px; }
+  .forn-stats .stat-card .v.warn { color: hsl(var(--warn)); }
+  .forn-stats .stat-card .s { font-size: 12px; color: hsl(var(--faint)); margin-top: 4px; }
+  .depara-row { display: grid; grid-template-columns: 1.2fr 1fr 1fr auto; gap: 10px; align-items: center; padding: 11px 18px; border-bottom: 1px solid hsl(var(--border) / 0.6); font-size: 13px; }
+  .depara-row:last-child { border-bottom: 0; }
+  .depara-row .cprod { font-family: var(--mono); font-size: 12px; color: hsl(var(--muted)); }
+  .depara-row .fator { font-family: var(--mono); font-size: 12.5px; }
+  .depara-row .origem { font-size: 11.5px; color: hsl(var(--faint)); text-align: right; }
+
+  @media (max-width: 1040px) {
+    .conf-grid { grid-template-columns: 1fr; }
+    .tw-cols { grid-template-columns: 1fr 1fr; }
+  }
+  @media (max-width: 980px) {
+    .kpis { grid-template-columns: repeat(2, 1fr); }
+    .grid2 { grid-template-columns: 1fr; }
+    .forn-stats { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 860px) {
+    .app { grid-template-columns: 0 1fr; }
+    .rail { display: none; }
+    .wrap { padding: 22px 18px 50px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<button class="btn-ghost theme-toggle" onclick="(function(){var r=document.documentElement;var d=(r.getAttribute('data-theme')|| (matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'))==='dark';r.setAttribute('data-theme',d?'light':'dark');})()">◐ tema</button>
+
+<div class="app">
+  <nav class="rail" aria-label="Navegação">
+    <div class="logo">S</div>
+    <button title="Início"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10.5 12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1z"/></svg></button>
+    <button title="Financeiro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg></button>
+    <button title="Vendas / PDV"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2 3h3l2.4 12.5a1 1 0 0 0 1 .8h9.2a1 1 0 0 0 1-.8L21 7H6"/></svg></button>
+    <button title="Estoque"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/></svg></button>
+    <button class="active" title="Compras"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7h18l-1.6 12.3a2 2 0 0 1-2 1.7H6.6a2 2 0 0 1-2-1.7L3 7z"/><path d="M8 7V5.5a4 4 0 0 1 8 0V7"/></svg></button>
+    <button title="Clientes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M17 5.5a3 3 0 0 1 0 5.6M22 20a6 6 0 0 0-4-5.7"/></svg></button>
+    <div class="spacer"></div>
+    <button title="Ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 2h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12a7 7 0 0 0 .1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 22h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6A7 7 0 0 0 19 12z"/></svg></button>
+  </nav>
+
+  <main class="main">
+    <div class="wrap">
+      <section id="view-home" class="view"></section>
+      <section id="view-conferencia" class="view" style="display:none"></section>
+      <section id="view-fornecedor" class="view" style="display:none"></section>
+    </div>
+  </main>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ────────────────────────────────────────────────────────────────────────
+  // DADOS MOCK — plano §3/§9. Tudo que a UI mostra é DERIVADO destes arrays
+  // (deltas, % de participação, stat tiles) — nenhum número solto duas vezes.
+  // ────────────────────────────────────────────────────────────────────────
+
+  const fornecedores = [
+    { id: "f1", nome: "Pescados Sul LTDA", cnpj: "04.312.887/0001-90", status: "ativo",
+      comprado90d: 21320.10, leadTimeReal: 6.2, leadTimePrometido: 5, divergNotas: 1, divergTotal: 6, comprado12m: 84200.00 },
+    { id: "f2", nome: "Distribuidora Alimentos SA", cnpj: "12.887.004.312/0001-55", status: "ativo",
+      comprado90d: 14900.00, leadTimeReal: 4.5, leadTimePrometido: 4, divergNotas: 2, divergTotal: 5, comprado12m: 61300.00 },
+    { id: "f3", nome: "Embalagens Center", cnpj: "22.140.887/0001-08", status: "ativo",
+      comprado90d: 7010.00, leadTimeReal: 3.1, leadTimePrometido: 3, divergNotas: 0, divergTotal: 4, comprado12m: 26800.00 },
+    { id: "f4", nome: "Frigorífico Oeste", cnpj: "31.905.220/0001-71", status: "bloqueado",
+      comprado90d: 1512.00, leadTimeReal: 8.0, leadTimePrometido: 5, divergNotas: 1, divergTotal: 2, comprado12m: 9100.00 },
+    { id: "f5", nome: "Limpa Tudo Distribuidora", cnpj: "09.221.774/0001-30", status: "ativo",
+      comprado90d: 2100.00, leadTimeReal: 5.0, leadTimePrometido: 5, divergNotas: 0, divergTotal: 3, comprado12m: 8400.00 },
+    { id: "f6", nome: "Hortifruti Vale Verde", cnpj: null, status: "ativo",
+      comprado90d: 1388.00, leadTimeReal: 2.0, leadTimePrometido: 2, divergNotas: 0, divergTotal: 5, comprado12m: 6200.00 },
+  ];
+  const fornById = (id) => fornecedores.find((f) => f.id === id);
+
+  // De-paras aprendidos (VinculoProdutoFornecedor) — a peça central do plano §5/§6.
+  const vinculos = [
+    { fornecedorId: "f1", cprod: "FIL-TIL", produto: "Filé de tilápia congelado 1kg", unidadeNf: "CX", fator: "1 CX = 12,000 kg", notaOrigem: "8712/1", data: "03/07/2026" },
+    { fornecedorId: "f1", cprod: "CAM-VG", produto: "Camarão VG 200g", unidadeNf: "UN", fator: "1 UN = 1,000 un", notaOrigem: "8712/1", data: "03/07/2026" },
+    { fornecedorId: "f1", cprod: "CAM-GG", produto: "Camarão GG 300g", unidadeNf: "UN", fator: "1 UN = 1,000 un", notaOrigem: "8712/1", data: "03/07/2026" },
+    { fornecedorId: "f1", cprod: "POS-MER", produto: "Posta de merluza 1kg", unidadeNf: "CX", fator: "1 CX = 10,000 kg", notaOrigem: "8712/1", data: "03/07/2026" },
+    { fornecedorId: "f2", cprod: "ARZ-5", produto: "Arroz agulhinha 5kg", unidadeNf: "UN", fator: "1 UN = 5,000 kg", notaOrigem: "8790/1", data: "10/07/2026" },
+    { fornecedorId: "f2", cprod: "FEJ-1", produto: "Feijão preto 1kg", unidadeNf: "UN", fator: "1 UN = 1,000 kg", notaOrigem: "8790/1", data: "10/07/2026" },
+    { fornecedorId: "f3", cprod: "EMB-PL1", produto: "Embalagem plástica 1kg", unidadeNf: "PCT", fator: "1 PCT = 100,000 un", notaOrigem: "1204/2", data: "08/07/2026" },
+  ];
+
+  // Itens (linhas de nota) — deltaPct é o Δ vs a compra anterior do mesmo produto×fornecedor
+  // (null = 1ª compra deste de-para, sem histórico ainda).
+  const notas = [
+    {
+      id: "n1", numero: "8841/1", fornecedorId: "f1", emissao: "12/07/2026", status: "conferir",
+      total: 3034.58, chave: "4226 0704 3128 8700 0190 5500 1000 0088 4110 0884 1170", pedidoId: null,
+      vProd: 2714.58, vFrete: 240.00, vSeguro: 0, vOutro: 0, vDesconto: 20.00, vSt: 52.00, vIpi: 48.00,
+      parcelas: [
+        { n: 1, venc: "15/08/2026", valor: 1517.29 },
+        { n: 2, venc: "15/09/2026", valor: 1517.29 },
+      ],
+      itens: [
+        { nItem: 1, nome: "Filé de tilápia cong. 1kg", cprod: "FIL-TIL", match: "auto", nf: "25 CX × R$ 96,00 → 300,000 kg", custoUnit: 8.42, unidade: "kg", deltaPct: 14.0 },
+        { nItem: 2, nome: "Camarão VG 200g", cprod: "CAM-VG", match: "auto", nf: "40 UN × R$ 18,90 → 40,000 un", custoUnit: 19.60, unidade: "un", deltaPct: 0 },
+        { nItem: 3, nome: "LULA ANEL IQF CX10", cprod: "LUL-CX10", match: "sugerido", nf: "8 CX × R$ 42,00 → 80,000 kg", custoUnit: 4.36, unidade: "kg", deltaPct: null,
+          sugestao: "Lula em anéis 1kg (NCM 0307.99 + descrição parecida)", fatorSugerido: "1 CX = 10,000 kg" },
+        { nItem: 4, nome: "TEMPERO MARINADO 5KG", cprod: "TEMP-MAR5", match: "semmatch", nf: "6 UN × R$ 20,00 → —", custoUnit: null, unidade: "un", deltaPct: null },
+        { nItem: 5, nome: "Posta de merluza 1kg", cprod: "POS-MER", match: "auto", nf: "10 CX × R$ 89,00 → 100,000 kg", custoUnit: 9.79, unidade: "kg", deltaPct: -1.2 },
+        { nItem: 6, nome: "Camarão GG 300g", cprod: "CAM-GG", match: "auto", nf: "30 UN × R$ 24,50 → 30,000 un", custoUnit: 26.09, unidade: "un", deltaPct: 6.5 },
+        { nItem: 7, nome: "Salmão postas 1kg", cprod: "SAL-POS", match: "auto", nf: "8 CX × R$ 210,00 → 80,000 kg", custoUnit: 22.68, unidade: "kg", deltaPct: 1.0 },
+        { nItem: 8, nome: "Filé de pescada 1kg", cprod: "FIL-PES", match: "auto", nf: "15 CX × R$ 68,00 → 150,000 kg", custoUnit: 7.31, unidade: "kg", deltaPct: -0.5 },
+        { nItem: 9, nome: "Polvo limpo 1kg", cprod: "POL-LMP", match: "auto", nf: "5 CX × R$ 145,00 → 50,000 kg", custoUnit: 15.61, unidade: "kg", deltaPct: 2.1 },
+        { nItem: 10, nome: "Bacalhau dessalgado 1kg", cprod: "BAC-DES", match: "auto", nf: "4 CX × R$ 98,00 → 40,000 kg", custoUnit: 10.53, unidade: "kg", deltaPct: 0 },
+        { nItem: 11, nome: "Atum lombo 1kg", cprod: "ATU-LMB", match: "auto", nf: "6 CX × R$ 78,00 → 60,000 kg", custoUnit: 8.39, unidade: "kg", deltaPct: 3.0 },
+        { nItem: 12, nome: "Anchova filé 1kg", cprod: "ANC-FIL", match: "auto", nf: "3 CX × R$ 52,00 → 30,000 kg", custoUnit: 5.59, unidade: "kg", deltaPct: -0.8 },
+      ],
+    },
+    {
+      id: "n2", numero: "8790/1", fornecedorId: "f2", emissao: "10/07/2026", status: "divergente",
+      total: 1912.00, chave: "4226 0704 1288 7004 3120 5500 2000 0087 9010 0879 0117", pedidoId: "PC-0042",
+      pedido: { numero: "PC-0042", enviado: "02/07/2026", previsto: "09/07/2026" },
+      vProd: 1912.00, vFrete: 0, vSeguro: 0, vOutro: 0, vDesconto: 0, vSt: 0, vIpi: 0,
+      parcelas: [{ n: 1, venc: "10/08/2026", valor: 1912.00 }],
+      itens: [
+        { nItem: 1, nome: "Arroz agulhinha 5kg", cprod: "ARZ-5", unidade: "un",
+          pedidoQtd: 24, pedidoPreco: 22.00, notaQtd: 24, notaPreco: 24.10, fisicoQtd: 24, deltaPct: 9.5,
+          divergencia: { tipo: "PrecoMaior", severidade: "w", msg: "PREÇO MAIOR que o acordado — R$ 50,40 a mais na nota (+9,5%)",
+            opcoes: [["aceitar", "aceitar preço da nota"], ["abatimento", "pedir abatimento"], ["devolver", "devolver item"]] } },
+        { nItem: 2, nome: "Feijão preto 1kg", cprod: "FEJ-1", unidade: "un",
+          pedidoQtd: 60, pedidoPreco: 8.90, notaQtd: 48, notaPreco: 8.90, fisicoQtd: 48, deltaPct: 0,
+          divergencia: { tipo: "QtdMenor", severidade: "w", msg: "QTD MENOR que o pedido — saldo de 12 un continua em aberto (recebimento parcial)",
+            opcoes: [["manter", "ok, manter pedido aberto"]] } },
+        { nItem: 3, nome: "Óleo de soja 900ml", cprod: "OLEO-900", unidade: "un",
+          pedidoQtd: 36, pedidoPreco: 7.40, notaQtd: 36, notaPreco: 7.40, fisicoQtd: 30, deltaPct: 0,
+          divergencia: { tipo: "Avaria", severidade: "c", msg: "FALTA FÍSICA — nota diz 36, contagem achou 30 (−6 un)",
+            opcoes: [["receber30", "receber 30 e registrar falta"], ["devolvernota", "devolver nota"]] } },
+        { nItem: 4, nome: "Farinha de trigo 5kg", cprod: "FAR-5", unidade: "un",
+          pedidoQtd: 12, pedidoPreco: 18.00, notaQtd: null, notaPreco: null, fisicoQtd: null, deltaPct: -2.0,
+          divergencia: { tipo: "ItemFaltante", severidade: "c", msg: "ITEM PEDIDO AUSENTE da nota — não veio nesta entrega",
+            opcoes: [["manterpedido", "manter pedido aberto (parcial)"], ["cancelarsaldo", "cancelar saldo deste item"]] } },
+        { nItem: 5, nome: "Açúcar cristal 5kg", cprod: "ACU-5", unidade: "un",
+          pedidoQtd: 10, pedidoPreco: 24.00, notaQtd: 10, notaPreco: 24.00, fisicoQtd: 10, deltaPct: 0 },
+        { nItem: 6, nome: "Sal refinado 1kg", cprod: "SAL-1", unidade: "un",
+          pedidoQtd: 20, pedidoPreco: 3.20, notaQtd: 20, notaPreco: 3.20, fisicoQtd: 20, deltaPct: 0 },
+        { nItem: 7, nome: "Café torrado 500g", cprod: "CAF-500", unidade: "un",
+          pedidoQtd: 8, pedidoPreco: 14.50, notaQtd: 8, notaPreco: 14.50, fisicoQtd: 8, deltaPct: 0 },
+        { nItem: 8, nome: "Leite em pó 400g", cprod: "LEI-400", unidade: "un",
+          pedidoQtd: 15, pedidoPreco: 12.80, notaQtd: 15, notaPreco: 12.80, fisicoQtd: 15, deltaPct: 0 },
+      ],
+    },
+    {
+      id: "n3", numero: "1204/2", fornecedorId: "f3", emissao: "08/07/2026", status: "recebida",
+      total: 740.10, recebidaEm: "09/07/2026", recebidaPor: "Ana", jaPago: false, itensCount: 5,
+      itens: [
+        { nItem: 1, nome: "Embalagem plástica 1kg", cprod: "EMB-PL1", match: "auto", nf: "5 PCT × R$ 132,00 → 500,000 un", custoUnit: 1.34, unidade: "un", deltaPct: 3.0 },
+      ],
+    },
+    {
+      id: "n4", numero: "8712/1", fornecedorId: "f1", emissao: "03/07/2026", status: "recebida",
+      total: 2899.32, recebidaEm: "04/07/2026", recebidaPor: "Igor", jaPago: true, itensCount: 14,
+      itens: [
+        { nItem: 1, nome: "Filé de tilápia cong. 1kg", cprod: "FIL-TIL", match: "auto", nf: "22 CX × R$ 90,00 → 264,000 kg", custoUnit: 7.39, unidade: "kg", deltaPct: null },
+        { nItem: 2, nome: "Camarão GG 300g", cprod: "CAM-GG", match: "auto", nf: "28 UN × R$ 23,00 → 28,000 un", custoUnit: 24.49, unidade: "un", deltaPct: null },
+      ],
+    },
+    {
+      id: "n5", numero: "0089/1", fornecedorId: "f4", emissao: "01/07/2026", status: "estornada",
+      total: 512.00, estornadaEm: "05/07/2026", estornadaPor: "Igor", motivoEstorno: "Nota lançada em duplicidade (mesma chave já recebida em outra loja).", itensCount: 3,
+      itens: [],
+    },
+  ];
+  const notaById = (id) => notas.find((n) => n.id === id);
+
+  const pedidos = [
+    { id: "p1", numero: "PC-0042", fornecedorId: "f2", status: "parcial", enviado: "02/07/2026", previsto: "09/07/2026", total: 1544.40, itens: 4, notaId: "n2" },
+    { id: "p2", numero: "PC-0043", fornecedorId: "f1", status: "enviado", enviado: "14/07/2026", previsto: "19/07/2026", total: 3100.00, itens: 6, notaId: null },
+    { id: "p3", numero: "PC-0041", fornecedorId: "f3", status: "recebido", enviado: "28/06/2026", previsto: "05/07/2026", total: 740.10, itens: 5, notaId: "n3" },
+    { id: "p4", numero: "PC-0044", fornecedorId: "f3", status: "rascunho", enviado: null, previsto: null, total: 0, itens: 0, notaId: null },
+  ];
+
+  const custoPorCategoria = {
+    meses: ["Mai", "Jun", "Jul"],
+    categorias: [
+      { nome: "Insumos", cor: "var(--primary)", valores: [18200, 19800, 21320] },
+      { nome: "Embalagens", cor: "var(--fg) / 0.5", valores: [6200, 6500, 7010] },
+      { nome: "Limpeza", cor: "var(--fg) / 0.3", valores: [2600, 2800, 3000] },
+    ],
+  };
+
+  // ────────────────────────────────────────────────────────────────────────
+  // HELPERS
+  // ────────────────────────────────────────────────────────────────────────
+
+  const brl = (v) => "R$ " + (Math.round(v * 100) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const pct1 = (v) => v.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+  const esc = (s) => (s == null ? "" : String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])));
+
+  const MATCH_INFO = {
+    auto: { label: "auto", classe: "auto" },
+    sugerido: { label: "sugerido", classe: "sugerido" },
+    semmatch: { label: "sem match", classe: "semmatch" },
+    ignorado: { label: "ignorado", classe: "ignorado" },
+  };
+  const NOTA_STATUS_INFO = {
+    conferir: { label: "a conferir", classe: "conferir" },
+    divergente: { label: "divergente", classe: "divergente" },
+    recebida: { label: "recebida", classe: "recebida" },
+    estornada: { label: "estornada", classe: "estornada" },
+  };
+  const PEDIDO_STATUS_INFO = {
+    rascunho: { label: "Rascunho", classe: "faint" },
+    enviado: { label: "Enviado", classe: "conferir" },
+    parcial: { label: "Parcialmente recebido", classe: "divergente" },
+    recebido: { label: "Recebido", classe: "recebida" },
+    cancelado: { label: "Cancelado", classe: "faint" },
+  };
+
+  function deltaBadge(pct) {
+    if (pct === null || pct === undefined) return '<span class="delta novo">1ª compra</span>';
+    if (pct === 0) return '<span class="delta flat">▬ estável</span>';
+    if (pct > 0) {
+      const cls = pct >= 12 ? "up-crit" : "up-bad";
+      return '<span class="delta ' + cls + '">▲ +' + pct1(pct) + '% vs últ.</span>';
+    }
+    return '<span class="delta down-good">▼ ' + pct1(pct) + '% vs últ.</span>';
+  }
+
+  function todosOsItensDeNotas() {
+    const flat = [];
+    notas.forEach((n) => (n.itens || []).forEach((it) => {
+      if (it.deltaPct !== null && it.deltaPct !== undefined && it.deltaPct !== 0) {
+        flat.push({ nota: n, item: it, fornecedor: fornById(n.fornecedorId).nome });
+      }
+    }));
+    return flat.sort((a, b) => Math.abs(b.item.deltaPct) - Math.abs(a.item.deltaPct));
+  }
+
+  function sparkline(arr, cor) {
+    const w = 240, h = 34, n = arr.length;
+    const max = Math.max(...arr), min = Math.min(...arr);
+    const span = Math.max(1, max - min);
+    const pts = arr.map((v, i) => [i * (w / (n - 1)), h - 4 - ((v - min) / span) * (h - 10)]);
+    const d = "M" + pts.map((p) => p[0].toFixed(1) + "," + p[1].toFixed(1)).join(" L");
+    const area = d + " L" + w + "," + h + " L0," + h + " Z";
+    return '<svg class="spark" viewBox="0 0 ' + w + " " + h + '" preserveAspectRatio="none" aria-hidden="true">' +
+      '<defs><linearGradient id="gspk" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="hsl(' + cor + ')" stop-opacity="0.28"/><stop offset="1" stop-color="hsl(' + cor + ')" stop-opacity="0"/></linearGradient></defs>' +
+      '<path d="' + area + '" fill="url(#gspk)"/><path d="' + d + '" fill="none" stroke="hsl(' + cor + ')" stroke-width="2" stroke-linecap="round"/>' +
+      '<circle cx="' + pts[n - 1][0].toFixed(1) + '" cy="' + pts[n - 1][1].toFixed(1) + '" r="3" fill="hsl(' + cor + ')"/></svg>';
+  }
+
+  function groupedBarsSvg() {
+    const w = 340, h = 148, x0 = 16, x1 = w - 10, zeroY = h - 22, top = 14;
+    const meses = custoPorCategoria.meses, cats = custoPorCategoria.categorias;
+    const maxV = Math.max(...cats.flatMap((c) => c.valores));
+    const slot = (x1 - x0) / meses.length;
+    const bw = Math.min(16, slot / (cats.length + 1.4));
+    let r = "";
+    meses.forEach((m, mi) => {
+      const groupX = x0 + slot * mi + slot / 2;
+      cats.forEach((c, ci) => {
+        const v = c.valores[mi];
+        const hgt = (v / maxV) * (zeroY - top);
+        const cx = groupX + (ci - (cats.length - 1) / 2) * (bw + 3);
+        r += '<rect x="' + (cx - bw / 2).toFixed(1) + '" y="' + (zeroY - hgt).toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + hgt.toFixed(1) + '" rx="2.5" fill="hsl(' + c.cor + ')"><title>' + c.nome + " · " + m + " · " + brl(v) + "</title></rect>";
+      });
+      r += '<text class="mlabel" x="' + groupX.toFixed(1) + '" y="' + (h - 5) + '" text-anchor="middle">' + m + "</text>";
+    });
+    return '<svg viewBox="0 0 ' + w + " " + h + '" role="img" aria-label="Custo por categoria, mês a mês"><line class="zero" x1="' + x0 + '" y1="' + zeroY + '" x2="' + x1 + '" y2="' + zeroY + '"/>' + r + "</svg>";
+  }
+
+  function lineChartSvg(series) {
+    // series: [{ nome, cor, pontos:[{x,label,y}] }]
+    const w = 340, h = 150, x0 = 30, x1 = w - 12, top = 14, bottom = h - 24;
+    const allY = series.flatMap((s) => s.pontos.map((p) => p.y));
+    const maxY = Math.max(...allY) * 1.12, minY = Math.min(...allY) * 0.9;
+    const n = series[0].pontos.length;
+    const slot = (x1 - x0) / (n - 1);
+    const yFor = (v) => bottom - ((v - minY) / (maxY - minY)) * (bottom - top);
+    let out = "";
+    series.forEach((s) => {
+      const pts = s.pontos.map((p, i) => [x0 + slot * i, yFor(p.y)]);
+      const d = "M" + pts.map((p) => p[0].toFixed(1) + "," + p[1].toFixed(1)).join(" L");
+      out += '<path d="' + d + '" fill="none" stroke="hsl(' + s.cor + ')" stroke-width="2" stroke-linecap="round"/>';
+      pts.forEach((p, i) => {
+        out += '<circle cx="' + p[0].toFixed(1) + '" cy="' + p[1].toFixed(1) + '" r="3" fill="hsl(' + s.cor + ')"><title>' + s.nome + " · " + s.pontos[i].label + " · " + brl(s.pontos[i].y) + "</title></circle>";
+      });
+    });
+    series[0].pontos.forEach((p, i) => {
+      out += '<text class="mlabel" x="' + (x0 + slot * i).toFixed(1) + '" y="' + (h - 6) + '" text-anchor="middle">' + p.label + "</text>";
+    });
+    return '<svg viewBox="0 0 ' + w + " " + h + '" role="img" aria-label="Histórico de custo unitário">' + out + "</svg>";
+  }
+
+  // ────────────────────────────────────────────────────────────────────────
+  // ESTADO
+  // ────────────────────────────────────────────────────────────────────────
+
+  let segmentoAtivo = "notas"; // notas | pedidos | fornecedores
+  let filtroStatusNota = "todas";
+  let buscaTexto = "";
+  let fornecedorDrillBar = null; // id do fornecedor selecionado no card direito (home)
+  let variacaoAberta = false;    // painel de drill do KPI "Variação de custo"
+  let notaAtualId = null;        // conferência em foco
+  const itemState = {};          // por notaId: { [nItem]: { match, produtoId, fatorTxt, resolucao } } — mutações locais do mock
+
+  function estadoItens(notaId) {
+    if (!itemState[notaId]) itemState[notaId] = {};
+    return itemState[notaId];
+  }
+
+  function irParaHome() {
+    notaAtualId = null;
+    document.getElementById("view-conferencia").style.display = "none";
+    document.getElementById("view-fornecedor").style.display = "none";
+    document.getElementById("view-home").style.display = "";
+    renderHome();
+  }
+  function irParaConferencia(notaId) {
+    notaAtualId = notaId;
+    document.getElementById("view-home").style.display = "none";
+    document.getElementById("view-fornecedor").style.display = "none";
+    document.getElementById("view-conferencia").style.display = "";
+    renderConferencia();
+  }
+  function irParaFornecedor(fornecedorId) {
+    document.getElementById("view-home").style.display = "none";
+    document.getElementById("view-conferencia").style.display = "none";
+    document.getElementById("view-fornecedor").style.display = "";
+    renderFornecedor(fornecedorId);
+  }
+
+  // ────────────────────────────────────────────────────────────────────────
+  // HOME
+  // ────────────────────────────────────────────────────────────────────────
+
+  function renderHome() {
+    const el = document.getElementById("view-home");
+
+    const compradoMes = fornecedores.reduce((acc, f) => acc + f.comprado90d, 0);
+    const pedidosAbertos = pedidos.filter((p) => p.status === "enviado" || p.status === "parcial");
+    const pedidosAbertoTotal = pedidosAbertos.reduce((acc, p) => acc + p.total, 0);
+    const notasConferir = notas.filter((n) => n.status === "conferir" || n.status === "divergente");
+    const notasComDivergencia = notas.filter((n) => n.status === "divergente").length;
+    const variacao = todosOsItensDeNotas();
+    const subiram = variacao.filter((v) => v.item.deltaPct > 0).length;
+    const cairam = variacao.filter((v) => v.item.deltaPct < 0).length;
+
+    el.innerHTML =
+      '<header class="page">' +
+        '<div><div class="eyebrow">Compras · Suprimentos</div><h1>Compras</h1>' +
+        '<div class="sub">O que você compra, de quem, e o que isso faz com o seu custo.</div></div>' +
+        '<div class="head-actions">' +
+          '<div class="period">Julho 2026 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></div>' +
+          '<button class="btn-ghost" id="btnNovoPedido"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 11l3 3 8-8M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg> Pedido de compra</button>' +
+          '<button class="btn-primary" id="btnImportarXml"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg> Importar XML</button>' +
+        "</div>" +
+      "</header>" +
+
+      '<section class="kpis">' +
+        '<div class="card kpi hero">' +
+          '<div class="lbl eyebrow">Comprado no mês</div>' +
+          '<div class="val num">' + brl(compradoMes) + "</div>" +
+          '<div class="delta up"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 17 17 7M7 7h10v10"/></svg> +8% vs jun</div>' +
+          sparkline([36200, 39500, 41800, 40200, 44900, compradoMes], "var(--primary)") +
+        "</div>" +
+        '<div class="card kpi">' +
+          '<div class="lbl eyebrow">Pedidos em aberto</div>' +
+          '<div class="val num">' + brl(pedidosAbertoTotal) + "</div>" +
+          '<div class="delta">' + pedidosAbertos.length + " pedido" + (pedidosAbertos.length === 1 ? "" : "s") + "</div>" +
+          '<div class="foot">previsão em até 5 dias</div>' +
+        "</div>" +
+        '<div class="card kpi clickable' + (filtroStatusNota === "conferir_kpi" ? " active" : "") + '" id="kpiConferir">' +
+          '<div class="lbl eyebrow">Notas a conferir</div>' +
+          '<div class="val num">' + notasConferir.length + "</div>" +
+          '<div class="delta warn">' + notasComDivergencia + " com divergência</div>" +
+          '<div class="foot">→ conferir</div>' +
+        "</div>" +
+        '<div class="card kpi clickable' + (variacaoAberta ? " active" : "") + '" id="kpiVariacao">' +
+          '<div class="lbl eyebrow">Variação de custo</div>' +
+          '<div class="val num">▲ +2,4%</div>' +
+          '<div class="delta">' + subiram + " itens subiram, " + cairam + " caiu</div>" +
+          '<div class="foot">itens recomprados · → ver itens</div>' +
+        "</div>" +
+      "</section>" +
+
+      (variacaoAberta ? renderPainelVariacao(variacao) : "") +
+
+      '<div class="consultor">' +
+        '<div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 0 0-4 12.7V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.3A7 7 0 0 0 12 2z"/><path d="M9 21h6"/></svg></div>' +
+        '<div><h3>Super Consultor</h3><p><b>Filé de tilápia</b> subiu <span class="bad">14%</span> nas últimas 3 notas da Pescados Sul — impacto estimado de <span class="bad">R$ 182/mês</span> na margem. A Peixaria Norte cotou <span class="good">R$ 2,10/kg abaixo</span> em maio — vale uma cotação nova.</p></div>' +
+      "</div>" +
+
+      '<section class="grid2"><div class="card" id="cardEsq"></div><div class="card" id="cardDir"></div></section>' +
+
+      '<div class="card">' +
+        '<div class="subhead" style="padding:15px 18px 0">' +
+          '<div class="seg" id="segTabela">' +
+            '<button data-seg="notas" class="' + (segmentoAtivo === "notas" ? "active" : "") + '">Notas de entrada</button>' +
+            '<button data-seg="pedidos" class="' + (segmentoAtivo === "pedidos" ? "active" : "") + '">Pedidos</button>' +
+            '<button data-seg="fornecedores" class="' + (segmentoAtivo === "fornecedores" ? "active" : "") + '">Fornecedores</button>' +
+          "</div>" +
+          '<div class="filtros">' +
+            '<div class="search-box"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input id="fBusca" type="text" placeholder="buscar…" value="' + esc(buscaTexto) + '"/></div>' +
+            (segmentoAtivo === "notas" ?
+              '<select class="mini" id="fStatus">' +
+                ['todas:Todos os status', 'conferir:A conferir', 'divergente:Divergente', 'recebida:Recebida', 'estornada:Estornada']
+                  .map((o) => { const [v, l] = o.split(":"); return '<option value="' + v + '"' + (filtroStatusNota === v ? " selected" : "") + ">" + l + "</option>"; }).join("") +
+              "</select>" : "") +
+          "</div>" +
+        "</div>" +
+        '<div class="tbl-wrap" style="margin-top:12px" id="tabelaCompras"></div>' +
+      "</div>";
+
+    renderDrillFornecedores();
+    renderTabelaSegmento();
+    bindHome();
+  }
+
+  function renderPainelVariacao(variacao) {
+    const linhas = variacao.slice(0, 6).map((v) =>
+      '<tr><td><span class="name-main">' + esc(v.item.nome) + '</span><div class="name-sub">' + esc(v.fornecedor) + " · NF " + esc(v.nota.numero) + "</div></td>" +
+      '<td class="r num">' + brl(v.item.custoUnit || 0) + "</td>" +
+      '<td class="r">' + deltaBadge(v.item.deltaPct) + "</td></tr>"
+    ).join("");
+    return '<div class="card" style="margin-bottom:16px">' +
+      '<h2 class="sec">Itens com variação de custo <span class="hint">últimas notas · Δ vs compra anterior do mesmo item</span></h2>' +
+      '<div class="tbl-wrap"><table><thead><tr><th>Item</th><th class="r">Custo entrada</th><th class="r">Variação</th></tr></thead><tbody>' + linhas + "</tbody></table></div>" +
+    "</div>";
+  }
+
+  function renderDrillFornecedores() {
+    const total = fornecedores.reduce((acc, f) => acc + f.comprado90d, 0);
+    const ordenados = [...fornecedores].sort((a, b) => b.comprado90d - a.comprado90d);
+    const top = ordenados.slice(0, 3);
+    const restoValor = ordenados.slice(3).reduce((acc, f) => acc + f.comprado90d, 0);
+    const cores = ["var(--primary)", "var(--fg) / 0.55", "var(--fg) / 0.35"];
+
+    function overview() {
+      const linhas = top.map((f, i) => {
+        const p = (f.comprado90d / total) * 100;
+        return '<button class="bar-click" data-id="' + f.id + '">' +
+          '<span class="name"><span class="dot" style="background:hsl(' + cores[i] + ')"></span>' + esc(f.nome) + "</span>" +
+          '<span class="amt num">' + brl(f.comprado90d) + "</span>" +
+          '<div class="track"><div class="fill" style="width:' + p.toFixed(1) + "%;background:hsl(" + cores[i] + ')"></div></div>' +
+          '<span class="pct num">' + pct1(p) + "%</span></button>";
+      }).join("");
+      const restoP = (restoValor / total) * 100;
+      const restoRow = ordenados.length > 3 ?
+        '<button class="bar-click" data-seg-alvo="fornecedores">' +
+          '<span class="name"><span class="dot" style="background:hsl(var(--fg) / 0.18)"></span>+ ' + (ordenados.length - 3) + " fornecedores</span>" +
+          '<span class="amt num">' + brl(restoValor) + "</span>" +
+          '<div class="track"><div class="fill" style="width:' + restoP.toFixed(1) + '%;background:hsl(var(--fg) / 0.18)"></div></div>' +
+          '<span class="pct num">' + pct1(restoP) + "%</span></button>" : "";
+      document.getElementById("cardEsq").innerHTML =
+        '<h2 class="sec">Compras por fornecedor <span class="hint">últimos 90 dias · clique p/ scorecard →</span></h2>' +
+        '<div class="bars">' + linhas + restoRow + "</div>";
+      document.getElementById("cardDir").innerHTML =
+        '<h2 class="sec">Custo por categoria <span class="hint">mês a mês</span></h2>' +
+        '<div class="chart">' + groupedBarsSvg() + "</div>" +
+        '<div class="legend">' + custoPorCategoria.categorias.map((c) => '<span class="lg"><i style="background:hsl(' + c.cor + ')"></i>' + c.nome + "</span>").join("") + "</div>";
+    }
+
+    function scorecard(fornecedorId) {
+      const f = fornById(fornecedorId);
+      const atraso = f.leadTimeReal - f.leadTimePrometido;
+      document.getElementById("cardDir").innerHTML =
+        '<h2 class="sec"><span class="secleft"><button class="back" id="backScorecard" aria-label="Voltar">←</button> ' + esc(f.nome) + "</span> <span class=\"hint\">scorecard</span></h2>" +
+        '<div class="stats">' +
+          '<div class="stat"><div class="k">Comprado · 12 meses</div><div class="v num">' + brl(f.comprado12m) + "</div></div>" +
+          '<div class="stat"><div class="k">Lead time real × prometido</div><div class="v num' + (atraso > 0 ? " warn" : "") + '">' + f.leadTimeReal.toFixed(1).replace(".", ",") + "d <small>vs " + f.leadTimePrometido + "d</small></div><div class=\"s\">" + (atraso > 0 ? "▲ " + atraso.toFixed(1).replace(".", ",") + " dias de atraso médio" : "dentro do prometido") + "</div></div>" +
+          '<div class="stat"><div class="k">Taxa de divergência</div><div class="v num' + (f.divergNotas > 0 ? " warn" : "") + '">' + f.divergNotas + " <small>de " + f.divergTotal + " notas</small></div></div>" +
+          '<button class="stat-link" id="verPerfil" data-id="' + f.id + '">Ver perfil completo do fornecedor →</button>' +
+        "</div>";
+      document.getElementById("backScorecard").addEventListener("click", () => { fornecedorDrillBar = null; anim(); go(); });
+      document.getElementById("verPerfil").addEventListener("click", () => irParaFornecedor(f.id));
+    }
+
+    function anim() { ["cardEsq", "cardDir"].forEach((id) => { const c = document.getElementById(id); c.classList.remove("anim"); void c.offsetWidth; c.classList.add("anim"); }); }
+    function go() {
+      overview();
+      if (fornecedorDrillBar) scorecard(fornecedorDrillBar);
+      document.querySelectorAll("#cardEsq .bar-click[data-id]").forEach((b) => b.addEventListener("click", () => { fornecedorDrillBar = b.dataset.id; anim(); go(); }));
+      document.querySelectorAll("#cardEsq .bar-click[data-seg-alvo]").forEach((b) => b.addEventListener("click", () => { segmentoAtivo = "fornecedores"; renderHome(); }));
+    }
+    go();
+  }
+
+  function renderTabelaSegmento() {
+    const el = document.getElementById("tabelaCompras");
+    const busca = buscaTexto.trim().toLowerCase();
+
+    if (segmentoAtivo === "notas") {
+      let lista = notas.filter((n) => {
+        const f = fornById(n.fornecedorId);
+        const matchBusca = !busca || n.numero.toLowerCase().includes(busca) || f.nome.toLowerCase().includes(busca);
+        const matchStatus = filtroStatusNota === "todas" || filtroStatusNota === "conferir_kpi" ? true : n.status === filtroStatusNota;
+        if (filtroStatusNota === "conferir_kpi") return matchBusca && (n.status === "conferir" || n.status === "divergente");
+        return matchBusca && matchStatus;
+      });
+      const linhas = lista.map((n) => {
+        const f = fornById(n.fornecedorId);
+        const st = NOTA_STATUS_INFO[n.status];
+        const itensCount = n.itensCount || n.itens.length;
+        return '<tr class="clickable" data-nota="' + n.id + '">' +
+          "<td><span class=\"name-main\">" + esc(n.numero) + "</span></td>" +
+          "<td>" + esc(f.nome) + "</td>" +
+          '<td class="num">' + esc(n.emissao) + "</td>" +
+          '<td class="num">' + itensCount + "</td>" +
+          '<td><span class="chip ' + st.classe + '">' + st.label + "</span></td>" +
+          '<td class="r num val-mono">' + brl(n.total) + "</td>" +
+        "</tr>";
+      }).join("");
+      el.innerHTML = '<table><thead><tr><th>NF-e</th><th>Fornecedor</th><th>Emissão</th><th>Itens</th><th>Status</th><th class="r">Total</th></tr></thead><tbody>' +
+        (linhas || '<tr><td colspan="6" style="text-align:center;color:hsl(var(--muted));padding:22px">Nenhuma nota encontrada.</td></tr>') + "</tbody></table>";
+      el.querySelectorAll("tr[data-nota]").forEach((tr) => tr.addEventListener("click", () => irParaConferencia(tr.dataset.nota)));
+    }
+
+    if (segmentoAtivo === "pedidos") {
+      let lista = pedidos.filter((p) => {
+        const f = fornById(p.fornecedorId);
+        return !busca || p.numero.toLowerCase().includes(busca) || f.nome.toLowerCase().includes(busca);
+      });
+      const linhas = lista.map((p) => {
+        const f = fornById(p.fornecedorId);
+        const st = PEDIDO_STATUS_INFO[p.status];
+        return '<tr class="' + (p.notaId ? "clickable" : "") + '" ' + (p.notaId ? 'data-nota="' + p.notaId + '"' : "") + ">" +
+          "<td><span class=\"name-main\">" + esc(p.numero) + "</span></td>" +
+          "<td>" + esc(f.nome) + "</td>" +
+          '<td class="num">' + (p.enviado || "—") + "</td>" +
+          '<td class="num">' + (p.previsto || "—") + "</td>" +
+          '<td class="num">' + p.itens + "</td>" +
+          '<td><span class="chip ' + st.classe + '">' + st.label + "</span></td>" +
+          '<td class="r num val-mono">' + brl(p.total) + "</td>" +
+        "</tr>";
+      }).join("");
+      el.innerHTML = '<table><thead><tr><th>Pedido</th><th>Fornecedor</th><th>Enviado</th><th>Previsto</th><th class="r">Itens</th><th>Status</th><th class="r">Total</th></tr></thead><tbody>' +
+        (linhas || '<tr><td colspan="7" style="text-align:center;color:hsl(var(--muted));padding:22px">Nenhum pedido encontrado.</td></tr>') + "</tbody></table>";
+      el.querySelectorAll("tr[data-nota]").forEach((tr) => tr.addEventListener("click", () => irParaConferencia(tr.dataset.nota)));
+    }
+
+    if (segmentoAtivo === "fornecedores") {
+      let lista = fornecedores.filter((f) => !busca || f.nome.toLowerCase().includes(busca));
+      const linhas = lista.map((f) => {
+        const atraso = f.leadTimeReal - f.leadTimePrometido;
+        return '<tr class="clickable" data-forn="' + f.id + '">' +
+          "<td><span class=\"name-main\">" + esc(f.nome) + "</span>" + (f.cnpj ? '<div class="name-sub">' + esc(f.cnpj) + "</div>" : "") + "</td>" +
+          '<td class="r num">' + brl(f.comprado12m) + "</td>" +
+          '<td class="num' + (atraso > 0 ? "" : "") + '">' + f.leadTimeReal.toFixed(1).replace(".", ",") + "d <span style=\"color:hsl(var(--muted))\">vs " + f.leadTimePrometido + "d</span></td>" +
+          '<td class="num">' + f.divergNotas + " de " + f.divergTotal + "</td>" +
+          '<td><span class="chip ' + f.status + '">' + (f.status === "ativo" ? "Ativo" : f.status === "bloqueado" ? "Bloqueado" : "Inativo") + "</span></td>" +
+        "</tr>";
+      }).join("");
+      el.innerHTML = '<table><thead><tr><th>Fornecedor</th><th class="r">Comprado 12m</th><th>Lead time real × prometido</th><th>Divergência</th><th>Status</th></tr></thead><tbody>' +
+        (linhas || '<tr><td colspan="5" style="text-align:center;color:hsl(var(--muted));padding:22px">Nenhum fornecedor encontrado.</td></tr>') + "</tbody></table>";
+      el.querySelectorAll("tr[data-forn]").forEach((tr) => tr.addEventListener("click", () => irParaFornecedor(tr.dataset.forn)));
+    }
+  }
+
+  function bindHome() {
+    document.getElementById("kpiConferir").addEventListener("click", () => {
+      filtroStatusNota = filtroStatusNota === "conferir_kpi" ? "todas" : "conferir_kpi";
+      segmentoAtivo = "notas";
+      renderHome();
+    });
+    document.getElementById("kpiVariacao").addEventListener("click", () => { variacaoAberta = !variacaoAberta; renderHome(); });
+    document.getElementById("segTabela").addEventListener("click", (e) => {
+      const b = e.target.closest("button[data-seg]");
+      if (!b) return;
+      segmentoAtivo = b.dataset.seg;
+      buscaTexto = "";
+      renderTabelaSegmentoWrap();
+    });
+    document.getElementById("fBusca").addEventListener("input", (e) => { buscaTexto = e.target.value; renderTabelaSegmento(); });
+    const fStatus = document.getElementById("fStatus");
+    if (fStatus) fStatus.addEventListener("change", (e) => { filtroStatusNota = e.target.value; renderTabelaSegmento(); });
+    document.getElementById("btnImportarXml").addEventListener("click", onImportarXml);
+    document.getElementById("btnNovoPedido").addEventListener("click", () => { segmentoAtivo = "pedidos"; renderHome(); });
+  }
+
+  function renderTabelaSegmentoWrap() {
+    // re-render só o cabeçalho do segmented + tabela, sem perder o scroll dos KPIs
+    const seg = document.getElementById("segTabela");
+    seg.querySelectorAll("button").forEach((b) => b.classList.toggle("active", b.dataset.seg === segmentoAtivo));
+    const filtros = seg.parentElement.querySelector(".filtros");
+    filtros.innerHTML =
+      '<div class="search-box"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input id="fBusca" type="text" placeholder="buscar…" value=""/></div>' +
+      (segmentoAtivo === "notas" ?
+        '<select class="mini" id="fStatus">' +
+          ['todas:Todos os status', 'conferir:A conferir', 'divergente:Divergente', 'recebida:Recebida', 'estornada:Estornada']
+            .map((o) => { const [v, l] = o.split(":"); return '<option value="' + v + '"' + (filtroStatusNota === v ? " selected" : "") + ">" + l + "</option>"; }).join("") +
+        "</select>" : "");
+    document.getElementById("fBusca").addEventListener("input", (e) => { buscaTexto = e.target.value; renderTabelaSegmento(); });
+    const fStatus = document.getElementById("fStatus");
+    if (fStatus) fStatus.addEventListener("change", (e) => { filtroStatusNota = e.target.value; renderTabelaSegmento(); });
+    renderTabelaSegmento();
+  }
+
+  function onImportarXml() {
+    const btn = document.getElementById("btnImportarXml");
+    const original = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = "Processando XML…";
+    setTimeout(() => {
+      // Pipeline §4: parse → classifica → dedupe → upsert fornecedor → match em cascata → Importada → EmConferencia.
+      // Nesta simulação a nota já existe no mock (n1) representando o resultado do passo 7.
+      irParaConferencia("n1");
+    }, 650);
+  }
+
+  // ────────────────────────────────────────────────────────────────────────
+  // CONFERÊNCIA — entrada de nota (Tela 9.3) e recebimento contra pedido (9.4)
+  // ────────────────────────────────────────────────────────────────────────
+
+  function itemEfetivo(nota, item) {
+    const st = estadoItens(nota.id)[item.nItem];
+    if (!st) return item;
+    return Object.assign({}, item, st);
+  }
+
+  function pendenciasStandard(nota) {
+    return nota.itens.filter((it0) => {
+      const it = itemEfetivo(nota, it0);
+      return it.match === "sugerido" || it.match === "semmatch";
+    });
+  }
+
+  function renderConferencia() {
+    const nota = notaById(notaAtualId);
+    const f = fornById(nota.fornecedorId);
+    const el = document.getElementById("view-conferencia");
+    const readonly = nota.status === "recebida" || nota.status === "estornada";
+    const threeWay = !!nota.pedidoId;
+
+    let banner = "";
+    if (nota.status === "recebida") {
+      banner = '<div class="banner-readonly pos"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6 9 17l-5-5"/></svg> Recebida em ' + esc(nota.recebidaEm) + " por <b>" + esc(nota.recebidaPor) + "</b> — estoque creditado e conta a pagar gerada." + (nota.jaPago ? " Paga no ato." : "") + "</div>";
+      if (nota.jaPago) banner += '<div class="banner-readonly warn">⚠ Esta compra já tem pagamento registrado — estornar vai gerar uma reversão financeira, não um cancelamento simples.</div>';
+    } else if (nota.status === "estornada") {
+      banner = '<div class="banner-readonly faint">↺ Estornada em ' + esc(nota.estornadaEm) + " por <b>" + esc(nota.estornadaPor) + "</b> — " + esc(nota.motivoEstorno) + "</div>";
+    }
+
+    el.innerHTML =
+      '<div class="conf-head">' +
+        '<div class="secleft"><button class="back" id="backHome" aria-label="Voltar para Compras">←</button>' +
+          '<div class="titles"><div class="t1">' + (threeWay ? "CONFERÊNCIA CONTRA PEDIDO" : "ENTRADA DE NOTA") + "</div>" +
+          "<h1>NF-e " + esc(nota.numero) + " · " + esc(f.nome) + (f.cnpj ? " · CNPJ " + esc(f.cnpj) : "") + "</h1></div></div>" +
+        (nota.chave ? '<div class="chave">chave ' + esc(nota.chave) + "</div>" : "") +
+      "</div>" +
+      banner +
+      (threeWay ? renderThreeWay(nota, f, readonly) : renderStandard(nota, f, readonly));
+
+    document.getElementById("backHome").addEventListener("click", irParaHome);
+    bindConferenciaAcoes(nota, threeWay);
+  }
+
+  function renderStandard(nota, f, readonly) {
+    const itensEfetivos = nota.itens.map((it) => itemEfetivo(nota, it));
+    const contagens = { auto: 0, sugerido: 0, semmatch: 0 };
+    itensEfetivos.forEach((it) => { if (contagens[it.match] !== undefined) contagens[it.match]++; });
+
+    const autoRows = itensEfetivos.filter((it) => it.match === "auto" || it.match === "ignorado");
+    const pendRows = itensEfetivos.filter((it) => it.match === "sugerido" || it.match === "semmatch");
+
+    function linhaAuto(it) {
+      const ignorado = it.match === "ignorado";
+      return '<div class="item-row' + (ignorado ? " ignorado" : "") + '">' +
+        '<div class="item-top"><span class="mdot ' + (ignorado ? "ignorado" : "auto") + '"></span>' +
+        '<div class="item-info">' +
+          '<div class="item-nome">' + esc(it.nome) + '<span class="tag ' + (ignorado ? "ignorado" : "auto") + '">' + (ignorado ? "ignorado" : "auto") + "</span></div>" +
+          '<div class="item-nf">NF: ' + esc(it.nf) + "</div>" +
+          (!ignorado ? '<div class="item-custo"><span class="v num">' + (it.custoUnit != null ? brl(it.custoUnit) + "/" + it.unidade : "—") + "</span>" + deltaBadge(it.deltaPct) + "</div>" : "") +
+        "</div></div></div>";
+    }
+
+    function linhaPendente(it0) {
+      const it = it0;
+      if (it.match === "sugerido") {
+        return '<div class="item-row">' +
+          '<div class="item-top"><span class="mdot sugerido"></span>' +
+          '<div class="item-info">' +
+            '<div class="item-nome">' + esc(it.nome) + '<span class="tag sugerido">sugerido</span></div>' +
+            '<div class="item-nf">NF: ' + esc(it.nf) + "</div>" +
+            (!readonly ? '<div class="item-sugestao">sugerido: <b>' + esc(it.sugestao) + "</b></div>" : "") +
+            (!readonly ? '<div class="item-actions"><button class="btn-mini primary" data-acao="confirmar" data-item="' + it.nItem + '">✓ confirmar</button><button class="btn-mini" data-acao="outro" data-item="' + it.nItem + '">outro produto</button><button class="btn-mini" data-acao="criar" data-item="' + it.nItem + '">criar produto</button></div>' : "") +
+            (!readonly ? '<div class="item-fator">fator: 1 CX = <input type="text" value="' + esc((it.fatorSugerido || "").replace(/[^0-9.,]/g, "") || "10,000") + '"/> kg</div>' : "") +
+          "</div></div></div>";
+      }
+      return '<div class="item-row">' +
+        '<div class="item-top"><span class="mdot semmatch"></span>' +
+        '<div class="item-info">' +
+          '<div class="item-nome">' + esc(it.nome) + '<span class="tag semmatch">sem match</span></div>' +
+          '<div class="item-nf">NF: ' + esc(it.nf) + "</div>" +
+          (!readonly ? '<div class="item-actions"><button class="btn-mini primary" data-acao="vincular" data-item="' + it.nItem + '">vincular produto</button><button class="btn-mini" data-acao="criar" data-item="' + it.nItem + '">criar produto</button><button class="btn-mini" data-acao="ignorar" data-item="' + it.nItem + '">ignorar</button></div>' : "") +
+        "</div></div></div>";
+    }
+
+    const somaVProd = nota.vProd;
+    const podeConfirmar = pendRows.length === 0;
+
+    return '<div class="conf-grid">' +
+      '<div class="conf-left"><div class="card">' +
+        '<div class="itens-head"><div class="cnt">Itens (' + itensEfetivos.length + ")</div>" +
+        '<div class="legenda"><span><span class="mdot auto" style="margin:0"></span>' + contagens.auto + " auto</span><span><span class=\"mdot sugerido\" style=\"margin:0\"></span>" + contagens.sugerido + " sugerido</span><span><span class=\"mdot semmatch\" style=\"margin:0\"></span>" + contagens.semmatch + " sem match</span></div></div>" +
+        '<div style="margin-top:6px">' + pendRows.map(linhaPendente).join("") + autoRows.map(linhaAuto).join("") + "</div>" +
+      "</div></div>" +
+
+      '<div class="conf-right">' +
+        '<div class="card">' +
+          '<h2 class="sec">Custo de entrada</h2>' +
+          '<div class="breakdown">' +
+            '<div class="bd-row"><span>Produtos</span><span class="num">' + brl(somaVProd) + "</span></div>" +
+            (nota.vFrete ? '<div class="bd-row sub"><span>+ Frete</span><span class="num">' + brl(nota.vFrete) + "</span></div>" : "") +
+            (nota.vIpi ? '<div class="bd-row sub"><span>+ IPI</span><span class="num">' + brl(nota.vIpi) + "</span></div>" : "") +
+            (nota.vSt ? '<div class="bd-row sub"><span>+ ICMS-ST</span><span class="num">' + brl(nota.vSt) + "</span></div>" : "") +
+            (nota.vDesconto ? '<div class="bd-row sub"><span>− Desconto</span><span class="num">−' + brl(nota.vDesconto) + "</span></div>" : "") +
+            '<div class="bd-row total"><span>TOTAL (vNF)</span><span class="num">' + brl(nota.total) + "</span></div>" +
+          "</div>" +
+          '<div class="bd-check">✓ Σ itens confere com vNF</div>' +
+          '<div class="bd-rateio"><span>rateio: por valor (vProd)</span>' + (!readonly ? '<button class="btn-mini" disabled>alterar</button>' : "") + "</div>" +
+        "</div>" +
+        (nota.parcelas && nota.parcelas.length ? '<div class="card">' +
+          '<h2 class="sec">Financeiro <span class="hint">do XML &lt;cobr&gt;&lt;dup&gt;</span></h2>' +
+          '<div style="margin-top:8px">' + nota.parcelas.map((p) => '<div class="parcela-row"><span class="n">' + p.n + "ª parcela</span><span>" + p.venc + '</span><span class="num val-mono">' + brl(p.valor) + "</span></div>").join("") + "</div>" +
+          '<div class="parcela-foot">Σ parcelas confere com vNF ✓</div>' +
+          (!readonly ? '<label class="parcela-check"><input type="checkbox" id="chkJaPago"/> paguei no ato (pix/dinheiro)</label>' : "") +
+        "</div>" : "") +
+      "</div></div>" +
+
+      (!readonly ? renderFooterBar(nota, podeConfirmar, itensEfetivos, pendRows.length) : "");
+  }
+
+  function renderThreeWay(nota, f, readonly) {
+    function linha(it0) {
+      const it = itemEfetivo(nota, it0);
+      const sev = it.divergencia ? it.divergencia.severidade : null;
+      const notaVal = it.notaQtd != null ? it.notaQtd + " " + it.unidade + " × " + brl(it.notaPreco) : "—";
+      const fisicoVal = it.fisicoQtd != null ? it.fisicoQtd : null;
+      const resolvida = it.divergencia ? (estadoItens(nota.id)["div" + it.nItem] || null) : "ok";
+      return '<div class="tw-row">' +
+        '<div class="tw-nome">' + esc(it.nome) + "</div>" +
+        '<div class="tw-cols">' +
+          '<div class="tw-col"><div class="k">Pedido</div><div class="v num">' + it.pedidoQtd + " " + it.unidade + " × " + brl(it.pedidoPreco) + "</div></div>" +
+          '<div class="tw-col"><div class="k">Nota</div><div class="v num' + (it.notaQtd == null ? " miss" : "") + '">' + notaVal + "</div></div>" +
+          '<div class="tw-col"><div class="k">Físico</div><div class="v num">' + (readonly || it.notaQtd == null ? (fisicoVal != null ? fisicoVal + " " + it.unidade : "—") : '<input class="fis" type="number" value="' + (fisicoVal != null ? fisicoVal : "") + '" data-fis="' + it.nItem + '"/>') + (fisicoVal != null && it.notaQtd != null ? (fisicoVal === it.notaQtd ? ' <span class="tw-ok">✓</span>' : ' <span class="tw-bad">✗</span>') : "") + "</div></div>" +
+          '<div class="tw-delta">' + (it.deltaPct ? deltaBadge(it.deltaPct) : "") + "</div>" +
+        "</div>" +
+        (it.divergencia ? '<div class="divergencia ' + sev + '"><div class="msg">⚠ ' + esc(it.divergencia.msg) + "</div>" +
+          (!readonly ? '<div class="radios">' + it.divergencia.opcoes.map((o) =>
+            '<label><input type="radio" name="div' + it.nItem + '" value="' + o[0] + '"' + (resolvida === o[0] ? " checked" : "") + ' data-divitem="' + it.nItem + '"/> ' + esc(o[1]) + "</label>").join("") + "</div>" : (resolvida ? '<div style="margin-top:6px;font-weight:700;color:hsl(var(--pos))">✓ resolvida: ' + esc(it.divergencia.opcoes.find((o) => o[0] === resolvida)[1]) + "</div>" : "")) +
+        "</div>" : "") +
+      "</div>";
+    }
+
+    const pendentes = nota.itens.filter((it0) => {
+      const it = itemEfetivo(nota, it0);
+      if (!it.divergencia) return false;
+      return !estadoItens(nota.id)["div" + it.nItem];
+    }).length;
+
+    return '<div class="card">' +
+      '<div style="padding:14px 18px 0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">' +
+        '<div style="font-size:13px;font-weight:700">Pedido ' + esc(nota.pedido.numero) + "</div>" +
+        '<div style="font-size:12.5px;color:hsl(var(--muted))">enviado ' + esc(nota.pedido.enviado) + " · previsto " + esc(nota.pedido.previsto) + "</div>" +
+      "</div>" +
+      '<div class="tw-wrap">' + nota.itens.map(linha).join("") + "</div>" +
+      '<div class="tw-status-foot">' +
+        '<span class="' + (pendentes > 0 ? "pend" : "resolved") + '">' + (pendentes > 0 ? pendentes + " divergência" + (pendentes > 1 ? "s" : "") + " pendente" + (pendentes > 1 ? "s" : "") + " — resolva para confirmar" : "Todas as divergências resolvidas") + "</span>" +
+        '<span>Pedido ficará: <b>' + (pendentes > 0 ? "PARCIALMENTE RECEBIDO" : "RECEBIDO") + "</b></span>" +
+      "</div>" +
+    "</div>" +
+    (!readonly ? renderFooterBar(nota, pendentes === 0, nota.itens, pendentes) : "");
+  }
+
+  function renderFooterBar(nota, podeConfirmar, itensEfetivos, pendCount) {
+    const itensQueEntram = itensEfetivos.filter((it) => it.match !== "ignorado").length;
+    const parcelasTxt = nota.parcelas && nota.parcelas.length ? nota.parcelas.length + "× " + brl(nota.parcelas[0].valor) : "à vista";
+    return '<div class="footer-bar">' +
+      '<div class="efeito">Ao confirmar: estoque <b>+' + itensQueEntram + " itens</b> · conta a pagar <b>" + parcelasTxt + "</b> · custo médio atualiza</div>" +
+      '<div class="footer-actions">' +
+        (!podeConfirmar ? '<span class="aviso-bloqueio">' + pendCount + " pendência" + (pendCount > 1 ? "s" : "") + "</span>" : "") +
+        '<button class="btn-ghost" id="btnDescartar">Descartar nota</button>' +
+        '<button class="btn-primary" id="btnConfirmar" ' + (!podeConfirmar ? "disabled" : "") + ">✓ Confirmar recebimento</button>" +
+      "</div></div>";
+  }
+
+  function bindConferenciaAcoes(nota, threeWay) {
+    const btnConfirmar = document.getElementById("btnConfirmar");
+    const btnDescartar = document.getElementById("btnDescartar");
+    if (btnConfirmar) btnConfirmar.addEventListener("click", () => {
+      nota.status = "recebida";
+      nota.recebidaEm = "16/07/2026";
+      nota.recebidaPor = "Igor";
+      nota.jaPago = !!document.getElementById("chkJaPago") && document.getElementById("chkJaPago").checked;
+      if (nota.pedidoId) { const p = pedidos.find((x) => x.numero === nota.pedidoId || x.id === nota.pedidoId); }
+      irParaHome();
+    });
+    if (btnDescartar) btnDescartar.addEventListener("click", () => {
+      nota.status = "estornada";
+      nota.estornadaEm = "16/07/2026";
+      nota.estornadaPor = "Igor";
+      nota.motivoEstorno = "Descartada pelo operador na conferência.";
+      irParaHome();
+    });
+
+    if (!threeWay) {
+      document.querySelectorAll("[data-acao]").forEach((btn) => btn.addEventListener("click", () => {
+        const nItem = parseInt(btn.dataset.item, 10);
+        const acao = btn.dataset.acao;
+        const st = estadoItens(nota.id);
+        if (acao === "confirmar" || acao === "outro" || acao === "vincular" || acao === "criar") st[nItem] = { match: "auto" };
+        if (acao === "ignorar") st[nItem] = { match: "ignorado" };
+        renderConferencia();
+      }));
+    } else {
+      document.querySelectorAll("input[data-divitem]").forEach((r) => r.addEventListener("change", () => {
+        const nItem = parseInt(r.dataset.divitem, 10);
+        estadoItens(nota.id)["div" + nItem] = r.value;
+        renderConferencia();
+      }));
+      document.querySelectorAll("input[data-fis]").forEach((inp) => inp.addEventListener("change", () => {
+        const nItem = parseInt(inp.dataset.fis, 10);
+        const item = nota.itens.find((i) => i.nItem === nItem);
+        item.fisicoQtd = inp.value === "" ? null : parseFloat(inp.value);
+        renderConferencia();
+      }));
+    }
+  }
+
+  // ────────────────────────────────────────────────────────────────────────
+  // FORNECEDOR (drill) — Tela 9.5
+  // ────────────────────────────────────────────────────────────────────────
+
+  function renderFornecedor(fornecedorId) {
+    const f = fornById(fornecedorId);
+    const el = document.getElementById("view-fornecedor");
+    const notasDoFornecedor = notas.filter((n) => n.fornecedorId === fornecedorId);
+    const deParas = vinculos.filter((v) => v.fornecedorId === fornecedorId);
+    const atraso = f.leadTimeReal - f.leadTimePrometido;
+
+    const serieFile = { nome: "Filé de tilápia 1kg", cor: "var(--primary)",
+      pontos: [{ label: "15/05", y: 7.10 }, { label: "10/06", y: 7.39 }, { label: "12/07", y: 8.42 }] };
+    const serieCamarao = { nome: "Camarão GG 300g", cor: "var(--fg) / 0.5",
+      pontos: [{ label: "15/05", y: 23.10 }, { label: "10/06", y: 24.49 }, { label: "12/07", y: 26.09 }] };
+
+    el.innerHTML =
+      '<div class="conf-head"><div class="secleft"><button class="back" id="backFornHome" aria-label="Voltar">←</button>' +
+        '<div class="titles"><div class="t1">FORNECEDOR</div><h1>' + esc(f.nome) + "</h1></div></div></div>" +
+
+      '<div class="forn-head">' +
+        '<div><div class="meta">' + (f.cnpj ? "CNPJ " + esc(f.cnpj) : "sem CNPJ (compra sem NF-e)") + " · <span class=\"chip " + f.status + "\">" + (f.status === "ativo" ? "Ativo" : f.status === "bloqueado" ? "Bloqueado" : "Inativo") + "</span></div></div>" +
+        '<div class="head-actions"><button class="btn-primary" id="btnNovoPedidoForn">+ Novo pedido de compra</button></div>' +
+      "</div>" +
+
+      '<div class="forn-stats">' +
+        '<div class="card stat-card"><div class="k">Comprado · 12 meses</div><div class="v num">' + brl(f.comprado12m) + "</div><div class=\"s\">" + brl(f.comprado90d) + " nos últimos 90 dias</div></div>" +
+        '<div class="card stat-card"><div class="k">Lead time real × prometido</div><div class="v num' + (atraso > 0 ? " warn" : "") + '">' + f.leadTimeReal.toFixed(1).replace(".", ",") + "d <small>vs " + f.leadTimePrometido + "d</small></div><div class=\"s\">" + (atraso > 0 ? "▲ " + atraso.toFixed(1).replace(".", ",") + " dias de atraso médio" : "dentro do combinado") + "</div></div>" +
+        '<div class="card stat-card"><div class="k">Taxa de divergência</div><div class="v num' + (f.divergNotas > 0 ? " warn" : "") + '">' + f.divergNotas + " <small>de " + f.divergTotal + " notas</small></div><div class=\"s\">últimas notas recebidas</div></div>" +
+      "</div>" +
+
+      '<section class="grid2">' +
+        '<div class="card"><h2 class="sec">Histórico de custo · itens mais comprados</h2><div class="chart">' + lineChartSvg([serieFile, serieCamarao]) + "</div>" +
+        '<div class="legend">' + [serieFile, serieCamarao].map((s) => '<span class="lg"><i style="background:hsl(' + s.cor + ')"></i>' + s.nome + "</span>").join("") + "</div></div>" +
+        '<div class="card"><h2 class="sec">Notas deste fornecedor</h2><div class="tbl-wrap" style="margin-top:8px">' +
+          "<table><thead><tr><th>NF-e</th><th>Emissão</th><th>Status</th><th class=\"r\">Total</th></tr></thead><tbody>" +
+          notasDoFornecedor.map((n) => {
+            const st = NOTA_STATUS_INFO[n.status];
+            return '<tr class="clickable" data-nota="' + n.id + '"><td class="name-main">' + esc(n.numero) + "</td><td class=\"num\">" + esc(n.emissao) + '</td><td><span class="chip ' + st.classe + '">' + st.label + "</span></td><td class=\"r num val-mono\">" + brl(n.total) + "</td></tr>";
+          }).join("") +
+          "</tbody></table></div></div>" +
+      "</section>" +
+
+      '<div class="card">' +
+        '<h2 class="sec">De-paras aprendidos <span class="hint">fornecedor + código → produto do catálogo (editável)</span></h2>' +
+        '<div style="margin-top:6px">' +
+          (deParas.length ? deParas.map((v) =>
+            '<div class="depara-row"><div><div class="name-main">' + esc(v.produto) + '</div><div class="cprod">cProd ' + esc(v.cprod) + "</div></div>" +
+            '<div class="fator">' + esc(v.fator) + "</div>" +
+            '<div class="num">unid. NF: ' + esc(v.unidadeNf) + "</div>" +
+            '<div class="origem">aprendido da NF ' + esc(v.notaOrigem) + " em " + esc(v.data) + "</div></div>"
+          ).join("") : '<div style="padding:16px 18px;color:hsl(var(--muted));font-size:13px">Nenhum de-para aprendido ainda — a próxima nota deste fornecedor vai exigir conferência manual item a item.</div>') +
+        "</div>" +
+      "</div>";
+
+    document.getElementById("backFornHome").addEventListener("click", irParaHome);
+    document.getElementById("btnNovoPedidoForn").addEventListener("click", () => { segmentoAtivo = "pedidos"; irParaHome(); });
+    el.querySelectorAll("tr[data-nota]").forEach((tr) => tr.addEventListener("click", () => irParaConferencia(tr.dataset.nota)));
+  }
+
+  // ────────────────────────────────────────────────────────────────────────
+  irParaHome();
+})();
+</script>

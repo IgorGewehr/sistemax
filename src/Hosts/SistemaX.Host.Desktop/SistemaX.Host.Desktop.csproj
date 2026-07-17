@@ -1,0 +1,63 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Modules\Financeiro\SistemaX.Modules.Financeiro.Infrastructure\SistemaX.Modules.Financeiro.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Infrastructure\SistemaX.Infrastructure.Sync\SistemaX.Infrastructure.Sync.csproj" />
+    <ProjectReference Include="..\..\Infrastructure\SistemaX.Infrastructure.Hardware\SistemaX.Infrastructure.Hardware.csproj" />
+    <ProjectReference Include="..\..\Infrastructure\SistemaX.Infrastructure.Local\SistemaX.Infrastructure.Local.csproj" />
+    <ProjectReference Include="..\..\Verticals\Assistencia\SistemaX.Verticals.Assistencia\SistemaX.Verticals.Assistencia.csproj" />
+    <ProjectReference Include="..\..\Verticals\Assistencia\SistemaX.Verticals.Assistencia.Application\SistemaX.Verticals.Assistencia.Application.csproj" />
+    <ProjectReference Include="..\..\Verticals\Assistencia\SistemaX.Verticals.Assistencia.Infrastructure\SistemaX.Verticals.Assistencia.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Modules\Vendas\SistemaX.Modules.Vendas.Domain\SistemaX.Modules.Vendas.Domain.csproj" />
+    <ProjectReference Include="..\..\Modules\Financeiro\SistemaX.Modules.Financeiro.Application\SistemaX.Modules.Financeiro.Application.csproj" />
+    <ProjectReference Include="..\..\Modules\Vendas\SistemaX.Modules.Vendas.Application\SistemaX.Modules.Vendas.Application.csproj" />
+    <ProjectReference Include="..\..\Modules\Vendas\SistemaX.Modules.Vendas.Infrastructure\SistemaX.Modules.Vendas.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Modules\Estoque\SistemaX.Modules.Estoque.Application\SistemaX.Modules.Estoque.Application.csproj" />
+    <ProjectReference Include="..\..\Modules\Estoque\SistemaX.Modules.Estoque.Infrastructure\SistemaX.Modules.Estoque.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Modules\Compras\SistemaX.Modules.Compras.Application\SistemaX.Modules.Compras.Application.csproj" />
+    <ProjectReference Include="..\..\Modules\Compras\SistemaX.Modules.Compras.Infrastructure\SistemaX.Modules.Compras.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Modules\Fiscal\SistemaX.Modules.Fiscal.Application\SistemaX.Modules.Fiscal.Application.csproj" />
+    <ProjectReference Include="..\..\Modules\Fiscal\SistemaX.Modules.Fiscal.Infrastructure\SistemaX.Modules.Fiscal.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\Modules\Identidade\SistemaX.Modules.Identidade.Application\SistemaX.Modules.Identidade.Application.csproj" />
+    <ProjectReference Include="..\..\Modules\Identidade\SistemaX.Modules.Identidade.Infrastructure\SistemaX.Modules.Identidade.Infrastructure.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Logging estruturado (F1a — item 5). AspNetCore integra o pipeline de request logging;
+         Console/File são os sinks (arquivo rolling diário, ver Program.cs). -->
+    <PackageReference Include="Serilog.AspNetCore" Version="10.0.0" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
+    <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+
+    <!-- Janela desktop (F1a — item 6). No Windows É o WebView2 por baixo (decisão de produto
+         preservada); no macOS de dev usa WKWebView — ver plano de produção §2.3. -->
+    <PackageReference Include="Photino.NET" Version="4.0.16" />
+
+    <!-- Instalador/auto-update (ADR-0004). Cross-platform de propósito — referencia e compila em
+         macOS/Linux (dev) sem exigir Windows; só o `vpk pack`/publish win-x64 que PRODUZ o
+         Setup.exe roda no pipeline de empacotamento (ver build/pack-windows.ps1 e
+         docs/build/empacotamento.md). Sem args de linha de comando reconhecidos pelo Velopack
+         (todo boot normal, incluindo `dotnet run` em dev e os testes), `VelopackApp.Build().Run()`
+         é NO-OP — não afeta o boot headless (SISTEMAX_HEADLESS) nem os 836 testes do repo. -->
+    <PackageReference Include="Velopack" Version="1.2.0" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <!-- Empacotamento do bundle React (F1a — item 6 / plano §2.4): web/dist -> $(OutDir)/wwwroot.
+       Não usamos ManifestEmbeddedFileProvider de propósito — diretório solto permite delta-update
+       só do bundle (Velopack, F3) sem recompilar o .NET. Condition evita falhar em máquina/CI que
+       ainda não rodou `pnpm build` dentro de web/ — o host sobe do mesmo jeito, só sem SPA. -->
+  <Target Name="CopyWebDist" AfterTargets="Build;Publish">
+    <ItemGroup>
+      <WebDist Condition="Exists('$(MSBuildThisFileDirectory)../../../web/dist')" Include="$(MSBuildThisFileDirectory)../../../web/dist/**/*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(WebDist)" DestinationFolder="$(OutDir)wwwroot/%(RecursiveDir)" SkipUnchangedFiles="true" Condition="'@(WebDist)' != ''" />
+  </Target>
+
+</Project>

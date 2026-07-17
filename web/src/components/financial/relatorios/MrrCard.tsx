@@ -1,0 +1,63 @@
+import { Info, TrendingUp } from 'lucide-react';
+
+import { Surface } from '@/components/ui/Surface';
+import { cn } from '@/lib/utils';
+
+import { DocActions } from './DocActions';
+import { MoneyWhole } from './MoneyWhole';
+import type { AccountantContact, DocGenState, MrrViewModel } from './types';
+
+interface MrrCardProps {
+  mrr: MrrViewModel;
+  contact: AccountantContact;
+  pdfState: DocGenState;
+  excelState: DocGenState;
+  onGeneratePdf: () => void;
+  onGenerateExcel: () => void;
+  onSend: (channel: 'email' | 'whatsapp') => void;
+  className?: string;
+}
+
+/** Card "Assinaturas / MRR" — condicional (só existe pra quem vende serviço recorrente). */
+export function MrrCard({ mrr, contact, pdfState, excelState, onGeneratePdf, onGenerateExcel, onSend, className }: MrrCardProps) {
+  return (
+    <Surface padding="none" className={cn('flex flex-col p-4 sm:p-[18px]', className)}>
+      <div className="mb-3 flex items-start gap-3">
+        <span className="grid h-[38px] w-[38px] flex-none place-items-center rounded-xl bg-surface-2 text-muted-foreground">
+          <TrendingUp className="h-[19px] w-[19px]" />
+        </span>
+        <div className="min-w-0">
+          <h3 className="text-[14.5px] font-bold tracking-tight text-foreground">Assinaturas / MRR</h3>
+          <div className="mt-0.5 inline-flex items-center gap-1 text-[11px] font-semibold text-primary-600">
+            <Info className="h-3 w-3" />
+            {mrr.condicaoLabel}
+          </div>
+        </div>
+      </div>
+
+      <div className="flex-1">
+        <div className="flex items-center justify-between py-[6px] text-[13px]">
+          <span className="text-muted-foreground">MRR</span>
+          <MoneyWhole centavos={mrr.mrr} className="text-[17px] font-bold" />
+        </div>
+        <div className="flex items-center justify-between py-[6px] text-[13px]">
+          <span className="text-muted-foreground">Churn do mês</span>
+          <MoneyWhole centavos={mrr.churnMes} tone="crit" className="font-bold" />
+        </div>
+        <div className="flex items-center justify-between py-[6px] text-[13px]">
+          <span className="text-muted-foreground">ARR estimado</span>
+          <MoneyWhole centavos={mrr.arrEstimado} className="font-bold" />
+        </div>
+      </div>
+
+      <DocActions
+        pdfState={pdfState}
+        excelState={excelState}
+        onGeneratePdf={onGeneratePdf}
+        onGenerateExcel={onGenerateExcel}
+        onSend={onSend}
+        contact={contact}
+      />
+    </Surface>
+  );
+}

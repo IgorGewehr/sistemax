@@ -1,0 +1,104 @@
+/**
+ * Design tokens — SistemaX Web
+ * -----------------------------------------------------------------------
+ * Camada de tokens limpa, herdada do DNA visual do ServicePro (saas-erp):
+ * vermelho-600/500 como acento de marca, superfícies elevadas com sombra
+ * suave, dark mode via `.dark`, cantos generosos (rounded-xl/2xl).
+ * Nada aqui depende de Firebase/Next — é puro CSS + Tailwind.
+ */
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+    --primary: 0 72% 51%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 0 72% 51%;
+
+    --sidebar: 0 0% 100%;
+    --sidebar-foreground: 222.2 84% 4.9%;
+    --sidebar-accent: 0 60% 96%;
+    --sidebar-accent-foreground: 0 72% 40%;
+    --sidebar-border: 214.3 31.8% 91.4%;
+
+    /* Superfícies de gráfico (dataviz) */
+    --chart-surface: 0 0% 99%;
+    --chart-grid: 220 13% 88%;
+    --chart-ink-muted: 220 9% 55%;
+
+    /* ─── Estado financeiro semântico (contrato dos mockups aprovados) ─────────
+       pos = sobra/entrada/saudável · crit = falta/saída/risco · warn = atenção/aberto.
+       `-soft` = fundo de chip/realce. `faint` = texto/ícone de 4º nível (abaixo de muted).
+       `surface-2` = fundo recuado dentro de um card. `primary-soft` = realce de marca.
+       Reservados p/ ESTADO — nunca reusar como série categórica de gráfico. */
+    --pos: 152 58% 40%;
+    --pos-soft: 152 55% 94%;
+    --warn: 32 90% 44%;
+    --warn-soft: 38 92% 94%;
+    --crit: 349 78% 48%;
+    --crit-soft: 349 80% 96%;
+    --primary-soft: 0 72% 96%;
+    --faint: 215 20% 65%;
+    --surface-2: 210 40% 96.5%;
+
+    --red-glow: rgba(220, 38, 38, 0.18);
+    --transition-smooth: cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --transition-decelerate: cubic-bezier(0, 0, 0.2, 1);
+  }
+
+  .dark {
+    --background: 222 47% 5%;
+    --foreground: 210 40% 96%;
+    --card: 220 40% 7%;
+    --card-foreground: 210 40% 96%;
+    --primary: 0 72% 56%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 215 25% 15%;
+    --secondary-foreground: 210 40% 96%;
+    --muted: 215 25% 15%;
+    --muted-foreground: 215 20% 55%;
+    --accent: 215 25% 15%;
+    --accent-foreground: 210 40% 96%;
+    --destructive: 0 63% 45%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 215 25% 15%;
+    --input: 215 25% 18%;
+    --ring: 0 72% 56%;
+
+    --sidebar: 222 47% 4%;
+    --sidebar-foreground: 210 40% 90%;
+    --sidebar-accent: 0 40% 12%;
+    --sidebar-accent-foreground: 0 60% 65%;
+    --sidebar-border: 215 25% 12%;
+
+    --chart-surface: 220 40% 7%;
+    --chart-grid: 215 25% 18%;
+    --chart-ink-muted: 215 20% 55%;
+
+    /* Estado financeiro semântico — variante dark (mesmos HSL dos mockups). */
+    --pos: 152 55% 50%;
+    --pos-soft: 152 40% 12%;
+    --warn: 38 92% 55%;
+    --warn-soft: 36 45% 13%;
+    --crit: 350 85% 62%;
+    --crit-soft: 349 45% 14%;
+    --primary-soft: 0 45% 13%;
+    --faint: 215 18% 42%;
+    --surface-2: 218 34% 11%;
+
+    --red-glow: rgba(239, 68, 68, 0.25);
+  }
+}

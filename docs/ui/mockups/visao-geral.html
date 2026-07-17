@@ -1,0 +1,549 @@
+<style>
+  :root {
+    --bg: 210 40% 98%;
+    --surface: 0 0% 100%;
+    --surface-2: 210 40% 96.5%;
+    --fg: 222 47% 11%;
+    --muted: 215 16% 47%;
+    --faint: 215 20% 65%;
+    --border: 214 32% 90%;
+    --primary: 0 72% 51%;
+    --primary-soft: 0 72% 96%;
+    --pos: 152 58% 40%;
+    --pos-soft: 152 55% 94%;
+    --warn: 32 90% 44%;
+    --warn-soft: 38 92% 94%;
+    --crit: 349 78% 48%;
+    --crit-soft: 349 80% 96%;
+    --ring: 0 72% 51%;
+    --shadow: 220 40% 20%;
+    --mono: "SF Mono", ui-monospace, "JetBrains Mono", "Cascadia Code", Menlo, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  }
+  :root[data-theme="light"] {
+    --bg: 210 40% 98%; --surface: 0 0% 100%; --surface-2: 210 40% 96.5%;
+    --fg: 222 47% 11%; --muted: 215 16% 47%; --faint: 215 20% 65%; --border: 214 32% 90%;
+    --primary: 0 72% 51%; --primary-soft: 0 72% 96%; --pos: 152 58% 40%; --pos-soft: 152 55% 94%;
+    --warn: 32 90% 44%; --warn-soft: 38 92% 94%; --crit: 349 78% 48%; --crit-soft: 349 80% 96%; --shadow: 220 40% 20%;
+  }
+  :root[data-theme="dark"] {
+    --bg: 222 47% 5%; --surface: 220 40% 7.5%; --surface-2: 218 34% 11%;
+    --fg: 210 40% 96%; --muted: 215 20% 60%; --faint: 215 18% 42%; --border: 215 25% 16%;
+    --primary: 0 72% 58%; --primary-soft: 0 45% 13%; --pos: 152 55% 50%; --pos-soft: 152 40% 12%;
+    --warn: 38 92% 55%; --warn-soft: 36 45% 13%; --crit: 350 85% 62%; --crit-soft: 349 45% 14%; --shadow: 222 60% 2%;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: hsl(var(--bg)); color: hsl(var(--fg));
+    font-family: var(--sans); -webkit-font-smoothing: antialiased;
+    font-size: 14px; line-height: 1.5;
+  }
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .eyebrow { text-transform: uppercase; letter-spacing: 0.08em; font-size: 11px; font-weight: 600; color: hsl(var(--muted)); }
+
+  /* ---- App shell ---- */
+  .app { display: grid; grid-template-columns: 60px 1fr; min-height: 100vh; }
+  .rail {
+    background: hsl(var(--surface)); border-right: 1px solid hsl(var(--border));
+    display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 0;
+  }
+  .rail .logo {
+    width: 34px; height: 34px; border-radius: 10px; margin-bottom: 10px;
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(0 72% 40%));
+    display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 15px;
+    box-shadow: 0 4px 14px hsl(var(--primary) / 0.4);
+  }
+  .rail button {
+    width: 40px; height: 40px; border-radius: 11px; border: 0; background: transparent;
+    color: hsl(var(--faint)); cursor: pointer; display: grid; place-items: center; transition: .15s;
+  }
+  .rail button svg { width: 20px; height: 20px; }
+  .rail button:hover { background: hsl(var(--surface-2)); color: hsl(var(--fg)); }
+  .rail button.active { background: hsl(var(--primary-soft)); color: hsl(var(--primary)); }
+  .rail .spacer { flex: 1; }
+
+  .main { min-width: 0; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 26px 32px 90px; }
+
+  /* ---- Header ---- */
+  header.page { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 22px; flex-wrap: wrap; }
+  header.page h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; margin: 4px 0 2px; text-wrap: balance; }
+  header.page .sub { color: hsl(var(--muted)); font-size: 13.5px; }
+  .head-actions { display: flex; align-items: center; gap: 10px; }
+  .period { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border: 1px solid hsl(var(--border));
+    border-radius: 10px; background: hsl(var(--surface)); font-weight: 600; font-size: 13px; cursor: pointer; }
+  .period:hover { background: hsl(var(--surface-2)); }
+  .btn-primary {
+    display: inline-flex; align-items: center; gap: 7px; padding: 9px 15px; border-radius: 10px; border: 0;
+    background: hsl(var(--primary)); color: #fff; font-weight: 600; font-size: 13.5px; cursor: pointer;
+    box-shadow: 0 4px 14px hsl(var(--primary) / 0.35); transition: transform .12s, filter .12s;
+  }
+  .btn-primary:hover { filter: brightness(1.06); transform: translateY(-1px); }
+  .btn-primary.sm { padding: 7px 12px; font-size: 12.5px; box-shadow: none; }
+  .btn-ghost { padding: 8px 11px; border-radius: 10px; border: 1px solid hsl(var(--border)); background: hsl(var(--surface));
+    color: hsl(var(--fg)); cursor: pointer; font-size: 13px; display: inline-flex; gap: 6px; align-items: center; }
+
+  /* ---- Cards ---- */
+  .card { background: hsl(var(--surface)); border: 1px solid hsl(var(--border)); border-radius: 16px;
+    box-shadow: 0 1px 2px hsl(var(--shadow) / 0.06), 0 8px 24px -18px hsl(var(--shadow) / 0.5); }
+  .card h2.sec { font-size: 13px; font-weight: 700; letter-spacing: -0.01em; padding: 16px 18px 2px; margin: 0; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .card h2.sec .hint { font-weight: 500; font-size: 12px; color: hsl(var(--muted)); }
+
+  /* Tabs do Financeiro */
+  .tabs { display: flex; gap: 2px; border-bottom: 1px solid hsl(var(--border)); margin-bottom: 20px; overflow-x: auto; }
+  .tab { padding: 10px 14px; font-size: 13.5px; font-weight: 600; color: hsl(var(--muted)); border: 0; background: none; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; transition: .15s; }
+  .tab:hover { color: hsl(var(--fg)); }
+  .tab.active { color: hsl(var(--primary)); border-bottom-color: hsl(var(--primary)); }
+
+  /* Info tooltip (ⓘ) — CSS only */
+  .info-ic { position: relative; display: inline-flex; width: 15px; height: 15px; border-radius: 50%;
+    background: hsl(var(--surface-2)); color: hsl(var(--muted)); font-size: 10px; align-items: center; justify-content: center;
+    cursor: help; margin-left: 5px; vertical-align: middle; }
+  .info-ic:hover::after, .info-ic:focus-visible::after {
+    content: attr(data-tip); position: absolute; bottom: 130%; left: 50%; transform: translateX(-50%);
+    width: 226px; background: hsl(var(--fg)); color: hsl(var(--bg)); font-size: 11.5px; font-weight: 500;
+    padding: 9px 11px; border-radius: 9px; line-height: 1.45; z-index: 8; text-transform: none; letter-spacing: normal;
+    box-shadow: 0 10px 26px hsl(var(--shadow) / 0.35); }
+  .info-ic:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+
+  /* ---- Block row: Hero + Lucro do mês ---- */
+  .heroRow { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 16px; align-items: stretch; }
+
+  .hero-card { padding: 22px 24px 18px; position: relative; overflow: hidden; }
+  .hero-card::after { content: ""; position: absolute; inset: 0; background: radial-gradient(120% 90% at 100% 0, hsl(var(--primary) / 0.09), transparent 60%); pointer-events: none; }
+  .hero-num { font-size: 46px; font-weight: 800; letter-spacing: -0.03em; margin: 8px 0 18px; display: flex; align-items: baseline; gap: 10px; position: relative; }
+  .hero-num .check { font-size: 20px; color: hsl(var(--pos)); font-weight: 700; }
+  .decomp { border-top: 1px dashed hsl(var(--border)); padding-top: 6px; position: relative; }
+  .drow { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 6px 14px; width: 100%;
+    border: 0; background: none; font: inherit; color: inherit; cursor: pointer; text-align: left;
+    padding: 11px 10px; border-radius: 11px; transition: background .12s; }
+  .drow:hover { background: hsl(var(--surface-2)); }
+  .drow:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+  .drow .dlabel { font-size: 13.5px; font-weight: 500; color: hsl(var(--fg)); }
+  .drow .dlabel .dsub { font-weight: 400; color: hsl(var(--muted)); font-size: 12px; }
+  .drow .dval { font-size: 15px; font-weight: 700; }
+  .drow .dval.pos { color: hsl(var(--pos)); }
+  .drow .dval.crit { color: hsl(var(--crit)); }
+  .drow .darrow { font-size: 11.5px; font-weight: 600; color: hsl(var(--muted)); white-space: nowrap; opacity: 0; transition: opacity .12s, color .12s; }
+  .drow:hover .darrow { opacity: 1; color: hsl(var(--primary)); }
+  .drow.total { cursor: default; margin-top: 2px; padding-top: 13px; border-top: 1px solid hsl(var(--border)); background: hsl(var(--pos-soft) / 0.5); }
+  .drow.total:hover { background: hsl(var(--pos-soft) / 0.5); }
+  .drow.total .dlabel { font-weight: 700; font-size: 14px; }
+  .drow.total .dval { font-size: 19px; }
+  .drow.total .dcheck { color: hsl(var(--pos)); font-weight: 700; font-size: 15px; }
+
+  .profit-card { padding: 22px 22px 20px; display: flex; flex-direction: column; }
+  .profit-num { font-size: 30px; font-weight: 800; letter-spacing: -0.02em; margin-top: 10px; }
+  .delta { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; font-weight: 600; margin-top: 7px; }
+  .delta.up { color: hsl(var(--pos)); }
+  .delta.down { color: hsl(var(--crit)); }
+  .margin-line { font-size: 13px; color: hsl(var(--fg)); margin-top: 12px; padding: 10px 12px; background: hsl(var(--surface-2)); border-radius: 11px; line-height: 1.5; }
+  .margin-line b { font-weight: 700; }
+  .bridge { font-size: 11.5px; color: hsl(var(--muted)); margin-top: 10px; line-height: 1.5; }
+  .bridge b { color: hsl(var(--fg)); font-weight: 700; }
+  .link-cta { margin-top: auto; padding-top: 14px; border: 0; background: none; color: hsl(var(--primary)); font-weight: 600; font-size: 12.5px; cursor: pointer; align-self: flex-start; }
+  .link-cta:hover { text-decoration: underline; }
+
+  /* ---- Timeline do caixa (bloco ②) ---- */
+  .timeline-card { margin-bottom: 16px; padding-bottom: 6px; }
+  .inline-legend { display: flex; gap: 16px; padding: 6px 18px 2px; font-size: 12px; color: hsl(var(--muted)); }
+  .inline-legend .lg { display: inline-flex; align-items: center; gap: 6px; }
+  .li-solid { width: 16px; height: 2.5px; background: hsl(var(--fg)); display: inline-block; border-radius: 2px; }
+  .li-dash { width: 16px; height: 0; border-top: 2.5px dashed hsl(var(--fg) / 0.7); display: inline-block; }
+  .chart-inner { position: relative; margin: 4px 8px 10px; }
+  .chart-inner svg { width: 100%; height: auto; display: block; }
+  .chart-tip { position: absolute; transform: translate(-50%, -112%); background: hsl(var(--fg)); color: hsl(var(--bg));
+    padding: 9px 11px; border-radius: 10px; font-size: 11.5px; line-height: 1.55; min-width: 178px;
+    box-shadow: 0 12px 28px hsl(var(--shadow) / 0.4); opacity: 0; pointer-events: none; transition: opacity .15s, transform .15s; z-index: 7; }
+  .chart-tip.show { opacity: 1; transform: translate(-50%, -122%); }
+  .chart-tip .tt-date { font-weight: 700; margin-bottom: 3px; }
+  .chart-tip .tt-val { opacity: .9; }
+  .chart-tip .tt-ev { margin-top: 4px; font-weight: 600; }
+  .chart-tip .tt-ev.pos { color: hsl(152 55% 62%); }
+  .chart-tip .tt-ev.crit { color: hsl(350 85% 72%); }
+  .chart-tip .tt-ev.muted { color: hsl(var(--faint)); font-weight: 400; }
+
+  /* ---- 7 dias (bloco ④) ---- */
+  .strip-card { margin-bottom: 16px; }
+  .strip { display: flex; justify-content: space-between; align-items: flex-start; position: relative;
+    padding: 18px 26px 20px; margin-top: 2px; }
+  .strip::before { content: ""; position: absolute; left: 30px; right: 30px; top: 32px; height: 2px; background: hsl(var(--border)); }
+  .strip-pt { display: flex; flex-direction: column; align-items: center; gap: 3px; background: none; border: 0;
+    cursor: pointer; font: inherit; color: inherit; position: relative; z-index: 1; padding: 4px 8px; border-radius: 12px;
+    transition: background .12s; }
+  .strip-pt:hover { background: hsl(var(--surface-2)); }
+  .strip-pt:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+  .strip-pt .pt-date { font-size: 11px; color: hsl(var(--muted)); font-weight: 600; }
+  .strip-pt .dot { width: 12px; height: 12px; border-radius: 50%; background: currentColor; margin-top: 3px;
+    border: 3px solid hsl(var(--surface)); box-shadow: 0 0 0 1.5px currentColor; }
+  .strip-pt .pt-val { font-size: 13.5px; font-weight: 700; margin-top: 4px; }
+  .strip-pt .pt-lbl { font-size: 11px; color: hsl(var(--muted)); white-space: nowrap; }
+  .strip-pt.pos { color: hsl(var(--pos)); }
+  .strip-pt.crit { color: hsl(var(--crit)); }
+  .strip-pt.big .pt-val { font-size: 15px; }
+  .strip-pt.big .dot { width: 14px; height: 14px; }
+
+  /* Próximos 7 dias — cartões de vencimento (substitui os alvos flutuando na linha) */
+  .vencs { display: flex; gap: 10px; padding: 14px 18px 18px; }
+  .venc { flex: 1; min-width: 0; text-align: left; border: 0; cursor: pointer; background: hsl(var(--surface-2));
+    border-radius: 12px; padding: 12px 14px; border-left: 3px solid transparent; transition: transform .12s, box-shadow .12s; }
+  .venc:hover { transform: translateY(-2px); box-shadow: 0 10px 22px -14px hsl(var(--shadow) / 0.55); }
+  .venc:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+  .venc.pos { border-left-color: hsl(var(--pos)); }
+  .venc.crit { border-left-color: hsl(var(--crit)); }
+  .venc .v-date { font-size: 11px; color: hsl(var(--muted)); font-weight: 600; }
+  .venc .v-amt { display: flex; align-items: center; gap: 5px; font-size: 17px; font-weight: 700; margin: 7px 0 3px; letter-spacing: -0.02em; }
+  .venc .v-amt svg { width: 13px; height: 13px; flex: none; }
+  .venc.pos .v-amt { color: hsl(var(--pos)); }
+  .venc.crit .v-amt { color: hsl(var(--crit)); }
+  .venc .v-lbl { font-size: 12px; color: hsl(var(--muted)); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  @media (max-width: 720px) { .vencs { flex-wrap: wrap; } .venc { flex: 1 1 44%; } }
+
+  /* ---- Super Consultor (bloco ⑤) ---- */
+  .consultor { display: flex; gap: 14px; padding: 16px 18px; align-items: flex-start;
+    background:
+      linear-gradient(hsl(var(--surface)), hsl(var(--surface))) padding-box,
+      linear-gradient(120deg, hsl(var(--primary) / 0.5), hsl(var(--border) / 0.2)) border-box;
+    border: 1px solid transparent; border-radius: 16px; }
+  .consultor .icon { flex: none; width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center;
+    background: hsl(var(--primary-soft)); color: hsl(var(--primary)); }
+  .consultor .icon svg { width: 20px; height: 20px; }
+  .consultor h3 { margin: 1px 0 5px; font-size: 13px; letter-spacing: -0.01em; }
+  .consultor p { margin: 0; font-size: 13.5px; line-height: 1.6; color: hsl(var(--fg)); }
+  .consultor b { font-weight: 700; }
+  .consultor-actions { display: flex; align-items: center; gap: 16px; margin-top: 12px; flex-wrap: wrap; }
+  .link-toggle { border: 0; background: none; color: hsl(var(--primary)); font-weight: 600; font-size: 12.5px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
+  .link-toggle .chev { display: inline-block; transition: transform .18s; }
+  .link-toggle[aria-expanded="true"] .chev { transform: rotate(180deg); }
+  .calc-detail { max-height: 0; overflow: hidden; opacity: 0; transition: max-height .25s ease, opacity .2s ease, margin-top .25s ease; }
+  .calc-detail.open { max-height: 220px; opacity: 1; margin-top: 12px; }
+  .calc-row { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; padding: 7px 10px; border-radius: 9px; background: hsl(var(--surface-2)); margin-bottom: 6px; }
+  .calc-row.crit .num { color: hsl(var(--crit)); font-weight: 700; }
+  .calc-row.pos .num { color: hsl(var(--pos)); font-weight: 700; }
+  .calc-note { font-size: 12px; color: hsl(var(--muted)); line-height: 1.55; padding: 2px 2px 0; }
+
+  /* ---- FAB global (⊕ Lançar) ---- */
+  .fab { position: fixed; right: 24px; bottom: 24px; width: 52px; height: 52px; border-radius: 16px; border: 0;
+    background: hsl(var(--primary)); color: #fff; font-size: 24px; cursor: pointer; display: grid; place-items: center;
+    box-shadow: 0 10px 26px hsl(var(--primary) / 0.4); transition: transform .12s, filter .12s; z-index: 9; }
+  .fab:hover { filter: brightness(1.06); transform: translateY(-2px) scale(1.03); }
+
+  /* ---- Toast ---- */
+  .toast { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(12px); background: hsl(var(--fg));
+    color: hsl(var(--bg)); padding: 11px 18px; border-radius: 12px; font-size: 13px; font-weight: 500; max-width: 90vw;
+    box-shadow: 0 14px 32px hsl(var(--shadow) / 0.4); opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 20; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .theme-toggle { position: fixed; top: 14px; right: 16px; z-index: 10; }
+
+  /* Entrada suave dos blocos */
+  .fade-in { animation: fadeUp .42s ease both; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .fade-in { animation: none; } }
+
+  @media (max-width: 860px) {
+    .heroRow { grid-template-columns: 1fr; }
+    .app { grid-template-columns: 0 1fr; }
+    .rail { display: none; }
+    .wrap { padding: 22px 16px 90px; }
+    .strip { padding: 18px 8px 20px; }
+    .strip::before { left: 10px; right: 10px; }
+    .strip-pt .pt-lbl { max-width: 66px; white-space: normal; text-align: center; }
+    .hero-num { font-size: 36px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<button class="btn-ghost theme-toggle" onclick="(function(){var r=document.documentElement;var d=(r.getAttribute('data-theme')|| (matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'))==='dark';r.setAttribute('data-theme',d?'light':'dark');})()">◐ tema</button>
+
+<div class="app">
+  <nav class="rail" aria-label="Navegação">
+    <div class="logo">S</div>
+    <button title="Início"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10.5 12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1z"/></svg></button>
+    <button class="active" title="Financeiro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg></button>
+    <button title="Vendas / PDV"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2 3h3l2.4 12.5a1 1 0 0 0 1 .8h9.2a1 1 0 0 0 1-.8L21 7H6"/></svg></button>
+    <button title="Estoque"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/></svg></button>
+    <button title="Clientes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M17 5.5a3 3 0 0 1 0 5.6M22 20a6 6 0 0 0-4-5.7"/></svg></button>
+    <div class="spacer"></div>
+    <button title="Ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 2h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12a7 7 0 0 0 .1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 22h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6A7 7 0 0 0 19 12z"/></svg></button>
+  </nav>
+
+  <main class="main">
+    <div class="wrap">
+      <header class="page">
+        <div>
+          <div class="eyebrow">Financeiro · Visão Geral</div>
+          <h1>Visão Geral</h1>
+          <div class="sub">Como está o dinheiro do seu negócio — em 5 segundos.</div>
+        </div>
+        <div class="head-actions">
+          <div class="period" onclick="toast('Trocar o mês recarregaria os 5 blocos com o novo período.')">Julho 2026
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+          </div>
+        </div>
+      </header>
+
+      <nav class="tabs" aria-label="Seções do Financeiro">
+        <button class="tab active">Visão geral</button>
+        <button class="tab" data-tabnav="Entradas & Saídas">Entradas &amp; saídas</button>
+        <button class="tab" data-tabnav="Recorrentes">Recorrentes</button>
+        <button class="tab" data-tabnav="Bancário">Bancário</button>
+        <button class="tab" data-tabnav="Fluxo de Caixa">Fluxo de caixa</button>
+        <button class="tab" data-tabnav="Relatórios">Relatórios</button>
+      </nav>
+
+      <!-- ① Hero "pode tirar até" + ③ Lucro do mês -->
+      <section class="heroRow">
+        <div class="card hero-card fade-in" style="animation-delay:.02s">
+          <div class="eyebrow">Você pode tirar até</div>
+          <div class="hero-num num">R$ 3.300 <span class="check">✓</span></div>
+          <div class="decomp">
+            <button class="drow" data-nav="Bancário" data-msg="→ Bancário — saldo por conta (banco + gaveta)">
+              <span class="dlabel">No banco e na gaveta hoje</span>
+              <span class="dval num pos">R$ 8.400</span>
+              <span class="darrow">Bancário →</span>
+            </button>
+            <button class="drow" data-nav="Entradas & Saídas" data-msg="→ Entradas & Saídas — filtro: vencendo em 15 dias + imposto">
+              <span class="dlabel">Já tem dono <span class="dsub">(15 dias + imposto)</span></span>
+              <span class="dval num crit">−R$ 5.100</span>
+              <span class="darrow">E&amp;S →</span>
+            </button>
+            <div class="drow total">
+              <span class="dlabel">Livre de verdade</span>
+              <span class="dval num pos">R$ 3.300</span>
+              <span class="dcheck">✓</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card profit-card fade-in" style="animation-delay:.06s">
+          <div class="eyebrow">Lucro do mês
+            <span class="info-ic" tabindex="0" data-tip="Competência: conta o que foi vendido/gasto neste mês, mesmo que o dinheiro ainda não tenha mudado de mão.">ⓘ</span>
+          </div>
+          <div class="profit-num num">R$ 4.230</div>
+          <div class="delta up">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 17 17 7M7 7h10v10"/></svg>
+            ▲ 12% vs mês passado
+          </div>
+          <div class="margin-line">De cada <b>R$ 1</b> vendido, sobram <b class="num">R$ 0,18</b></div>
+          <div class="bridge">Lucro é maior que o disponível porque <b>R$ 3.800</b> ainda estão pra receber.</div>
+          <button class="link-cta" data-nav="Entradas & Saídas" data-msg="→ Entradas & Saídas — composição do resultado do mês">ver de onde veio →</button>
+        </div>
+      </section>
+
+      <!-- ② Linha do tempo do caixa — único gráfico da tela -->
+      <div class="card timeline-card fade-in" style="animation-delay:.1s">
+        <h2 class="sec">O caixa nos próximos 30 dias <span class="hint">clique num dia → o que entra/sai nele</span></h2>
+        <div class="inline-legend">
+          <span class="lg"><i class="li-solid"></i>realizado</span>
+          <span class="lg"><i class="li-dash"></i>previsto</span>
+        </div>
+        <div class="chart-inner" id="chartInner">
+          <div class="chart-tip" id="chartTip"></div>
+        </div>
+      </div>
+
+      <!-- ④ Próximos 7 dias -->
+      <div class="card strip-card fade-in" style="animation-delay:.14s">
+        <h2 class="sec">Próximos 7 dias <span class="hint">clique num dia → a parcela em Entradas &amp; Saídas</span></h2>
+        <div class="vencs">
+          <button class="venc pos" data-nav="Entradas & Saídas" data-msg="→ Entradas & Saídas — recebimento de Mercado São João, R$ 890, vence 18/07">
+            <div class="v-date">sáb 18/07</div>
+            <div class="v-amt num"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 19V5M5 12l7-7 7 7"/></svg>+R$ 890</div>
+            <div class="v-lbl">Mercado São João</div>
+          </button>
+          <button class="venc crit" data-nav="Entradas & Saídas" data-msg="→ Entradas & Saídas — Aluguel, R$ 2.100, vence 20/07">
+            <div class="v-date">seg 20/07</div>
+            <div class="v-amt num"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12l7 7 7-7"/></svg>−R$ 2.100</div>
+            <div class="v-lbl">Aluguel</div>
+          </button>
+          <button class="venc pos" data-nav="Entradas & Saídas" data-msg="→ Entradas & Saídas — recebimento de Auto Peças Silva, R$ 620, vence 22/07">
+            <div class="v-date">qua 22/07</div>
+            <div class="v-amt num"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 19V5M5 12l7-7 7 7"/></svg>+R$ 620</div>
+            <div class="v-lbl">Auto Peças Silva</div>
+          </button>
+          <button class="venc crit" data-nav="Entradas & Saídas" data-msg="→ Entradas & Saídas — Fornecedor Sul, R$ 400, vence 23/07">
+            <div class="v-date">qui 23/07</div>
+            <div class="v-amt num"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12l7 7 7-7"/></svg>−R$ 400</div>
+            <div class="v-lbl">Fornecedor Sul</div>
+          </button>
+        </div>
+      </div>
+
+      <!-- ⑤ Super Consultor — única IA da tela -->
+      <div class="consultor fade-in" style="animation-delay:.18s">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 0 0-4 12.7V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.3A7 7 0 0 0 12 2z"/><path d="M9 21h6"/></svg></div>
+        <div style="flex:1; min-width:0;">
+          <h3>Super Consultor</h3>
+          <p><b>Prioridade da semana:</b> o aluguel (<b class="num">R$ 2.100</b>) vence antes de você receber <b class="num">R$ 3.200</b> atrasados. Cobre os 3 clientes hoje.</p>
+          <div class="consultor-actions">
+            <button class="btn-primary sm" data-nav="Entradas & Saídas" data-msg="→ Entradas & Saídas — filtro: atrasados (3 clientes, R$ 3.200)">Cobrar →</button>
+            <button class="link-toggle" id="calcToggle" aria-expanded="false">Ver como calculamos <span class="chev">⌄</span></button>
+          </div>
+          <div class="calc-detail" id="calcDetail">
+            <div class="calc-row"><span>Saldo livre hoje</span><span class="num">R$ 3.300</span></div>
+            <div class="calc-row crit"><span>Aluguel vence 20/07</span><span class="num">−R$ 2.100</span></div>
+            <div class="calc-row pos"><span>A receber atrasado · 3 clientes · 16 dias em média</span><span class="num">R$ 3.200</span></div>
+            <div class="calc-note">Severidade alta: sem cobrar, o caixa cruza zero em 11 dias (27/07). Cobrando hoje, o aluguel sai tranquilo e o caixa segue positivo além do dia 27.</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<button class="fab" title="Lançar" onclick="toast('⊕ Lançamento rápido — disponível em todas as telas do Financeiro.')" aria-label="Lançar">+</button>
+<div class="toast" id="toast"></div>
+
+<script>
+  // ---- toast global ----
+  function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(t._h);
+    t._h = setTimeout(() => t.classList.remove('show'), 2600);
+  }
+  function brl(n) { return 'R$ ' + Math.round(Math.abs(n)).toLocaleString('pt-BR'); }
+
+  // ---- drills/links: qualquer coisa com data-nav mostra o destino (a tela nunca gerencia, só aponta) ----
+  document.querySelectorAll('[data-nav]').forEach(el => {
+    el.addEventListener('click', () => toast(el.dataset.msg || ('→ Indo para: ' + el.dataset.nav)));
+  });
+  document.querySelectorAll('[data-tabnav]').forEach(el => {
+    el.addEventListener('click', () => toast('Abriria a aba "' + el.dataset.tabnav + '" (fora do escopo deste mockup — só Visão Geral está implementada)'));
+  });
+
+  // ---- Super Consultor: "ver como calculamos" ----
+  (function () {
+    const btn = document.getElementById('calcToggle');
+    const detail = document.getElementById('calcDetail');
+    btn.addEventListener('click', () => {
+      const open = detail.classList.toggle('open');
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+  })();
+
+  // ---- ② Linha do tempo do caixa: realizado sólido + previsto tracejado + 1 marcador de cruzar zero ----
+  (function () {
+    const values = [6200, 6450, 6300, 7100, 7050, 7400, 7300, 7600, 7550, 7900, 7850, 8100, 8050, 8300, 8250,
+                    8400, 8550, 9440, 9140, 7040, 7240, 7860, 7460, 7110, 5810, 5610, -1340, -2200, -1850, -900];
+    const events = {
+      18: { desc: 'Recebimento · Mercado São João', delta: 890, tone: 'pos' },
+      20: { desc: 'Aluguel', delta: -2100, tone: 'crit' },
+      22: { desc: 'Recebimento · Auto Peças Silva', delta: 620, tone: 'pos' },
+      23: { desc: 'Fornecedor Sul', delta: -400, tone: 'crit' },
+      25: { desc: 'Imposto (DAS)', delta: -1300, tone: 'crit' },
+      27: { desc: 'Folha de pagamento + outros compromissos', delta: -6950, tone: 'crit' },
+      30: { desc: 'Recebimentos diversos', delta: 950, tone: 'pos' }
+    };
+    const n = values.length;
+    const W = 900, H = 232, padL = 16, padR = 16, padTop = 42, padBottom = 30;
+    const plotW = W - padL - padR, plotH = H - padTop - padBottom;
+    const min = Math.min(...values, 0), max = Math.max(...values);
+    const xFor = i => padL + i * (plotW / (n - 1));
+    const yFor = v => padTop + (max - v) / (max - min) * plotH;
+    const zeroY = yFor(0);
+    const todayIdx = 15; // dia 16 = hoje
+    const idxAll = [...Array(n).keys()];
+
+    let crossIdx = null, crossX = null;
+    for (let i = todayIdx; i < n - 1; i++) {
+      if (values[i] >= 0 && values[i + 1] < 0) {
+        crossIdx = i + 1;
+        const frac = (0 - values[i]) / (values[i + 1] - values[i]);
+        crossX = xFor(i) + frac * (xFor(i + 1) - xFor(i));
+        break;
+      }
+    }
+
+    function pathFor(idxs) {
+      return idxs.map((i, k) => (k === 0 ? 'M' : 'L') + xFor(i).toFixed(1) + ',' + yFor(values[i]).toFixed(1)).join(' ');
+    }
+    const solidPath = pathFor(idxAll.slice(0, todayIdx + 1));
+    const dashPath = pathFor(idxAll.slice(todayIdx));
+
+    let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Projeção do caixa para os próximos 30 dias, com realizado e previsto">`;
+
+    // faixa sutil "abaixo de zero" — território de risco, sempre visível
+    svg += `<rect x="${padL}" y="${zeroY.toFixed(1)}" width="${plotW}" height="${(H - padBottom - zeroY).toFixed(1)}" fill="hsl(var(--crit) / 0.035)"/>`;
+    // linha zero
+    svg += `<line x1="${padL}" y1="${zeroY.toFixed(1)}" x2="${W - padR}" y2="${zeroY.toFixed(1)}" stroke="hsl(var(--border))" stroke-width="1" stroke-dasharray="2 3"/>`;
+    svg += `<text x="${padL + 2}" y="${(zeroY - 4).toFixed(1)}" font-size="9" fill="hsl(var(--faint))" font-family="var(--sans)">0</text>`;
+
+    // preenchimento da área negativa (a partir do cruzamento real com zero)
+    if (crossIdx != null) {
+      let d = `M ${crossX.toFixed(1)},${zeroY.toFixed(1)} `;
+      for (let i = crossIdx; i < n; i++) d += `L ${xFor(i).toFixed(1)},${yFor(values[i]).toFixed(1)} `;
+      d += `L ${xFor(n - 1).toFixed(1)},${zeroY.toFixed(1)} Z`;
+      svg += `<path d="${d}" fill="hsl(var(--crit) / 0.15)"/>`;
+    }
+
+    // linha vertical "hoje"
+    const todayX = xFor(todayIdx);
+    svg += `<line x1="${todayX.toFixed(1)}" y1="${padTop - 8}" x2="${todayX.toFixed(1)}" y2="${H - padBottom}" stroke="hsl(var(--muted))" stroke-width="1" stroke-dasharray="2 3" opacity="0.55"/>`;
+
+    // curva: realizado sólido + previsto tracejado
+    svg += `<path d="${solidPath}" fill="none" stroke="hsl(var(--fg))" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>`;
+    svg += `<path d="${dashPath}" fill="none" stroke="hsl(var(--fg))" stroke-width="2.4" stroke-dasharray="1 5.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>`;
+    // realça em --crit o trecho já negativo
+    if (crossIdx != null) {
+      let d2 = `M ${crossX.toFixed(1)},${zeroY.toFixed(1)} ` + idxAll.slice(crossIdx).map(i => `L ${xFor(i).toFixed(1)},${yFor(values[i]).toFixed(1)}`).join(' ');
+      svg += `<path d="${d2}" fill="none" stroke="hsl(var(--crit))" stroke-width="2.6" stroke-dasharray="1 5.5" stroke-linecap="round" stroke-linejoin="round"/>`;
+    }
+
+    // marcador único + callout "aqui fica negativo"
+    if (crossIdx != null) {
+      const mx = xFor(crossIdx), my = yFor(values[crossIdx]);
+      const boxW = 196, boxH = 36;
+      let bx = mx - boxW / 2; bx = Math.max(padL, Math.min(bx, W - padR - boxW));
+      const by = 4;
+      svg += `<line x1="${mx.toFixed(1)}" y1="${(by + boxH).toFixed(1)}" x2="${mx.toFixed(1)}" y2="${(my - 9).toFixed(1)}" stroke="hsl(var(--crit))" stroke-width="1.3" stroke-dasharray="2 3" opacity="0.55"/>`;
+      svg += `<rect x="${bx.toFixed(1)}" y="${by}" width="${boxW}" height="${boxH}" rx="9" fill="hsl(var(--crit-soft))" stroke="hsl(var(--crit) / 0.35)"/>`;
+      svg += `<text x="${(bx + 11).toFixed(1)}" y="${by + 15}" font-size="10.5" font-weight="700" fill="hsl(var(--crit))" font-family="var(--sans)">27/07 · aqui fica negativo</text>`;
+      svg += `<text x="${(bx + 11).toFixed(1)}" y="${by + 29}" font-size="11.5" font-weight="700" fill="hsl(var(--crit))" font-family="var(--mono)">−R$ 1.340 projetado</text>`;
+      svg += `<circle cx="${mx.toFixed(1)}" cy="${my.toFixed(1)}" r="5" fill="hsl(var(--crit))" stroke="hsl(var(--surface))" stroke-width="2.2"/>`;
+    }
+
+    // rótulos mínimos de eixo (sem eixo Y, sem grade)
+    [[0, '01/07', 'start'], [todayIdx, 'hoje', 'middle'], [n - 1, '30/07', 'end']].forEach(([i, label, anchor]) => {
+      svg += `<text x="${xFor(i).toFixed(1)}" y="${H - padBottom + 15}" font-size="10" fill="hsl(var(--muted))" text-anchor="${anchor}" font-family="var(--sans)">${label}</text>`;
+    });
+
+    // áreas de clique invisíveis por dia
+    const slot = plotW / n;
+    idxAll.forEach(i => {
+      const cx = xFor(i);
+      svg += `<rect class="hit" data-i="${i}" x="${(cx - slot / 2).toFixed(1)}" y="${padTop - 8}" width="${slot.toFixed(1)}" height="${(H - padBottom - (padTop - 8)).toFixed(1)}" fill="transparent" style="cursor:pointer"/>`;
+    });
+
+    svg += `</svg>`;
+
+    const inner = document.getElementById('chartInner');
+    inner.insertAdjacentHTML('afterbegin', svg);
+
+    const tip = document.getElementById('chartTip');
+    function dayLabel(i) { const d = i + 1; return (d < 10 ? '0' + d : d) + '/07'; }
+    inner.querySelectorAll('.hit').forEach(r => {
+      r.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const i = +r.dataset.i;
+        const day = i + 1;
+        const val = values[i];
+        const ev = events[day];
+        const cx = xFor(i), cy = yFor(val);
+        let html = `<div class="tt-date">${dayLabel(i)}${i === todayIdx ? ' · hoje' : ''}</div>`;
+        html += `<div class="tt-val num">Saldo projetado: <b>${val < 0 ? '−' : ''}${brl(val)}</b></div>`;
+        if (ev) html += `<div class="tt-ev ${ev.tone}">${ev.delta > 0 ? '+' : '−'}${brl(ev.delta)} · ${ev.desc}</div>`;
+        else html += `<div class="tt-ev muted">Sem vencimento grande — variação do dia a dia.</div>`;
+        tip.innerHTML = html;
+        tip.style.left = (cx / W * 100) + '%';
+        tip.style.top = (cy / H * 100) + '%';
+        tip.classList.add('show');
+      });
+    });
+    document.addEventListener('click', (e) => { if (!inner.contains(e.target)) tip.classList.remove('show'); });
+  })();
+</script>

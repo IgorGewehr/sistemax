@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>dotnet-SistemaX.Store.Server-2496e0b2-2141-4830-93df-904ae380a6b8</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.9" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Infrastructure\SistemaX.Infrastructure.Sync\SistemaX.Infrastructure.Sync.csproj" />
+    <ProjectReference Include="..\..\Modules\Financeiro\SistemaX.Modules.Financeiro.Application\SistemaX.Modules.Financeiro.Application.csproj" />
+  </ItemGroup>
+</Project>

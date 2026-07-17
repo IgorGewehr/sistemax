@@ -1,0 +1,447 @@
+<style>
+  :root {
+    /* Neutros/marca herdados dos tokens do app (saas-erp) */
+    --bg: 210 40% 98%;
+    --surface: 0 0% 100%;
+    --surface-2: 210 40% 96.5%;
+    --fg: 222 47% 11%;
+    --muted: 215 16% 47%;
+    --faint: 215 20% 65%;
+    --border: 214 32% 90%;
+    --primary: 0 72% 51%;
+    --primary-soft: 0 72% 96%;
+    --pos: 152 58% 40%;
+    --pos-soft: 152 55% 94%;
+    --warn: 32 90% 44%;
+    --warn-soft: 38 92% 94%;
+    --crit: 349 78% 48%;
+    --crit-soft: 349 80% 96%;
+    --ring: 0 72% 51%;
+    --shadow: 220 40% 20%;
+    --mono: "SF Mono", ui-monospace, "JetBrains Mono", "Cascadia Code", Menlo, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  }
+  /* Tema CLARO é o padrão do produto — dark só via toggle explícito (data-theme="dark"). */
+  :root[data-theme="light"] {
+    --bg: 210 40% 98%; --surface: 0 0% 100%; --surface-2: 210 40% 96.5%;
+    --fg: 222 47% 11%; --muted: 215 16% 47%; --faint: 215 20% 65%; --border: 214 32% 90%;
+    --primary: 0 72% 51%; --primary-soft: 0 72% 96%; --pos: 152 58% 40%; --pos-soft: 152 55% 94%;
+    --warn: 32 90% 44%; --warn-soft: 38 92% 94%; --crit: 349 78% 48%; --crit-soft: 349 80% 96%; --shadow: 220 40% 20%;
+  }
+  :root[data-theme="dark"] {
+    --bg: 222 47% 5%; --surface: 220 40% 7.5%; --surface-2: 218 34% 11%;
+    --fg: 210 40% 96%; --muted: 215 20% 60%; --faint: 215 18% 42%; --border: 215 25% 16%;
+    --primary: 0 72% 58%; --primary-soft: 0 45% 13%; --pos: 152 55% 50%; --pos-soft: 152 40% 12%;
+    --warn: 38 92% 55%; --warn-soft: 36 45% 13%; --crit: 350 85% 62%; --crit-soft: 349 45% 14%; --shadow: 222 60% 2%;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: hsl(var(--bg)); color: hsl(var(--fg));
+    font-family: var(--sans); -webkit-font-smoothing: antialiased;
+    font-size: 14px; line-height: 1.5;
+  }
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .eyebrow { text-transform: uppercase; letter-spacing: 0.08em; font-size: 11px; font-weight: 600; color: hsl(var(--muted)); }
+
+  /* ---- App shell ---- */
+  .app { display: grid; grid-template-columns: 60px 1fr; min-height: 100vh; }
+  .rail {
+    background: hsl(var(--surface)); border-right: 1px solid hsl(var(--border));
+    display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 0;
+  }
+  .rail .logo {
+    width: 34px; height: 34px; border-radius: 10px; margin-bottom: 10px;
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(0 72% 40%));
+    display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 15px;
+    box-shadow: 0 4px 14px hsl(var(--primary) / 0.4);
+  }
+  .rail button {
+    width: 40px; height: 40px; border-radius: 11px; border: 0; background: transparent;
+    color: hsl(var(--faint)); cursor: pointer; display: grid; place-items: center; transition: .15s;
+  }
+  .rail button svg { width: 20px; height: 20px; }
+  .rail button:hover { background: hsl(var(--surface-2)); color: hsl(var(--fg)); }
+  .rail button.active { background: hsl(var(--primary-soft)); color: hsl(var(--primary)); }
+  .rail .spacer { flex: 1; }
+
+  .main { min-width: 0; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 26px 32px 60px; }
+
+  /* ---- Header ---- */
+  header.page { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 22px; flex-wrap: wrap; }
+  header.page h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; margin: 4px 0 2px; text-wrap: balance; }
+  header.page .sub { color: hsl(var(--muted)); font-size: 13.5px; }
+  .head-actions { display: flex; align-items: center; gap: 10px; }
+  .period { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border: 1px solid hsl(var(--border));
+    border-radius: 10px; background: hsl(var(--surface)); font-weight: 600; font-size: 13px; }
+  .btn-primary {
+    display: inline-flex; align-items: center; gap: 7px; padding: 9px 15px; border-radius: 10px; border: 0;
+    background: hsl(var(--primary)); color: #fff; font-weight: 600; font-size: 13.5px; cursor: pointer;
+    box-shadow: 0 4px 14px hsl(var(--primary) / 0.35); transition: transform .12s, filter .12s;
+  }
+  .btn-primary:hover { filter: brightness(1.06); transform: translateY(-1px); }
+  .btn-ghost { padding: 8px 11px; border-radius: 10px; border: 1px solid hsl(var(--border)); background: hsl(var(--surface));
+    color: hsl(var(--fg)); cursor: pointer; font-size: 13px; display: inline-flex; gap: 6px; align-items: center; }
+
+  /* ---- Cards ---- */
+  .card { background: hsl(var(--surface)); border: 1px solid hsl(var(--border)); border-radius: 16px;
+    box-shadow: 0 1px 2px hsl(var(--shadow) / 0.06), 0 8px 24px -18px hsl(var(--shadow) / 0.5); }
+
+  /* KPI row */
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 16px; }
+  .kpi { padding: 16px 18px; position: relative; overflow: hidden; }
+  .kpi .lbl { display: flex; align-items: center; gap: 6px; }
+  .kpi .val { font-size: 27px; font-weight: 700; margin-top: 10px; letter-spacing: -0.02em; }
+  .kpi .val small { font-size: 15px; font-weight: 600; color: hsl(var(--muted)); }
+  .kpi .delta { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; font-weight: 600; margin-top: 7px; }
+  .kpi .delta.up { color: hsl(var(--pos)); }
+  .kpi .delta.down { color: hsl(var(--crit)); }
+  .kpi .foot { font-size: 12px; color: hsl(var(--muted)); margin-top: 3px; }
+  .kpi.hero::after { content: ""; position: absolute; inset: 0; background: radial-gradient(120% 90% at 100% 0, hsl(var(--primary) / 0.10), transparent 60%); pointer-events: none; }
+  .spark { margin-top: 10px; height: 34px; width: 100%; display: block; }
+
+  /* Consultor */
+  .consultor { display: flex; gap: 14px; padding: 16px 18px; margin-bottom: 16px; align-items: flex-start;
+    background:
+      linear-gradient(hsl(var(--surface)), hsl(var(--surface))) padding-box,
+      linear-gradient(120deg, hsl(var(--primary) / 0.5), hsl(var(--border) / 0.2)) border-box;
+    border: 1px solid transparent; border-radius: 16px; }
+  .consultor .icon { flex: none; width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center;
+    background: hsl(var(--primary-soft)); color: hsl(var(--primary)); }
+  .consultor .icon svg { width: 20px; height: 20px; }
+  .consultor h3 { margin: 1px 0 5px; font-size: 13px; letter-spacing: -0.01em; }
+  .consultor p { margin: 0; font-size: 13.5px; line-height: 1.6; color: hsl(var(--fg)); }
+  .consultor b { color: hsl(var(--primary)); font-weight: 700; }
+  .consultor .money-bad { color: hsl(var(--crit)); font-weight: 700; }
+  .consultor .money-good { color: hsl(var(--pos)); font-weight: 700; }
+
+  /* 2-col */
+  .grid2 { display: grid; grid-template-columns: 1.15fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .card h2.sec { font-size: 13px; font-weight: 700; letter-spacing: -0.01em; padding: 15px 18px 0; margin: 0; display: flex; justify-content: space-between; align-items: center; }
+  .card h2.sec .hint { font-weight: 500; font-size: 12px; color: hsl(var(--muted)); }
+
+  /* MRR por software bars */
+  .bars { padding: 14px 18px 18px; display: flex; flex-direction: column; gap: 13px; }
+  .bar-row { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; }
+  .bar-row .name { font-weight: 600; font-size: 13px; }
+  .bar-row .amt { font-size: 12.5px; color: hsl(var(--muted)); }
+  .track { grid-column: 1 / -1; height: 8px; border-radius: 6px; background: hsl(var(--surface-2)); overflow: hidden; }
+  .fill { height: 100%; border-radius: 6px; }
+  .bar-row .pct { font-weight: 700; font-size: 12.5px; }
+
+  /* Gargalos */
+  .gargalos { padding: 12px 14px 16px; display: flex; flex-direction: column; gap: 9px; }
+  .garg { display: flex; gap: 11px; padding: 11px 12px; border-radius: 12px; background: hsl(var(--surface-2)); align-items: flex-start; }
+  .garg .sev { flex: none; width: 8px; align-self: stretch; border-radius: 6px; }
+  .garg.crit .sev { background: hsl(var(--crit)); }
+  .garg.warn .sev { background: hsl(var(--warn)); }
+  .garg .body { flex: 1; min-width: 0; }
+  .garg .t { font-weight: 600; font-size: 13px; }
+  .garg .d { font-size: 12.5px; color: hsl(var(--muted)); margin-top: 2px; }
+  .garg .act { font-size: 12px; font-weight: 600; color: hsl(var(--primary)); background: none; border: 0; cursor: pointer; padding: 0; margin-top: 6px; }
+
+  /* Table */
+  .tbl-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; min-width: 640px; }
+  thead th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: hsl(var(--muted));
+    font-weight: 600; padding: 12px 16px; border-bottom: 1px solid hsl(var(--border)); }
+  thead th.r, tbody td.r { text-align: right; }
+  tbody td { padding: 13px 16px; border-bottom: 1px solid hsl(var(--border) / 0.6); font-size: 13.5px; }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr:hover { background: hsl(var(--surface-2) / 0.6); }
+  .soft-dot { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
+  .dot { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+  .cli { color: hsl(var(--muted)); font-size: 12.5px; }
+  .val-mono { font-weight: 600; }
+  .chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 600; }
+  .chip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .chip.ativa { color: hsl(var(--pos)); background: hsl(var(--pos-soft)); }
+  .chip.risco { color: hsl(var(--warn)); background: hsl(var(--warn-soft)); }
+  .chip.atraso { color: hsl(var(--crit)); background: hsl(var(--crit-soft)); }
+  .chip.cancel { color: hsl(var(--faint)); background: hsl(var(--surface-2)); }
+  tr.cancelled td:not(.st) { color: hsl(var(--faint)); text-decoration: line-through; text-decoration-color: hsl(var(--faint) / 0.5); }
+
+  /* Tabs do Financeiro + segmented de Recorrentes */
+  .tabs { display: flex; gap: 2px; border-bottom: 1px solid hsl(var(--border)); margin-bottom: 16px; overflow-x: auto; }
+  .tab { padding: 10px 14px; font-size: 13.5px; font-weight: 600; color: hsl(var(--muted)); border: 0; background: none; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; transition: .15s; }
+  .tab:hover { color: hsl(var(--fg)); }
+  .tab.active { color: hsl(var(--primary)); border-bottom-color: hsl(var(--primary)); }
+  .subhead { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+  .seg { display: inline-flex; background: hsl(var(--surface-2)); border: 1px solid hsl(var(--border)); border-radius: 11px; padding: 3px; gap: 2px; }
+  .seg button { padding: 7px 13px; border: 0; background: none; border-radius: 8px; font-size: 13px; font-weight: 600; color: hsl(var(--muted)); cursor: pointer; }
+  .seg button.active { background: hsl(var(--surface)); color: hsl(var(--fg)); box-shadow: 0 1px 3px hsl(var(--shadow) / 0.2); }
+  .ctx-note { font-size: 12px; color: hsl(var(--muted)); display: inline-flex; align-items: center; gap: 6px; }
+  .ctx-note svg { color: hsl(var(--primary)); }
+
+  /* Gráfico divergente + stat tiles + tabela por serviço */
+  .chart { padding: 14px 18px 12px; }
+  .chart svg { width: 100%; height: auto; display: block; }
+  .chart .zero { stroke: hsl(var(--border)); stroke-width: 1; }
+  .chart .mlabel { fill: hsl(var(--muted)); font-size: 9px; font-family: var(--sans); }
+  .chart .blabel { fill: hsl(var(--crit)); font-size: 9px; font-weight: 700; font-family: var(--mono); }
+  .chart rect { transition: opacity .12s; }
+  .chart rect:hover { opacity: .78; }
+  .legend { display: flex; gap: 16px; padding: 0 18px 16px; font-size: 12px; color: hsl(var(--muted)); }
+  .legend .lg { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 10px; height: 10px; border-radius: 3px; }
+  .stats { padding: 14px 18px 18px; display: flex; flex-direction: column; gap: 11px; }
+  .stat { padding: 12px 14px; border-radius: 12px; background: hsl(var(--surface-2)); }
+  .stat .k { font-size: 12px; color: hsl(var(--muted)); font-weight: 600; }
+  .stat .v { font-size: 25px; font-weight: 700; margin-top: 4px; letter-spacing: -0.02em; }
+  .stat .v small { font-size: 14px; font-weight: 600; color: hsl(var(--muted)); }
+  .stat .s { font-size: 12px; color: hsl(var(--faint)); margin-top: 2px; }
+  td .churn0 { color: hsl(var(--faint)); }
+  td .churnN { color: hsl(var(--crit)); font-weight: 700; }
+
+  /* Análise interativa: overview (MRR por serviço, clicável) ⇄ drill por serviço */
+  #cardEsq, #cardDir { min-height: 236px; }
+  .bars.sel { padding: 12px; gap: 2px; }
+  .bar-click { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; width: 100%;
+    border: 0; background: none; font: inherit; color: inherit; cursor: pointer; text-align: left; padding: 9px 10px; border-radius: 11px; transition: background .12s; }
+  .bar-click:hover { background: hsl(var(--surface-2)); }
+  .bar-click:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+  .secleft { display: inline-flex; align-items: center; gap: 8px; }
+  .back { border: 0; background: hsl(var(--surface-2)); color: hsl(var(--fg)); width: 26px; height: 26px; border-radius: 8px;
+    cursor: pointer; font-size: 15px; line-height: 1; display: inline-grid; place-items: center; transition: .12s; }
+  .back:hover { background: hsl(var(--primary-soft)); color: hsl(var(--primary)); }
+  .card.anim > * { animation: cardin .22s ease both; }
+  @keyframes cardin { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .card.anim > * { animation: none; } }
+
+  .theme-toggle { position: fixed; top: 14px; right: 16px; z-index: 10; }
+
+  @media (max-width: 860px) {
+    .kpis { grid-template-columns: repeat(2, 1fr); }
+    .grid2 { grid-template-columns: 1fr; }
+    .app { grid-template-columns: 0 1fr; }
+    .rail { display: none; }
+    .wrap { padding: 22px 18px 50px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<button class="btn-ghost theme-toggle" onclick="(function(){var r=document.documentElement;var d=(r.getAttribute('data-theme')|| (matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'))==='dark';r.setAttribute('data-theme',d?'light':'dark');})()">◐ tema</button>
+
+<div class="app">
+  <nav class="rail" aria-label="Navegação">
+    <div class="logo">S</div>
+    <button title="Início"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10.5 12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1z"/></svg></button>
+    <button class="active" title="Financeiro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg></button>
+    <button title="Vendas / PDV"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2 3h3l2.4 12.5a1 1 0 0 0 1 .8h9.2a1 1 0 0 0 1-.8L21 7H6"/></svg></button>
+    <button title="Estoque"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/></svg></button>
+    <button title="Clientes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M17 5.5a3 3 0 0 1 0 5.6M22 20a6 6 0 0 0-4-5.7"/></svg></button>
+    <div class="spacer"></div>
+    <button title="Ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 2h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12a7 7 0 0 0 .1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 22h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6A7 7 0 0 0 19 12z"/></svg></button>
+  </nav>
+
+  <main class="main">
+    <div class="wrap">
+      <header class="page">
+        <div>
+          <div class="eyebrow">Financeiro · Recorrentes</div>
+          <h1>Assinaturas</h1>
+          <div class="sub">Seus softwares, os clientes que pagam por eles, e o que isso vale de verdade.</div>
+        </div>
+        <div class="head-actions">
+          <div class="period">Julho 2026 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></div>
+          <button class="btn-primary"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg> Nova assinatura</button>
+        </div>
+      </header>
+
+      <nav class="tabs" aria-label="Seções do Financeiro">
+        <button class="tab">Visão geral</button>
+        <button class="tab">Entradas &amp; saídas</button>
+        <button class="tab active">Recorrentes</button>
+        <button class="tab">Bancário</button>
+        <button class="tab">Relatórios</button>
+      </nav>
+      <div class="subhead">
+        <div class="seg">
+          <button>Contas fixas <span style="opacity:.6;font-weight:500">· luz, aluguel, salários</span></button>
+          <button class="active">Assinaturas</button>
+        </div>
+        <div class="ctx-note"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-5M12 8h.01"/></svg> Visível porque este negócio vende serviço recorrente</div>
+      </div>
+
+      <!-- KPIs: resumo antes do detalhe -->
+      <section class="kpis">
+        <div class="card kpi hero">
+          <div class="lbl eyebrow">MRR · receita recorrente</div>
+          <div class="val num">R$ 6.077</div>
+          <div class="delta down"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 7l10 10M17 7v10H7"/></svg> −R$ 349 (−5,4%) no mês</div>
+          <svg class="spark" viewBox="0 0 260 34" preserveAspectRatio="none" aria-hidden="true">
+            <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="hsl(var(--primary))" stop-opacity="0.28"/><stop offset="1" stop-color="hsl(var(--primary))" stop-opacity="0"/></linearGradient></defs>
+            <path d="M0,20 L52,15 L104,9 L156,12 L208,10 L260,17" fill="none" stroke="hsl(var(--primary))" stroke-width="2" stroke-linecap="round"/>
+            <path d="M0,20 L52,15 L104,9 L156,12 L208,10 L260,17 L260,34 L0,34 Z" fill="url(#g)"/>
+            <circle cx="260" cy="17" r="3" fill="hsl(var(--primary))"/>
+          </svg>
+        </div>
+        <div class="card kpi">
+          <div class="lbl eyebrow">Churn do mês</div>
+          <div class="val num">R$ 1.239</div>
+          <div class="delta down">2 clientes · 16,9% da base</div>
+          <div class="foot">Salão Bella · Mercadinho Luz</div>
+        </div>
+        <div class="card kpi">
+          <div class="lbl eyebrow">Novos + expansão</div>
+          <div class="val num">+R$ 890</div>
+          <div class="delta up"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 17 17 7M7 7h10v10"/></svg> 1 cliente novo</div>
+          <div class="foot">Distribuidora Norte</div>
+        </div>
+        <div class="card kpi">
+          <div class="lbl eyebrow">Valor estimado · ARR</div>
+          <div class="val num">R$ 72.924</div>
+          <div class="delta">8 assinaturas ativas · ticket médio <span class="num">R$ 760</span></div>
+        </div>
+      </section>
+
+      <!-- Super Consultor -->
+      <div class="consultor">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 0 0-4 12.7V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.3A7 7 0 0 0 12 2z"/><path d="M9 21h6"/></svg></div>
+        <div>
+          <h3>Super Consultor</h3>
+          <p><b>Prioridade da semana:</b> sua receita está concentrada demais — a <b>Prefeitura de Ilhota é 41% do MRR</b>. Se ela sair, você perde quase metade. Blinde esse contrato antes de pensar em crescer. (O churn deste mês, R$ 1.239, foi 2 clientes pequenos — dói menos que a dependência de um grande.)</p>
+        </div>
+      </div>
+
+      <!-- Análise INTERATIVA: MRR por serviço (carteira) ⇄ Novos×Churn + retenção por serviço -->
+      <section class="grid2">
+        <div class="card" id="cardEsq"></div>
+        <div class="card" id="cardDir"></div>
+      </section>
+
+      <script>
+        (function () {
+          const brl = n => 'R$ ' + n.toLocaleString('pt-BR');
+          const meses = ['Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul'];
+          const carteira = { tempoMedio: '14', ltv: 'R$ 10.640', retencao: '82' };
+          const projetos = [
+            { id: 'tensorroot', nome: 'TensorRoot Gov', mrr: 'R$ 2.500', pct: 41.1, cor: 'var(--primary)', clientes: 1, churnMes: 0, tempoMedio: '5', ltv: 'R$ 12.500', retencao: '100', novos: [0, 0, 0, 2500, 0, 0], churn: [0, 0, 0, 0, 0, 0] },
+            { id: 'gestao', nome: 'Gestão Raiz Fiscal', mrr: 'R$ 2.090', pct: 34.4, cor: 'var(--fg) / 0.55', clientes: 2, churnMes: 1, tempoMedio: '9', ltv: 'R$ 9.400', retencao: '75', novos: [0, 0, 0, 1200, 0, 890], churn: [0, 0, 0, 0, 0, 890] },
+            { id: 'servicepro', nome: 'ServicePro', mrr: 'R$ 1.047', pct: 17.2, cor: 'var(--fg) / 0.4', clientes: 3, churnMes: 1, tempoMedio: '12', ltv: 'R$ 8.200', retencao: '80', novos: [349, 0, 349, 349, 0, 0], churn: [0, 0, 0, 0, 0, 349] },
+            { id: 'brain', nome: 'Brain', mrr: 'R$ 440', pct: 7.2, cor: 'var(--fg) / 0.25', clientes: 2, churnMes: 0, tempoMedio: '7', ltv: 'R$ 3.080', retencao: '90', novos: [0, 220, 0, 0, 220, 0], churn: [0, 0, 0, 0, 0, 0] },
+          ];
+          const cardEsq = document.getElementById('cardEsq');
+          const cardDir = document.getElementById('cardDir');
+
+          function svgDivergente(novos, churn) {
+            const zeroY = 58, x0 = 16, x1 = 330, bw = 18;
+            const max = Math.max(1, ...novos, ...churn);
+            const f = Math.min(44, 46) / max, slot = (x1 - x0) / 6;
+            let r = '';
+            novos.forEach((v, i) => { if (v <= 0) return; const h = v * f, cx = x0 + slot * i + slot / 2; r += `<rect x="${(cx - bw / 2).toFixed(0)}" y="${(zeroY - h).toFixed(0)}" width="${bw}" height="${h.toFixed(0)}" rx="3" fill="hsl(var(--pos))"><title>${meses[i]} · novos ${brl(v)}</title></rect>`; });
+            churn.forEach((v, i) => { if (v <= 0) return; const h = v * f, cx = x0 + slot * i + slot / 2; r += `<rect x="${(cx - bw / 2).toFixed(0)}" y="${zeroY}" width="${bw}" height="${h.toFixed(0)}" rx="3" fill="hsl(var(--crit))"><title>${meses[i]} · churn ${brl(v)}</title></rect>`; });
+            meses.forEach((m, i) => { const cx = x0 + slot * i + slot / 2; r += `<text class="mlabel" x="${cx.toFixed(0)}" y="136" text-anchor="middle">${m}</text>`; });
+            return `<svg viewBox="0 0 340 145" role="img" aria-label="Novos e churn por mês"><line class="zero" x1="${x0}" y1="${zeroY}" x2="${x1}" y2="${zeroY}"/>${r}</svg>`;
+          }
+          function tiles(o) {
+            return `<div class="stats">
+              <div class="stat"><div class="k">Tempo médio de casa</div><div class="v num">${o.tempoMedio} <small>meses</small></div><div class="s">antes de cancelar</div></div>
+              <div class="stat"><div class="k">LTV médio estimado</div><div class="v num">${o.ltv}</div><div class="s">ticket × tempo de vida</div></div>
+              <div class="stat"><div class="k">Retenção em 12 meses</div><div class="v num">${o.retencao}<small>%</small></div><div class="s">seguem ativos após 1 ano</div></div>
+            </div>`;
+          }
+          function overview() {
+            const rows = projetos.map(p => `<button class="bar-click" data-id="${p.id}">
+              <span class="name"><span class="dot" style="background:hsl(${p.cor})"></span>${p.nome}</span><span class="amt num">${p.mrr}</span>
+              <div class="track"><div class="fill" style="width:${p.pct}%;background:hsl(${p.cor})"></div></div>
+              <span class="pct num">${String(p.pct).replace('.', ',')}%</span></button>`).join('');
+            cardEsq.innerHTML = `<h2 class="sec">MRR por serviço <span class="hint">clique num serviço p/ churn e retenção →</span></h2><div class="bars sel">${rows}</div>`;
+            cardDir.innerHTML = `<h2 class="sec">Retenção da carteira <span class="hint">quanto tempo o cliente fica</span></h2>${tiles(carteira)}`;
+          }
+          function projeto(p) {
+            cardEsq.innerHTML = `<h2 class="sec"><span class="secleft"><button class="back" aria-label="Voltar para a carteira">←</button> ${p.nome}</span> <span class="hint">Novos × Churn, 6 meses</span></h2>
+              <div class="chart">${svgDivergente(p.novos, p.churn)}</div>
+              <div class="legend"><span class="lg"><i style="background:hsl(var(--pos))"></i>Novos</span><span class="lg"><i style="background:hsl(var(--crit))"></i>Churn</span></div>`;
+            cardDir.innerHTML = `<h2 class="sec">${p.nome} · retenção <span class="hint">${p.clientes} cliente${p.clientes > 1 ? 's' : ''} · ${p.churnMes} churn no mês</span></h2>${tiles(p)}`;
+          }
+          function anim() { [cardEsq, cardDir].forEach(c => { c.classList.remove('anim'); void c.offsetWidth; c.classList.add('anim'); }); }
+          function go(id) { if (id) projeto(projetos.find(p => p.id === id)); else overview(); anim(); bind(); }
+          function bind() {
+            cardEsq.querySelectorAll('.bar-click').forEach(b => b.addEventListener('click', () => go(b.dataset.id)));
+            const back = cardEsq.querySelector('.back'); if (back) back.addEventListener('click', () => go(null));
+          }
+          go(null);
+        })();
+      </script>
+
+      <!-- Tabela de assinaturas -->
+      <div class="card">
+        <h2 class="sec">Todas as assinaturas <span class="hint">8 ativas · 2 canceladas no mês</span></h2>
+        <div class="tbl-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Serviço</th><th>Cliente</th><th class="r">Valor/mês</th><th>Ciclo</th><th>Próx. cobrança</th><th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><span class="soft-dot"><span class="dot" style="background:hsl(var(--primary))"></span>TensorRoot Gov</span></td>
+                <td class="cli">Prefeitura de Ilhota <span style="opacity:.7">(piloto)</span></td>
+                <td class="r num val-mono">R$ 2.500</td><td>Mensal</td><td class="num">20/08</td>
+                <td class="st"><span class="chip ativa">Ativa</span></td>
+              </tr>
+              <tr>
+                <td><span class="soft-dot"><span class="dot" style="background:hsl(var(--fg) / 0.55)"></span>Gestão Raiz Fiscal</span></td>
+                <td class="cli">Posto Bandeira</td>
+                <td class="r num val-mono">R$ 1.200</td><td>Mensal</td><td class="num">12/08</td>
+                <td class="st"><span class="chip ativa">Ativa</span></td>
+              </tr>
+              <tr>
+                <td><span class="soft-dot"><span class="dot" style="background:hsl(var(--fg) / 0.55)"></span>Gestão Raiz Fiscal</span></td>
+                <td class="cli">Distribuidora Norte <span style="color:hsl(var(--pos));opacity:.9">· novo</span></td>
+                <td class="r num val-mono">R$ 890</td><td>Mensal</td><td class="num">10/08</td>
+                <td class="st"><span class="chip ativa">Ativa</span></td>
+              </tr>
+              <tr>
+                <td><span class="soft-dot"><span class="dot" style="background:hsl(var(--fg) / 0.4)"></span>ServicePro</span></td>
+                <td class="cli">Mercado São João</td>
+                <td class="r num val-mono">R$ 349</td><td>Mensal</td><td class="num">05/08</td>
+                <td class="st"><span class="chip ativa">Ativa</span></td>
+              </tr>
+              <tr>
+                <td><span class="soft-dot"><span class="dot" style="background:hsl(var(--fg) / 0.4)"></span>ServicePro</span></td>
+                <td class="cli">Padaria Pão Quente</td>
+                <td class="r num val-mono">R$ 349</td><td>Mensal</td><td class="num">05/08</td>
+                <td class="st"><span class="chip ativa">Ativa</span></td>
+              </tr>
+              <tr>
+                <td><span class="soft-dot"><span class="dot" style="background:hsl(var(--fg) / 0.4)"></span>ServicePro</span></td>
+                <td class="cli">Auto Peças Silva</td>
+                <td class="r num val-mono">R$ 349</td><td>Mensal</td><td class="num">01/07</td>
+                <td class="st"><span class="chip atraso">Atrasada 34d</span></td>
+              </tr>
+              <tr>
+                <td><span class="soft-dot"><span class="dot" style="background:hsl(var(--fg) / 0.25)"></span>Brain</span></td>
+                <td class="cli">Consultoria Abraão</td>
+                <td class="r num val-mono">R$ 220</td><td>Mensal</td><td class="num">15/08</td>
+                <td class="st"><span class="chip risco">Risco de churn</span></td>
+              </tr>
+              <tr>
+                <td><span class="soft-dot"><span class="dot" style="background:hsl(var(--fg) / 0.25)"></span>Brain</span></td>
+                <td class="cli">Studio Vega</td>
+                <td class="r num val-mono">R$ 220</td><td>Mensal</td><td class="num">18/08</td>
+                <td class="st"><span class="chip ativa">Ativa</span></td>
+              </tr>
+              <tr class="cancelled">
+                <td><span class="soft-dot"><span class="dot" style="background:hsl(var(--faint))"></span>ServicePro</span></td>
+                <td class="cli">Salão Bella</td>
+                <td class="r num val-mono">R$ 349</td><td>Mensal</td><td class="num">—</td>
+                <td class="st"><span class="chip cancel">Cancelada</span></td>
+              </tr>
+              <tr class="cancelled">
+                <td><span class="soft-dot"><span class="dot" style="background:hsl(var(--faint))"></span>Gestão Raiz Fiscal</span></td>
+                <td class="cli">Mercadinho Luz</td>
+                <td class="r num val-mono">R$ 890</td><td>Mensal</td><td class="num">—</td>
+                <td class="st"><span class="chip cancel">Cancelada</span></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>

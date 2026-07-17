@@ -1,0 +1,385 @@
+/* Fontes self-hospedadas via @fontsource — offline-first (WebView2 sem internet).
+   @import precisa vir antes de tudo (regra CSS), inclusive dos @tailwind. */
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/inter/700.css';
+@import '@fontsource/plus-jakarta-sans/500.css';
+@import '@fontsource/plus-jakarta-sans/600.css';
+@import '@fontsource/plus-jakarta-sans/700.css';
+@import '@fontsource/plus-jakarta-sans/800.css';
+@import '@fontsource/jetbrains-mono/400.css';
+@import '@fontsource/jetbrains-mono/500.css';
+@import '@fontsource/jetbrains-mono/600.css';
+@import '@fontsource/jetbrains-mono/700.css';
+@import './design-tokens.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─── Base reset ─────────────────────────────────── */
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    color-scheme: light dark;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-feature-settings:
+      'cv02',
+      'cv03',
+      'cv04',
+      'cv11';
+    transition:
+      background-color 0.3s ease,
+      color 0.3s ease;
+    overscroll-behavior: none;
+  }
+
+  /* PDV touch: sem delay de 300ms nem double-tap-zoom acidental em alvos clicáveis.
+     Complementa o fix de não usar transform:scale no :active (que encolhia a hitbox e
+     cancelava o clique/toque perto da borda). */
+  button,
+  [role='button'],
+  a,
+  label,
+  summary {
+    touch-action: manipulation;
+  }
+
+  ::selection {
+    background-color: rgba(220, 38, 38, 0.15);
+    color: #7f1d1d;
+  }
+  .dark ::selection {
+    background-color: rgba(239, 68, 68, 0.25);
+    color: #fef2f2;
+  }
+}
+
+/* ─── Scrollbar ──────────────────────────────────── */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 99px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.22);
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.12) transparent;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+.dark * {
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+}
+.scrollbar-hide {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* ─── Focus ──────────────────────────────────────── */
+:focus-visible {
+  outline: 2px solid hsl(var(--ring));
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* ─── Numérico (ergonomia PDV) ───────────────────── */
+.font-numeric {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum';
+}
+.num {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+}
+
+/* ─── Gradiente de marca ─────────────────────────── */
+.gradient-text {
+  background: linear-gradient(135deg, #b91c1c 0%, #dc2626 40%, #ef4444 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.dark .gradient-text {
+  background: linear-gradient(135deg, #f87171 0%, #ef4444 40%, #fca5a5 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+/* ─── Superfícies / cards ────────────────────────── */
+.surface {
+  background: white;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  border-radius: 16px;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    0 4px 16px rgba(0, 0, 0, 0.04);
+}
+.dark .surface {
+  background: #111827;
+  border-color: rgba(148, 163, 184, 0.08);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.2),
+    0 4px 16px rgba(0, 0, 0, 0.15);
+}
+
+.surface-hover {
+  transition:
+    box-shadow 0.2s ease,
+    transform 0.2s ease,
+    border-color 0.2s ease;
+}
+.surface-hover:hover {
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.06),
+    0 8px 32px rgba(0, 0, 0, 0.06);
+  transform: translateY(-1px);
+  border-color: rgba(0, 0, 0, 0.1);
+}
+.dark .surface-hover:hover {
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.3),
+    0 8px 32px rgba(0, 0, 0, 0.2);
+  border-color: rgba(148, 163, 184, 0.12);
+}
+
+.hover-lift {
+  transition:
+    transform 0.22s var(--transition-smooth),
+    box-shadow 0.22s var(--transition-smooth);
+  will-change: transform;
+}
+.hover-lift:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.08),
+    0 12px 36px rgba(0, 0, 0, 0.08);
+}
+.dark .hover-lift:hover {
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.3),
+    0 12px 36px rgba(0, 0, 0, 0.2);
+}
+
+/* ─── Shimmer (loading) ──────────────────────────── */
+.shimmer {
+  position: relative;
+  overflow: hidden;
+  background: #f1f5f9;
+}
+.dark .shimmer {
+  background: #1e293b;
+}
+.shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.6) 50%, transparent 100%);
+  animation: shimmer-sweep 1.6s ease-in-out infinite;
+}
+.dark .shimmer::after {
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.05) 50%, transparent 100%);
+}
+@keyframes shimmer-sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* ─── Acento de topo em stat cards (hover) ────────── */
+.stat-card-accent::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, #dc2626, #f87171);
+  border-radius: 14px 14px 0 0;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.stat-card-accent:hover::before {
+  opacity: 1;
+}
+
+/* ─── Glow vermelho ──────────────────────────────── */
+.glow-red {
+  box-shadow:
+    0 0 0 1px rgba(220, 38, 38, 0.2),
+    0 0 20px rgba(220, 38, 38, 0.12),
+    0 0 40px rgba(220, 38, 38, 0.06);
+}
+.dark .glow-red {
+  box-shadow:
+    0 0 0 1px rgba(239, 68, 68, 0.3),
+    0 0 20px rgba(239, 68, 68, 0.18),
+    0 0 40px rgba(239, 68, 68, 0.08);
+}
+.glow-red-sm {
+  box-shadow:
+    0 4px 14px rgba(220, 38, 38, 0.25),
+    0 2px 6px rgba(220, 38, 38, 0.15);
+}
+.dark .glow-red-sm {
+  box-shadow:
+    0 4px 14px rgba(239, 68, 68, 0.3),
+    0 2px 6px rgba(239, 68, 68, 0.2);
+}
+
+/* ─── Foco em inputs ─────────────────────────────── */
+input:focus,
+textarea:focus,
+select:focus {
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.08);
+}
+.dark input:focus,
+.dark textarea:focus,
+.dark select:focus {
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+}
+
+/* ─── Sidebar item ativo ─────────────────────────── */
+.sidebar-item-active {
+  background: linear-gradient(135deg, #dc2626 0%, #ef4444 100%);
+  box-shadow:
+    0 2px 8px rgba(220, 38, 38, 0.28),
+    0 1px 3px rgba(220, 38, 38, 0.15);
+}
+.dark .sidebar-item-active {
+  box-shadow:
+    0 2px 12px rgba(239, 68, 68, 0.35),
+    0 1px 4px rgba(239, 68, 68, 0.2);
+}
+
+/* ─── Stagger de entrada ─────────────────────────── */
+.stagger-children > * {
+  animation: stagger-fade-up 0.4s var(--transition-decelerate) both;
+}
+.stagger-children > *:nth-child(1) {
+  animation-delay: 0ms;
+}
+.stagger-children > *:nth-child(2) {
+  animation-delay: 50ms;
+}
+.stagger-children > *:nth-child(3) {
+  animation-delay: 100ms;
+}
+.stagger-children > *:nth-child(4) {
+  animation-delay: 150ms;
+}
+.stagger-children > *:nth-child(5) {
+  animation-delay: 200ms;
+}
+.stagger-children > *:nth-child(6) {
+  animation-delay: 250ms;
+}
+@keyframes stagger-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ─── Pulso de status ────────────────────────────── */
+.pulse-dot {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.pulse-dot::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.35;
+  animation: pulse-ring 2s ease-out infinite;
+}
+@keyframes pulse-ring {
+  0% {
+    transform: scale(1);
+    opacity: 0.35;
+  }
+  80%,
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+
+/* ─── Badge numérico (contador) ──────────────────── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 18px;
+  min-width: 18px;
+  padding: 0 5px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+  border-radius: 99px;
+}
+
+/* ─── Badge de teclado (kbd) ─────────────────────── */
+.kbd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.06);
+  color: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+.dark .kbd {
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.6);
+  border-color: rgba(255, 255, 255, 0.1);
+}

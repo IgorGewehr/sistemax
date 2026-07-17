@@ -1,0 +1,111 @@
+name: Release Windows (Velopack Setup.exe)
+
+# ADR-0004 (docs/arquitetura/adr/0004-instalador-velopack.md) — este é o único lugar que PRODUZ o
+# Setup.exe de verdade: precisa rodar em windows-latest porque `dotnet publish -r win-x64
+# --self-contained` baixa e empacota o runtime pack Windows, e a assinatura (quando configurada)
+# usa signtool.exe, que só existe no Windows. `vpk pack` em si é cross-platform, mas o passo de
+# assinatura tradicional (Caminho A do doc de empacotamento §8) não é.
+#
+# Dispara em tag `v*` (ex.: v1.1.0) — o pipeline usa a tag como versão só de exibição; a versão
+# REAL empacotada vem de deploy/velopack/VERSION (fonte única, ver docs/build/empacotamento.md §6)
+# e deve ser bumpada num commit antes de criar a tag.
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: 'Canal Velopack (stable|beta)'
+        required: true
+        default: 'beta'
+        type: choice
+        options: [stable, beta]
+
+jobs:
+  build-and-pack:
+    runs-on: windows-latest
+    env:
+      # Disponível em TODOS os steps do job (ao contrário de env por-step) — é o que permite o
+      # `if: env.SIGN_PARAMS != ''` do step de verificação de assinatura mais abaixo enxergar o
+      # mesmo valor que o step de empacotamento usou.
+      SIGN_PARAMS: ${{ secrets.WINDOWS_CODESIGN_SIGNTOOL_PARAMS }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET (versão fixada em global.json)
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'pnpm'
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: Instalar vpk (Velopack CLI)
+        run: dotnet tool install --global vpk
+
+      - name: Restaurar .NET
+        run: dotnet restore
+
+      # Preserva a barreira de qualidade do repo — não empacota um binário que não builda/testa.
+      - name: Build .NET (sanity antes de empacotar)
+        run: dotnet build --no-restore -c Release
+
+      - name: Testes .NET (836 testes — não empacota se algo quebrou)
+        run: dotnet test --no-build -c Release
+
+      # Assinatura é CONDICIONAL a um secret existir — sem ele, o job PRODUZ o Setup.exe mesmo
+      # assim (não-assinado, artifact de teste interno) em vez de falhar. Nunca finge assinar sem
+      # certificado real. Ver docs/build/empacotamento.md §8 — placeholder documentado, sem
+      # certificado commitado neste repo.
+      - name: Empacotar (pack-windows.ps1)
+        shell: pwsh
+        run: |
+          $channel = "${{ inputs.channel }}"
+          if (-not $channel) { $channel = "stable" }
+
+          $signArgs = @()
+          if ($env:SIGN_PARAMS) {
+            Write-Host "Certificado de assinatura configurado (secret WINDOWS_CODESIGN_SIGNTOOL_PARAMS) — pacote sairá assinado."
+            $signArgs = @('-SignParams', $env:SIGN_PARAMS)
+          } else {
+            Write-Host "::warning::Secret WINDOWS_CODESIGN_SIGNTOOL_PARAMS ausente — Setup.exe sairá SEM assinatura Authenticode (placeholder documentado, ver docs/build/empacotamento.md §8). Não distribua este artifact a uma loja real."
+          }
+
+          ./build/pack-windows.ps1 -Channel $channel @signArgs
+
+      - name: Verificar assinatura (só informativo — não falha o job se não houver certificado)
+        shell: pwsh
+        if: env.SIGN_PARAMS != ''
+        run: |
+          $channel = "${{ inputs.channel }}"
+          if (-not $channel) { $channel = "stable" }
+          signtool verify /pa /v "artifacts/releases/$channel/Setup.exe"
+
+      - name: Publicar Setup.exe + pacotes como artifact do workflow
+        uses: actions/upload-artifact@v4
+        with:
+          name: sistemax-windows-installer
+          path: |
+            artifacts/releases/**/Setup.exe
+            artifacts/releases/**/*.nupkg
+            artifacts/releases/**/*.json
+            artifacts/releases/**/*Portable.zip
+          if-no-files-found: error
+          retention-days: 90
+
+      # NÃO faz upload para o host estático do feed de update (S3/Blob/Nginx) — isso é um passo
+      # manual/operacional documentado em docs/build/empacotamento.md §7/§11, fora do escopo deste
+      # workflow (infraestrutura de hosting do feed ainda não existe no repo).

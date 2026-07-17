@@ -1,0 +1,604 @@
+<style>
+  :root {
+    --bg: 210 40% 98%;
+    --surface: 0 0% 100%;
+    --surface-2: 210 40% 96.5%;
+    --fg: 222 47% 11%;
+    --muted: 215 16% 47%;
+    --faint: 215 20% 65%;
+    --border: 214 32% 90%;
+    --primary: 0 72% 51%;
+    --primary-soft: 0 72% 96%;
+    --pos: 152 58% 40%;
+    --pos-soft: 152 55% 94%;
+    --warn: 32 90% 44%;
+    --warn-soft: 38 92% 94%;
+    --crit: 349 78% 48%;
+    --crit-soft: 349 80% 96%;
+    --ring: 0 72% 51%;
+    --shadow: 220 40% 20%;
+    --mono: "SF Mono", ui-monospace, "JetBrains Mono", "Cascadia Code", Menlo, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  }
+  /* Tema CLARO é o padrão do produto — dark só via toggle explícito (data-theme="dark"). */
+  :root[data-theme="light"] {
+    --bg: 210 40% 98%; --surface: 0 0% 100%; --surface-2: 210 40% 96.5%;
+    --fg: 222 47% 11%; --muted: 215 16% 47%; --faint: 215 20% 65%; --border: 214 32% 90%;
+    --primary: 0 72% 51%; --primary-soft: 0 72% 96%; --pos: 152 58% 40%; --pos-soft: 152 55% 94%;
+    --warn: 32 90% 44%; --warn-soft: 38 92% 94%; --crit: 349 78% 48%; --crit-soft: 349 80% 96%; --shadow: 220 40% 20%;
+  }
+  :root[data-theme="dark"] {
+    --bg: 222 47% 5%; --surface: 220 40% 7.5%; --surface-2: 218 34% 11%;
+    --fg: 210 40% 96%; --muted: 215 20% 60%; --faint: 215 18% 42%; --border: 215 25% 16%;
+    --primary: 0 72% 58%; --primary-soft: 0 45% 13%; --pos: 152 55% 50%; --pos-soft: 152 40% 12%;
+    --warn: 38 92% 55%; --warn-soft: 36 45% 13%; --crit: 350 85% 62%; --crit-soft: 349 45% 14%; --shadow: 222 60% 2%;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: hsl(var(--bg)); color: hsl(var(--fg));
+    font-family: var(--sans); -webkit-font-smoothing: antialiased;
+    font-size: 14px; line-height: 1.5;
+  }
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .eyebrow { text-transform: uppercase; letter-spacing: 0.08em; font-size: 11px; font-weight: 600; color: hsl(var(--muted)); }
+
+  /* ---- App shell ---- */
+  .app { display: grid; grid-template-columns: 60px 1fr; min-height: 100vh; }
+  .rail {
+    background: hsl(var(--surface)); border-right: 1px solid hsl(var(--border));
+    display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 0;
+  }
+  .rail .logo {
+    width: 34px; height: 34px; border-radius: 10px; margin-bottom: 10px;
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(0 72% 40%));
+    display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 15px;
+    box-shadow: 0 4px 14px hsl(var(--primary) / 0.4);
+  }
+  .rail button {
+    width: 40px; height: 40px; border-radius: 11px; border: 0; background: transparent;
+    color: hsl(var(--faint)); cursor: pointer; display: grid; place-items: center; transition: .15s;
+  }
+  .rail button svg { width: 20px; height: 20px; }
+  .rail button:hover { background: hsl(var(--surface-2)); color: hsl(var(--fg)); }
+  .rail button.active { background: hsl(var(--primary-soft)); color: hsl(var(--primary)); }
+  .rail .spacer { flex: 1; }
+
+  .main { min-width: 0; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 26px 32px 90px; }
+
+  /* ---- Header ---- */
+  header.page { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 22px; flex-wrap: wrap; }
+  header.page h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; margin: 4px 0 2px; text-wrap: balance; }
+  header.page .sub { color: hsl(var(--muted)); font-size: 13.5px; max-width: 60ch; }
+  .head-actions { display: flex; align-items: center; gap: 10px; }
+  .period { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border: 1px solid hsl(var(--border));
+    border-radius: 10px; background: hsl(var(--surface)); font-weight: 600; font-size: 13px; }
+  .btn-primary {
+    display: inline-flex; align-items: center; gap: 7px; padding: 9px 15px; border-radius: 10px; border: 0;
+    background: hsl(var(--primary)); color: #fff; font-weight: 600; font-size: 13.5px; cursor: pointer;
+    box-shadow: 0 4px 14px hsl(var(--primary) / 0.35); transition: transform .12s, filter .12s;
+  }
+  .btn-primary:hover { filter: brightness(1.06); transform: translateY(-1px); }
+  .btn-ghost { padding: 8px 11px; border-radius: 10px; border: 1px solid hsl(var(--border)); background: hsl(var(--surface));
+    color: hsl(var(--fg)); cursor: pointer; font-size: 13px; display: inline-flex; gap: 6px; align-items: center; transition: .12s; }
+  .btn-ghost:hover { background: hsl(var(--surface-2)); }
+  .btn-ghost svg { width: 14px; height: 14px; }
+
+  /* ---- Cards ---- */
+  .card { background: hsl(var(--surface)); border: 1px solid hsl(var(--border)); border-radius: 16px;
+    box-shadow: 0 1px 2px hsl(var(--shadow) / 0.06), 0 8px 24px -18px hsl(var(--shadow) / 0.5); }
+
+  /* KPI row */
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 16px; }
+  .kpi { padding: 16px 18px; position: relative; overflow: hidden; }
+  .kpi .lbl { display: flex; align-items: center; gap: 6px; }
+  .kpi .val { font-size: 27px; font-weight: 700; margin-top: 10px; letter-spacing: -0.02em; }
+  .kpi .val small { font-size: 15px; font-weight: 600; color: hsl(var(--muted)); }
+  .kpi .delta { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; font-weight: 600; margin-top: 7px; }
+  .kpi .delta.up { color: hsl(var(--pos)); }
+  .kpi .delta.down { color: hsl(var(--crit)); }
+  .kpi .foot { font-size: 12px; color: hsl(var(--muted)); margin-top: 3px; }
+  .kpi.hero::after { content: ""; position: absolute; inset: 0; background: radial-gradient(120% 90% at 100% 0, hsl(var(--primary) / 0.10), transparent 60%); pointer-events: none; }
+  .spark { margin-top: 10px; height: 34px; width: 100%; display: block; }
+
+  /* Consultor */
+  .consultor { display: flex; gap: 14px; padding: 16px 18px; margin-bottom: 16px; align-items: flex-start;
+    background:
+      linear-gradient(hsl(var(--surface)), hsl(var(--surface))) padding-box,
+      linear-gradient(120deg, hsl(var(--primary) / 0.5), hsl(var(--border) / 0.2)) border-box;
+    border: 1px solid transparent; border-radius: 16px; }
+  .consultor .icon { flex: none; width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center;
+    background: hsl(var(--primary-soft)); color: hsl(var(--primary)); }
+  .consultor .icon svg { width: 20px; height: 20px; }
+  .consultor h3 { margin: 1px 0 5px; font-size: 13px; letter-spacing: -0.01em; }
+  .consultor p { margin: 0; font-size: 13.5px; line-height: 1.6; color: hsl(var(--fg)); }
+  .consultor b { color: hsl(var(--primary)); font-weight: 700; }
+  .consultor .money-bad { color: hsl(var(--crit)); font-weight: 700; }
+  .consultor .money-good { color: hsl(var(--pos)); font-weight: 700; }
+  .consultor-toggle { background: none; border: 0; color: hsl(var(--primary)); font: inherit; font-weight: 700; cursor: pointer; padding: 0; margin-left: 2px; }
+  .consultor-toggle:hover { text-decoration: underline; }
+  .consultor-more { margin-top: 12px; padding: 12px 14px; border-radius: 12px; background: hsl(var(--surface-2)); display: flex; flex-direction: column; gap: 7px; }
+  .pf-row { display: flex; justify-content: space-between; gap: 10px; font-size: 12.5px; }
+  .pf-row .pf-name { font-weight: 600; }
+  .pf-row .pf-vals { color: hsl(var(--muted)); display: flex; gap: 16px; }
+  .pf-total { margin-top: 3px; padding-top: 8px; border-top: 1px solid hsl(var(--border)); display: flex; justify-content: space-between; font-weight: 700; font-size: 12.5px; }
+
+  /* 2-col */
+  .grid2 { display: grid; grid-template-columns: 1.15fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .card h2.sec { font-size: 13px; font-weight: 700; letter-spacing: -0.01em; padding: 15px 18px 0; margin: 0; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .card h2.sec .hint { font-weight: 500; font-size: 12px; color: hsl(var(--muted)); }
+
+  /* Bars */
+  .bars { padding: 14px 18px 18px; display: flex; flex-direction: column; gap: 13px; }
+  .bar-row { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; }
+  .bar-row .name { font-weight: 600; font-size: 13px; }
+  .bar-row .amt { font-size: 12.5px; color: hsl(var(--muted)); }
+  .track { grid-column: 1 / -1; height: 8px; border-radius: 6px; background: hsl(var(--surface-2)); overflow: hidden; }
+  .fill { height: 100%; border-radius: 6px; }
+  .bar-row .pct { font-weight: 700; font-size: 12.5px; }
+
+  /* Gargalos / baldes de conciliação */
+  .gargalos { padding: 12px 14px 16px; display: flex; flex-direction: column; gap: 9px; }
+  .garg { display: flex; gap: 11px; padding: 11px 12px; border-radius: 12px; background: hsl(var(--surface-2)); align-items: flex-start; transition: filter .12s; }
+  .garg.crit .sev { background: hsl(var(--crit)); }
+  .garg.warn .sev { background: hsl(var(--warn)); }
+  .garg.pos .sev { background: hsl(var(--pos)); }
+  .garg .sev { flex: none; width: 8px; align-self: stretch; border-radius: 6px; }
+  .garg .body { flex: 1; min-width: 0; }
+  .garg .t { font-weight: 600; font-size: 13px; }
+  .garg .d { font-size: 12.5px; color: hsl(var(--muted)); margin-top: 2px; }
+  button.garg:hover { filter: brightness(0.97); }
+  :root[data-theme="dark"] button.garg:hover { filter: brightness(1.25); }
+  button.garg:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+
+  /* Table */
+  .tbl-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; min-width: 660px; }
+  thead th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: hsl(var(--muted));
+    font-weight: 600; padding: 12px 16px; border-bottom: 1px solid hsl(var(--border)); }
+  thead th.r, tbody td.r { text-align: right; }
+  tbody td { padding: 13px 16px; border-bottom: 1px solid hsl(var(--border) / 0.6); font-size: 13.5px; }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr:hover { background: hsl(var(--surface-2) / 0.6); }
+  .soft-dot { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
+  .dot { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+  .val-mono { font-weight: 600; }
+  .val-mono.pos { color: hsl(var(--pos)); }
+  .val-mono.neg { color: hsl(var(--crit)); }
+  .chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+  .chip.conciliado { color: hsl(var(--pos)); background: hsl(var(--pos-soft)); }
+  .chip.pendente { color: hsl(var(--warn)); background: hsl(var(--warn-soft)); }
+
+  /* Tabs + subhead */
+  .tabs { display: flex; gap: 2px; border-bottom: 1px solid hsl(var(--border)); margin-bottom: 16px; overflow-x: auto; }
+  .tab { padding: 10px 14px; font-size: 13.5px; font-weight: 600; color: hsl(var(--muted)); border: 0; background: none; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; transition: .15s; }
+  .tab:hover { color: hsl(var(--fg)); }
+  .tab.active { color: hsl(var(--primary)); border-bottom-color: hsl(var(--primary)); }
+  .subhead { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+  .seg { display: inline-flex; background: hsl(var(--surface-2)); border: 1px solid hsl(var(--border)); border-radius: 11px; padding: 3px; gap: 2px; flex-wrap: wrap; }
+  .seg button { padding: 7px 13px; border: 0; background: none; border-radius: 8px; font-size: 13px; font-weight: 600; color: hsl(var(--muted)); cursor: pointer; }
+  .seg button.active { background: hsl(var(--surface)); color: hsl(var(--fg)); box-shadow: 0 1px 3px hsl(var(--shadow) / 0.2); }
+  .ctx-note { font-size: 12px; color: hsl(var(--muted)); display: inline-flex; align-items: center; gap: 6px; }
+  .ctx-note svg { color: hsl(var(--primary)); }
+
+  /* Gráfico divergente + drills */
+  .chart { padding: 14px 18px 2px; }
+  .chart svg { width: 100%; height: auto; display: block; }
+  .chart .zero { stroke: hsl(var(--border)); stroke-width: 1; }
+  .chart .mlabel { fill: hsl(var(--muted)); font-size: 9px; font-family: var(--sans); }
+  .chart rect.bar { transition: opacity .12s; pointer-events: none; }
+  .chart rect.colbg { transition: opacity .12s; }
+  .chart rect.colbg:hover { opacity: .55 !important; }
+  .legend { display: flex; gap: 16px; padding: 4px 18px 16px; font-size: 12px; color: hsl(var(--muted)); flex-wrap: wrap; }
+  .legend .lg { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 10px; height: 10px; border-radius: 3px; }
+
+  .mini-list { padding: 2px 18px 16px; display: flex; flex-direction: column; gap: 0; }
+  .mini-row { display: flex; align-items: center; gap: 10px; padding: 8px 2px; border-bottom: 1px solid hsl(var(--border) / 0.5); font-size: 12.5px; }
+  .mini-row:last-child { border-bottom: 0; }
+  .mini-date { color: hsl(var(--muted)); flex: none; width: 34px; }
+  .mini-desc { flex: 1; min-width: 0; }
+  .mini-val { font-weight: 700; flex: none; }
+  .mini-val.pos { color: hsl(var(--pos)); }
+  .mini-val.neg { color: hsl(var(--crit)); }
+
+  .concil-list { padding: 10px 14px 16px; display: flex; flex-direction: column; gap: 10px; max-height: 372px; overflow-y: auto; }
+  .concil-item { padding: 12px 13px; border-radius: 12px; background: hsl(var(--surface-2)); }
+  .ci-top { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; font-weight: 600; }
+  .ci-val.pos { color: hsl(var(--pos)); }
+  .ci-val.neg { color: hsl(var(--crit)); }
+  .ci-match { margin-top: 5px; font-size: 12px; color: hsl(var(--muted)); line-height: 1.5; }
+  .ci-actions { display: flex; gap: 8px; margin-top: 9px; }
+  .ci-btn { padding: 6px 11px; border-radius: 8px; border: 1px solid hsl(var(--border)); background: hsl(var(--surface));
+    font-size: 12px; font-weight: 600; cursor: pointer; color: hsl(var(--fg)); transition: .12s; }
+  .ci-btn:hover { background: hsl(var(--surface)); filter: brightness(0.97); }
+  .ci-btn.primary { background: hsl(var(--pos)); border-color: hsl(var(--pos)); color: #fff; }
+  .ci-btn.primary:hover { filter: brightness(1.08); }
+  .concil-empty { padding: 22px 18px; text-align: center; color: hsl(var(--muted)); font-size: 13px; }
+
+  .secleft { display: inline-flex; align-items: center; gap: 8px; }
+  .back { border: 0; background: hsl(var(--surface-2)); color: hsl(var(--fg)); width: 26px; height: 26px; border-radius: 8px;
+    cursor: pointer; font-size: 15px; line-height: 1; display: inline-grid; place-items: center; transition: .12s; flex: none; }
+  .back:hover { background: hsl(var(--primary-soft)); color: hsl(var(--primary)); }
+  .card.anim > * { animation: cardin .22s ease both; }
+  @keyframes cardin { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .card.anim > * { animation: none; } }
+
+  #cardEsq, #cardDir { min-height: 300px; }
+
+  .theme-toggle { position: fixed; top: 14px; right: 16px; z-index: 10; }
+  .fab { position: fixed; right: 26px; bottom: 26px; width: 54px; height: 54px; border-radius: 50%; border: 0;
+    background: hsl(var(--primary)); color: #fff; display: grid; place-items: center; cursor: pointer;
+    box-shadow: 0 8px 24px hsl(var(--primary) / 0.45); z-index: 15; transition: transform .12s, filter .12s; }
+  .fab:hover { filter: brightness(1.06); transform: translateY(-2px); }
+  .fab svg { width: 24px; height: 24px; }
+
+  @media (max-width: 860px) {
+    .kpis { grid-template-columns: repeat(2, 1fr); }
+    .grid2 { grid-template-columns: 1fr; }
+    .app { grid-template-columns: 0 1fr; }
+    .rail { display: none; }
+    .wrap { padding: 22px 18px 80px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<button class="btn-ghost theme-toggle" onclick="(function(){var r=document.documentElement;var d=(r.getAttribute('data-theme')|| (matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'))==='dark';r.setAttribute('data-theme',d?'light':'dark');})()">◐ tema</button>
+
+<div class="app">
+  <nav class="rail" aria-label="Navegação">
+    <div class="logo">S</div>
+    <button title="Início"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10.5 12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1z"/></svg></button>
+    <button class="active" title="Financeiro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg></button>
+    <button title="Vendas / PDV"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2 3h3l2.4 12.5a1 1 0 0 0 1 .8h9.2a1 1 0 0 0 1-.8L21 7H6"/></svg></button>
+    <button title="Estoque"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/></svg></button>
+    <button title="Clientes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M17 5.5a3 3 0 0 1 0 5.6M22 20a6 6 0 0 0-4-5.7"/></svg></button>
+    <div class="spacer"></div>
+    <button title="Ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 2h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12a7 7 0 0 0 .1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 22h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6A7 7 0 0 0 19 12z"/></svg></button>
+  </nav>
+
+  <main class="main">
+    <div class="wrap">
+      <header class="page">
+        <div>
+          <div class="eyebrow">Financeiro · Bancário</div>
+          <h1>Bancário</h1>
+          <div class="sub">O que de fato entrou e saiu das suas contas — e se bate com o que você lançou.</div>
+        </div>
+        <div class="head-actions">
+          <div class="period">Julho 2026 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></div>
+        </div>
+      </header>
+
+      <nav class="tabs" aria-label="Seções do Financeiro">
+        <button class="tab">Visão geral</button>
+        <button class="tab">Entradas &amp; saídas</button>
+        <button class="tab">Recorrentes</button>
+        <button class="tab active">Bancário</button>
+        <button class="tab">Fluxo de caixa</button>
+        <button class="tab">Relatórios</button>
+      </nav>
+
+      <div class="subhead">
+        <div class="seg" id="accChips">
+          <button class="active" data-acc="todas">Todas</button>
+          <button data-acc="itau">Itaú PJ</button>
+          <button data-acc="nubank">Nubank PJ</button>
+          <button data-acc="stone">Stone</button>
+        </div>
+        <div class="head-actions">
+          <button class="btn-ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></svg> Importar OFX</button>
+          <button class="btn-ghost"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 3h6l1 4H8z"/><path d="M5 7h14v3a7 7 0 0 1-14 0z"/><path d="M12 17v4M9 21h6"/></svg> Conectar banco</button>
+        </div>
+      </div>
+
+      <!-- KPIs -->
+      <section class="kpis">
+        <div class="card kpi hero">
+          <div class="lbl eyebrow">Saldo em bancos</div>
+          <div class="val num" id="kpiSaldoVal">R$ 12.740</div>
+          <div class="delta up"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 17 17 7M7 7h10v10"/></svg> +R$ 860 (+7,2%) no mês</div>
+          <svg class="spark" viewBox="0 0 260 34" preserveAspectRatio="none" aria-hidden="true">
+            <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="hsl(var(--primary))" stop-opacity="0.28"/><stop offset="1" stop-color="hsl(var(--primary))" stop-opacity="0"/></linearGradient></defs>
+            <path d="M0,24 L52,27 L104,15 L156,20 L208,8 L260,4" fill="none" stroke="hsl(var(--primary))" stroke-width="2" stroke-linecap="round"/>
+            <path d="M0,24 L52,27 L104,15 L156,20 L208,8 L260,4 L260,34 L0,34 Z" fill="url(#g)"/>
+            <circle cx="260" cy="4" r="3" fill="hsl(var(--primary))"/>
+          </svg>
+          <div class="foot" id="kpiSaldoFoot">Itaú R$ 8.120 · Nubank R$ 3.410 · Stone R$ 1.210</div>
+        </div>
+        <div class="card kpi">
+          <div class="lbl eyebrow">Entrou no mês</div>
+          <div class="val num" id="kpiEntrouVal">R$ 38.240</div>
+          <div class="delta up"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 17 17 7M7 7h10v10"/></svg> +9,3% vs junho</div>
+          <div class="foot">214 movimentos</div>
+        </div>
+        <div class="card kpi">
+          <div class="lbl eyebrow">Saiu no mês</div>
+          <div class="val num" id="kpiSaiuVal">R$ 31.480</div>
+          <div class="delta down"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 17 17 7M7 7h10v10"/></svg> +14,1% vs junho</div>
+          <div class="foot">89 movimentos</div>
+        </div>
+        <div class="card kpi">
+          <div class="lbl eyebrow">A conciliar</div>
+          <div class="val" id="kpiConciliarVal"><span class="num" style="color:hsl(var(--warn))">7</span> <span style="font-size:15px;font-weight:600;color:hsl(var(--warn))">itens ⚠</span></div>
+          <div class="foot" id="kpiConciliarFoot">R$ 2.310 em dúvida</div>
+        </div>
+      </section>
+
+      <!-- Super Consultor -->
+      <div class="consultor">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 0 0-4 12.7V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.3A7 7 0 0 0 12 2z"/><path d="M9 21h6"/></svg></div>
+        <div style="flex:1;min-width:0">
+          <h3>Super Consultor</h3>
+          <p>As maquininhas levaram <span class="money-bad num">R$ 1.184</span> este mês — 3,1% de tudo que passou por elas. No crédito parcelado a taxa efetiva foi <b>4,8%</b>, quase o dobro do débito.
+            <button class="consultor-toggle" id="btnPorForma">Ver por forma <span aria-hidden="true">→</span></button>
+          </p>
+          <div class="consultor-more" id="porFormaPanel" hidden>
+            <div class="pf-row"><span class="pf-name">PIX</span><span class="pf-vals"><span class="num">R$ 18.400</span><span class="num">0%</span></span></div>
+            <div class="pf-row"><span class="pf-name">Cartão débito</span><span class="pf-vals"><span class="num">R$ 6.120</span><span class="num">1,8%</span></span></div>
+            <div class="pf-row"><span class="pf-name">Cartão crédito à vista</span><span class="pf-vals"><span class="num">R$ 4.900</span><span class="num">2,9%</span></span></div>
+            <div class="pf-row"><span class="pf-name">Cartão crédito parcelado</span><span class="pf-vals"><span class="num">R$ 3.280</span><span class="num" style="color:hsl(var(--crit))">4,8%</span></span></div>
+            <div class="pf-row"><span class="pf-name">TED / Boleto</span><span class="pf-vals"><span class="num">R$ 5.540</span><span class="num">R$ 12 fixo</span></span></div>
+            <div class="pf-total"><span>Total em taxas no mês</span><span class="num" style="color:hsl(var(--crit))">R$ 1.184</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Análise interativa: entrou×saiu por semana (drill em dias) ⇄ conciliação em 3 baldes (drill nos itens) -->
+      <section class="grid2">
+        <div class="card" id="cardEsq"></div>
+        <div class="card" id="cardDir"></div>
+      </section>
+
+      <!-- Extrato -->
+      <div class="card">
+        <h2 class="sec">Extrato <span class="hint">amostra do período · 214 entradas + 89 saídas no total</span></h2>
+        <div class="tbl-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Data</th><th>Descrição</th><th>Forma</th><th>Conta</th><th class="r">Valor</th><th>Conciliação</th>
+              </tr>
+            </thead>
+            <tbody id="extratoBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<button class="fab" title="Lançar" aria-label="Lançar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg></button>
+
+<script>
+(function () {
+  const brl = n => 'R$ ' + Math.abs(n).toLocaleString('pt-BR');
+  const sum = arr => arr.reduce((a, b) => a + b, 0);
+
+  // ---- Contas bancárias (saldo por conta — o dado nº1 desta tela) ----
+  const contas = [
+    { id: 'itau', label: 'Itaú', saldo: 8120, cor: 'var(--fg) / 0.6' },
+    { id: 'nubank', label: 'Nubank', saldo: 3410, cor: 'var(--fg) / 0.4' },
+    { id: 'stone', label: 'Stone', saldo: 1210, cor: 'var(--fg) / 0.25' },
+  ];
+  const contaMap = Object.fromEntries(contas.map(c => [c.id, c]));
+
+  // ---- Semanas do mês (realizado) — cada dia soma pra bater com os KPIs do topo ----
+  const weeks = [
+    { id: 1, label: '01–05 jul', partial: false,
+      dayLabels: ['01', '02', '03', '04', '05'],
+      entrouDays: [1400, 2200, 1900, 2600, 1700],
+      saiuDays:   [1100, 2500, 900, 2600, 800] },
+    { id: 2, label: '06–12 jul', partial: false,
+      dayLabels: ['06', '07', '08', '09', '10', '11', '12'],
+      entrouDays: [2400, 1800, 3100, 2200, 3400, 1100, 200],
+      saiuDays:   [1200, 900, 4600, 1400, 2800, 900, 300] },
+    { id: 3, label: '13–19 jul*', partial: true,
+      dayLabels: ['13', '14', '15', '16'],
+      entrouDays: [4200, 3100, 3940, 3000],
+      saiuDays:   [3200, 2900, 3080, 2300] },
+  ];
+
+  // ---- Movimentos (alimentam o extrato E as listas de "movimentos da semana" no drill) ----
+  const movements = [
+    { id: 'm1', date: '01/07', desc: 'Folha de pagamento', forma: 'TED', conta: 'itau', valor: -4900, status: 'conciliado', week: 1 },
+    { id: 'm2', date: '03/07', desc: 'PIX recebido Mercado São João', forma: 'PIX', conta: 'itau', valor: 349, status: 'conciliado', week: 1 },
+    { id: 'm3', date: '05/07', desc: 'TED Aluguel Comercial', forma: 'TED', conta: 'itau', valor: -2100, status: 'conciliado', week: 1 },
+    { id: 'm4', date: '07/07', desc: 'Maquininha Stone · débito', forma: 'Cartão débito', conta: 'stone', valor: 780, status: 'conciliado', week: 2 },
+    { id: 'm5', date: '08/07', desc: 'PIX recebido (a identificar)', forma: 'PIX', conta: 'nubank', valor: 335, status: 'pendente', week: 2 },
+    { id: 'm6', date: '09/07', desc: 'PIX recebido Padaria Pão Quente', forma: 'PIX', conta: 'nubank', valor: 349, status: 'conciliado', week: 2 },
+    { id: 'm7', date: '10/07', desc: 'Tarifa bancária · manutenção', forma: 'Tarifa', conta: 'itau', valor: -38, status: 'pendente', week: 2 },
+    { id: 'm8', date: '11/07', desc: 'Adiantamento salarial', forma: 'TED', conta: 'itau', valor: -900, status: 'conciliado', week: 2 },
+    { id: 'm9', date: '12/07', desc: 'PIX recebido (a identificar)', forma: 'PIX', conta: 'nubank', valor: 620, status: 'pendente', week: 2 },
+    { id: 'm10', date: '13/07', desc: 'Pagamento Fornecedor ABC', forma: 'Boleto', conta: 'itau', valor: -1480, status: 'conciliado', week: 3 },
+    { id: 'm11', date: '14/07', desc: 'PIX recebido Auto Peças Silva', forma: 'PIX', conta: 'nubank', valor: 890, status: 'conciliado', week: 3 },
+    { id: 'm12', date: '14/07', desc: 'Maquininha Stone · crédito 3x', forma: 'Cartão parcelado', conta: 'stone', valor: 1240, status: 'conciliado', week: 3 },
+    { id: 'm13', date: '15/07', desc: 'TED Distribuidora Sul', forma: 'TED', conta: 'itau', valor: -347, status: 'pendente', week: 3 },
+    { id: 'm14', date: '16/07', desc: 'PIX recebido Mercado São João', forma: 'PIX', conta: 'itau', valor: 349, status: 'conciliado', week: 3 },
+    { id: 'm15', date: '16/07', desc: 'Maquininha Stone · débito', forma: 'Cartão débito', conta: 'stone', valor: 612, status: 'conciliado', week: 3 },
+  ];
+
+  // ---- Conciliação — os 3 baldes (o dado game-changer da tela) ----
+  const state = {
+    ok: 132,
+    banco: [
+      { id: 'b1', date: '15/07', desc: 'TED Distribuidora Sul', valor: -347, match: 'Parece a compra de estoque lançada em 14/07, mesmo valor (Distribuidora Sul).', primary: 'É essa! confirmar', secondary: 'Não é essa' },
+      { id: 'b2', date: '12/07', desc: 'PIX recebido', valor: 620, match: 'Pode ser a mensalidade atrasada de João Mendes (venceu há 12 dias).', primary: 'É essa! confirmar', secondary: 'Não é essa' },
+      { id: 'b3', date: '10/07', desc: 'Tarifa bancária', valor: -38, match: 'Tarifa de manutenção sem lançamento correspondente no sistema.', primary: 'Lançar como despesa', secondary: 'Ignorar' },
+      { id: 'b4', date: '08/07', desc: 'PIX recebido', valor: 335, match: 'Sem cliente sugerido — valor não bate com nenhuma parcela em aberto.', primary: 'Buscar cliente', secondary: 'Ignorar' },
+    ],
+    sistema: [
+      { id: 's1', date: '14/07', desc: 'Venda PDV Auto Peças Silva', valor: 412, match: 'Lançado no sistema, mas o banco ainda não confirmou — normal em D+1 no débito.', primary: 'Aguardar', secondary: 'Corrigir conta' },
+      { id: 's2', date: '11/07', desc: 'Pagamento Fornecedor XYZ', valor: -480, match: 'Lançado como pago, mas não aparece no extrato do Itaú.', primary: 'Corrigir conta', secondary: 'Reverter baixa' },
+      { id: 's3', date: '09/07', desc: 'PIX Mercadinho Luz', valor: -78, match: 'Valor pequeno — pode ser erro de digitação na conta de origem.', primary: 'Corrigir conta', secondary: 'Ignorar' },
+    ],
+  };
+
+  const cardEsq = document.getElementById('cardEsq');
+  const cardDir = document.getElementById('cardDir');
+  let currentAcc = 'todas';
+
+  function animCard(el) { el.classList.remove('anim'); void el.offsetWidth; el.classList.add('anim'); }
+
+  // ---- Gráfico divergente genérico (entrou acima / saiu abaixo do zero) ----
+  function svgDivergent(items, clickable) {
+    const zeroY = 62, x0 = 18, x1 = 332, top = 8, bottom = 150;
+    const maxV = Math.max(1, ...items.map(i => i.entrou), ...items.map(i => i.saiu));
+    const capUp = zeroY - top, capDown = bottom - zeroY - 20;
+    const f = Math.min(capUp, capDown) / maxV;
+    const slot = (x1 - x0) / items.length;
+    let s = '';
+    items.forEach((it, i) => {
+      const cx = x0 + slot * i + slot / 2;
+      const bw = Math.min(30, slot * 0.5);
+      const hUp = it.entrou * f, hDown = it.saiu * f;
+      const op = it.muted ? '0.55' : '1';
+      if (clickable) {
+        s += `<rect class="colbg" data-id="${it.id}" x="${(x0 + slot * i + 1).toFixed(1)}" y="${top}" width="${(slot - 2).toFixed(1)}" height="${(bottom - top - 14).toFixed(1)}" fill="hsl(var(--surface-2))" opacity="0" rx="8" style="cursor:pointer"><title>${it.label} — clique p/ ver os dias</title></rect>`;
+      }
+      if (it.entrou > 0) s += `<rect class="bar" x="${(cx - bw / 2).toFixed(1)}" y="${(zeroY - hUp).toFixed(1)}" width="${bw.toFixed(1)}" height="${hUp.toFixed(1)}" rx="3" fill="hsl(var(--pos))" opacity="${op}"><title>${it.label} · entrou ${brl(it.entrou)}</title></rect>`;
+      if (it.saiu > 0) s += `<rect class="bar" x="${(cx - bw / 2).toFixed(1)}" y="${zeroY}" width="${bw.toFixed(1)}" height="${hDown.toFixed(1)}" rx="3" fill="hsl(var(--crit))" opacity="${op}"><title>${it.label} · saiu ${brl(it.saiu)}</title></rect>`;
+      s += `<text class="mlabel" x="${cx.toFixed(1)}" y="146" text-anchor="middle">${it.label}</text>`;
+    });
+    return `<svg viewBox="0 0 350 150" role="img" aria-label="Entrou e saiu"><line class="zero" x1="${x0}" y1="${zeroY}" x2="${x1}" y2="${zeroY}"/>${s}</svg>`;
+  }
+
+  // ---- Card esquerdo: entrou × saiu por semana ⇄ dias + movimentos ----
+  function renderWeeksOverview() {
+    const items = weeks.map(w => ({ id: w.id, label: w.label, entrou: sum(w.entrouDays), saiu: sum(w.saiuDays), muted: w.partial }));
+    cardEsq.innerHTML = `<h2 class="sec">Entrou × saiu por semana <span class="hint">clique numa semana p/ ver os dias →</span></h2>
+      <div class="chart">${svgDivergent(items, true)}</div>
+      <div class="legend"><span class="lg"><i style="background:hsl(var(--pos))"></i>Entrou</span><span class="lg"><i style="background:hsl(var(--crit))"></i>Saiu</span><span class="lg" style="color:hsl(var(--faint))">* semana em andamento</span></div>`;
+    cardEsq.querySelectorAll('rect.colbg').forEach(r => r.addEventListener('click', () => { renderWeekDrill(Number(r.dataset.id)); animCard(cardEsq); }));
+  }
+  function renderWeekDrill(weekId) {
+    const w = weeks.find(x => x.id === weekId);
+    const items = w.dayLabels.map((lb, i) => ({ id: i, label: lb, entrou: w.entrouDays[i], saiu: w.saiuDays[i] }));
+    const movs = movements.filter(m => m.week === weekId);
+    cardEsq.innerHTML = `<h2 class="sec"><span class="secleft"><button class="back" aria-label="Voltar">←</button> ${w.label.replace('*', '')}</span> <span class="hint">dias + principais movimentos</span></h2>
+      <div class="chart">${svgDivergent(items, false)}</div>
+      <div class="legend"><span class="lg"><i style="background:hsl(var(--pos))"></i>Entrou</span><span class="lg"><i style="background:hsl(var(--crit))"></i>Saiu</span></div>
+      <div class="mini-list">${movs.map(m => `<div class="mini-row"><span class="mini-date num">${m.date}</span><span class="mini-desc">${m.desc}</span><span class="mini-val num ${m.valor < 0 ? 'neg' : 'pos'}">${m.valor < 0 ? '−' : '+'}${brl(m.valor)}</span></div>`).join('')}</div>`;
+    cardEsq.querySelector('.back').addEventListener('click', () => { renderWeeksOverview(); animCard(cardEsq); });
+  }
+
+  // ---- Card direito: conciliação em 3 baldes ⇄ itens com ação de 1 clique ----
+  function renderBaldesOverview() {
+    const rows = [
+      { id: 'ok', label: 'Bateu certinho', count: state.ok, sev: 'pos', desc: `${state.ok} itens conciliados automaticamente por valor e data — nada a fazer.` },
+      { id: 'banco', label: 'Sobrou no banco', count: state.banco.length, sev: state.banco.length ? 'warn' : 'pos', desc: 'Aparece no extrato, mas não tem lançamento no sistema.' },
+      { id: 'sistema', label: 'Sobrou no sistema', count: state.sistema.length, sev: state.sistema.length ? 'warn' : 'pos', desc: 'Lançado no sistema, mas o banco ainda não confirma.' },
+    ];
+    cardDir.innerHTML = `<h2 class="sec">Conciliação <span class="hint">clique num grupo p/ ver os itens →</span></h2>
+      <div class="gargalos">${rows.map(r => `<button class="garg ${r.sev} bal-click" data-id="${r.id}" style="width:100%;text-align:left;border:0;background:hsl(var(--surface-2))">
+        <span class="sev"></span><span class="body"><span class="t">${r.label} <span class="num">· ${r.count}</span></span><span class="d">${r.desc}</span></span></button>`).join('')}</div>`;
+    cardDir.querySelectorAll('.bal-click').forEach(b => b.addEventListener('click', () => { renderBaldeDrill(b.dataset.id); animCard(cardDir); }));
+  }
+
+  function concilItemHtml(kind, it) {
+    return `<div class="concil-item">
+      <div class="ci-top"><span>${it.date} · ${it.desc}</span><span class="ci-val num ${it.valor < 0 ? 'neg' : 'pos'}">${it.valor < 0 ? '−' : '+'}${brl(it.valor)}</span></div>
+      <div class="ci-match">${it.match}</div>
+      <div class="ci-actions">
+        <button class="ci-btn primary" data-kind="${kind}" data-id="${it.id}" data-action="sim">${it.primary}</button>
+        <button class="ci-btn" data-kind="${kind}" data-id="${it.id}" data-action="nao">${it.secondary}</button>
+      </div>
+    </div>`;
+  }
+
+  function renderBaldeDrill(id) {
+    if (id === 'ok') {
+      const amostra = [
+        { date: '16/07', desc: 'PIX recebido Mercado São João' },
+        { date: '14/07', desc: 'PIX recebido Auto Peças Silva' },
+        { date: '07/07', desc: 'Maquininha Stone · débito' },
+      ];
+      cardDir.innerHTML = `<h2 class="sec"><span class="secleft"><button class="back" aria-label="Voltar">←</button> Bateu certinho</span> <span class="hint">${state.ok} itens · amostra</span></h2>
+        <div class="mini-list">${amostra.map(a => `<div class="mini-row"><span class="mini-date num">${a.date}</span><span class="mini-desc">${a.desc}</span><span class="chip conciliado">✔ auto</span></div>`).join('')}</div>
+        <div style="padding:0 18px 18px;color:hsl(var(--muted));font-size:12px">Valor e data batem automaticamente — nenhuma ação necessária.</div>`;
+      cardDir.querySelector('.back').addEventListener('click', () => { renderBaldesOverview(); animCard(cardDir); });
+      return;
+    }
+    const list = state[id];
+    const title = id === 'banco' ? 'Sobrou no banco' : 'Sobrou no sistema';
+    cardDir.innerHTML = `<h2 class="sec"><span class="secleft"><button class="back" aria-label="Voltar">←</button> ${title}</span> <span class="hint">${list.length} pendente${list.length === 1 ? '' : 's'}</span></h2>
+      <div class="concil-list">${list.length ? list.map(it => concilItemHtml(id, it)).join('') : '<div class="concil-empty">Tudo resolvido por aqui. 🎉</div>'}</div>`;
+    cardDir.querySelector('.back').addEventListener('click', () => { renderBaldesOverview(); animCard(cardDir); });
+    cardDir.querySelectorAll('.ci-btn').forEach(btn => btn.addEventListener('click', () => {
+      const k = btn.dataset.kind, itemId = btn.dataset.id, action = btn.dataset.action;
+      const arr = state[k];
+      const idx = arr.findIndex(x => x.id === itemId);
+      if (idx === -1) return;
+      if (action === 'sim') state.ok++;
+      arr.splice(idx, 1);
+      updateKpiConciliar();
+      renderBaldeDrill(k);
+    }));
+  }
+
+  function pendingCount() { return state.banco.length + state.sistema.length; }
+  function pendingTotal() { return sum(state.banco.map(i => Math.abs(i.valor))) + sum(state.sistema.map(i => Math.abs(i.valor))); }
+  function updateKpiConciliar() {
+    const count = pendingCount(), total = pendingTotal();
+    const valEl = document.getElementById('kpiConciliarVal');
+    const footEl = document.getElementById('kpiConciliarFoot');
+    if (count === 0) {
+      valEl.innerHTML = `<span class="num" style="color:hsl(var(--pos))">0</span> <span style="font-size:15px;font-weight:600;color:hsl(var(--pos))">itens ✔</span>`;
+      footEl.textContent = 'Tudo conciliado';
+      footEl.style.color = 'hsl(var(--pos))';
+    } else {
+      valEl.innerHTML = `<span class="num" style="color:hsl(var(--warn))">${count}</span> <span style="font-size:15px;font-weight:600;color:hsl(var(--warn))">itens ⚠</span>`;
+      footEl.textContent = `${brl(total)} em dúvida`;
+      footEl.style.color = '';
+    }
+  }
+
+  // ---- Extrato (tabela, sempre o último bloco) ----
+  function renderTable() {
+    const tbody = document.getElementById('extratoBody');
+    const filtered = currentAcc === 'todas' ? movements : movements.filter(m => m.conta === currentAcc);
+    const sorted = [...filtered].sort((a, b) => (b.week * 100 + parseInt(b.date)) - (a.week * 100 + parseInt(a.date)));
+    tbody.innerHTML = sorted.map(m => {
+      const c = contaMap[m.conta];
+      return `<tr>
+        <td class="num">${m.date}</td>
+        <td>${m.desc}</td>
+        <td>${m.forma}</td>
+        <td><span class="soft-dot"><span class="dot" style="background:hsl(${c.cor})"></span>${c.label}</span></td>
+        <td class="r num val-mono ${m.valor < 0 ? 'neg' : 'pos'}">${m.valor < 0 ? '−' : '+'}${brl(m.valor)}</td>
+        <td><span class="chip ${m.status}">${m.status === 'conciliado' ? '✔ conciliado auto' : '⚠ sem lançamento'}</span></td>
+      </tr>`;
+    }).join('');
+  }
+
+  // ---- Chips de conta (filtro real do extrato) ----
+  document.querySelectorAll('#accChips button').forEach(b => b.addEventListener('click', () => {
+    document.querySelectorAll('#accChips button').forEach(x => x.classList.remove('active'));
+    b.classList.add('active');
+    currentAcc = b.dataset.acc;
+    renderTable();
+  }));
+
+  // ---- Consultor: progressive disclosure "Ver por forma" ----
+  document.getElementById('btnPorForma').addEventListener('click', function () {
+    const panel = document.getElementById('porFormaPanel');
+    const isHidden = panel.hasAttribute('hidden');
+    if (isHidden) { panel.removeAttribute('hidden'); this.innerHTML = 'Ocultar <span aria-hidden="true">↑</span>'; }
+    else { panel.setAttribute('hidden', ''); this.innerHTML = 'Ver por forma <span aria-hidden="true">→</span>'; }
+  });
+
+  // ---- KPIs derivados (fonte única: weeks + contas) ----
+  document.getElementById('kpiSaldoVal').textContent = 'R$ ' + sum(contas.map(c => c.saldo)).toLocaleString('pt-BR');
+  document.getElementById('kpiSaldoFoot').textContent = contas.map(c => `${c.label} R$ ${c.saldo.toLocaleString('pt-BR')}`).join(' · ');
+  document.getElementById('kpiEntrouVal').textContent = 'R$ ' + sum(weeks.map(w => sum(w.entrouDays))).toLocaleString('pt-BR');
+  document.getElementById('kpiSaiuVal').textContent = 'R$ ' + sum(weeks.map(w => sum(w.saiuDays))).toLocaleString('pt-BR');
+
+  // ---- Init ----
+  renderWeeksOverview();
+  renderBaldesOverview();
+  renderTable();
+  updateKpiConciliar();
+})();
+</script>

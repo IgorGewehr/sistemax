@@ -1,0 +1,46 @@
+# SistemaX — NUVEM (servidor principal). Roda no seu servidor, não na máquina do cliente.
+# É aqui que vive o control plane (quais empresas pagam o SistemaX, plano, verticais liberados)
+# e a consolidação multi-loja. Cada instalação de loja tem seu SQLite local e sincroniza pra cá.
+#
+#   docker compose -f deploy/docker-compose.yml up -d
+#
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: sistemax-postgres
+    environment:
+      POSTGRES_DB: sistemax
+      POSTGRES_USER: sistemax
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-troque-em-producao}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sistemax"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: sistemax-redis
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+
+  # API da nuvem (ASP.NET Core) — consolida lojas + control plane de assinaturas do SistemaX.
+  # Descomente quando o SistemaX.Cloud.Api tiver o Dockerfile de publish.
+  # cloud-api:
+  #   build: { context: .., dockerfile: src/Hosts/SistemaX.Cloud.Api/Dockerfile }
+  #   depends_on: { postgres: { condition: service_healthy }, redis: { condition: service_started } }
+  #   environment:
+  #     ConnectionStrings__Postgres: "Host=postgres;Database=sistemax;Username=sistemax;Password=${POSTGRES_PASSWORD:-troque-em-producao}"
+  #     Redis__Connection: "redis:6379"
+  #   ports: ["8080:8080"]
+
+volumes:
+  pgdata:
+  redisdata:

@@ -1,0 +1,1193 @@
+<title>Estoque — SistemaX</title>
+<style>
+  :root {
+    /* Neutros/marca herdados do saas-erp — mesma identidade do mockup financeiro-assinaturas.html */
+    --bg: 210 40% 98%;
+    --surface: 0 0% 100%;
+    --surface-2: 210 40% 96.5%;
+    --fg: 222 47% 11%;
+    --muted: 215 16% 47%;
+    --faint: 215 20% 65%;
+    --border: 214 32% 90%;
+    --primary: 0 72% 51%;
+    --primary-soft: 0 72% 96%;
+    --pos: 152 58% 40%;
+    --pos-soft: 152 55% 94%;
+    --warn: 32 90% 44%;
+    --warn-soft: 38 92% 94%;
+    --crit: 349 78% 48%;
+    --crit-soft: 349 80% 96%;
+    --info: 217 80% 52%;
+    --info-soft: 217 70% 95%;
+    --ring: 0 72% 51%;
+    --shadow: 220 40% 20%;
+    --mono: "SF Mono", ui-monospace, "JetBrains Mono", "Cascadia Code", Menlo, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  }
+  /* Tema CLARO é o padrão do produto — dark só via toggle explícito. */
+  :root[data-theme="light"] {
+    --bg: 210 40% 98%; --surface: 0 0% 100%; --surface-2: 210 40% 96.5%;
+    --fg: 222 47% 11%; --muted: 215 16% 47%; --faint: 215 20% 65%; --border: 214 32% 90%;
+    --primary: 0 72% 51%; --primary-soft: 0 72% 96%; --pos: 152 58% 40%; --pos-soft: 152 55% 94%;
+    --warn: 32 90% 44%; --warn-soft: 38 92% 94%; --crit: 349 78% 48%; --crit-soft: 349 80% 96%;
+    --info: 217 80% 52%; --info-soft: 217 70% 95%; --shadow: 220 40% 20%;
+  }
+  :root[data-theme="dark"] {
+    --bg: 222 47% 5%; --surface: 220 40% 7.5%; --surface-2: 218 34% 11%;
+    --fg: 210 40% 96%; --muted: 215 20% 60%; --faint: 215 18% 42%; --border: 215 25% 16%;
+    --primary: 0 72% 58%; --primary-soft: 0 45% 13%; --pos: 152 55% 50%; --pos-soft: 152 40% 12%;
+    --warn: 38 92% 55%; --warn-soft: 36 45% 13%; --crit: 350 85% 62%; --crit-soft: 349 45% 14%;
+    --info: 213 90% 68%; --info-soft: 217 45% 14%; --shadow: 222 60% 2%;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: 222 47% 5%; --surface: 220 40% 7.5%; --surface-2: 218 34% 11%;
+      --fg: 210 40% 96%; --muted: 215 20% 60%; --faint: 215 18% 42%; --border: 215 25% 16%;
+      --primary: 0 72% 58%; --primary-soft: 0 45% 13%; --pos: 152 55% 50%; --pos-soft: 152 40% 12%;
+      --warn: 38 92% 55%; --warn-soft: 36 45% 13%; --crit: 350 85% 62%; --crit-soft: 349 45% 14%;
+      --info: 213 90% 68%; --info-soft: 217 45% 14%; --shadow: 222 60% 2%;
+    }
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: hsl(var(--bg)); color: hsl(var(--fg));
+    font-family: var(--sans); -webkit-font-smoothing: antialiased;
+    font-size: 14px; line-height: 1.5;
+  }
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .eyebrow { text-transform: uppercase; letter-spacing: 0.08em; font-size: 11px; font-weight: 600; color: hsl(var(--muted)); }
+
+  /* ---- App shell ---- */
+  .app { display: grid; grid-template-columns: 60px 1fr; min-height: 100vh; }
+  .rail { background: hsl(var(--surface)); border-right: 1px solid hsl(var(--border));
+    display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 0; }
+  .rail .logo { width: 34px; height: 34px; border-radius: 10px; margin-bottom: 10px;
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(0 72% 40%));
+    display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 15px;
+    box-shadow: 0 4px 14px hsl(var(--primary) / 0.4); }
+  .rail button { width: 40px; height: 40px; border-radius: 11px; border: 0; background: transparent;
+    color: hsl(var(--faint)); cursor: pointer; display: grid; place-items: center; transition: .15s; }
+  .rail button svg { width: 20px; height: 20px; }
+  .rail button:hover { background: hsl(var(--surface-2)); color: hsl(var(--fg)); }
+  .rail button.active { background: hsl(var(--primary-soft)); color: hsl(var(--primary)); }
+  .rail .spacer { flex: 1; }
+
+  .main { min-width: 0; }
+  .wrap { max-width: 1220px; margin: 0 auto; padding: 26px 32px 60px; }
+
+  /* ---- Header ---- */
+  header.page { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 18px; flex-wrap: wrap; }
+  header.page h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; margin: 4px 0 2px; text-wrap: balance; }
+  header.page .sub { color: hsl(var(--muted)); font-size: 13.5px; max-width: 62ch; }
+  .head-actions { display: flex; align-items: center; gap: 10px; }
+  .btn-primary { display: inline-flex; align-items: center; gap: 7px; padding: 9px 15px; border-radius: 10px; border: 0;
+    background: hsl(var(--primary)); color: #fff; font-weight: 600; font-size: 13.5px; cursor: pointer;
+    box-shadow: 0 4px 14px hsl(var(--primary) / 0.35); transition: transform .12s, filter .12s; white-space: nowrap; }
+  .btn-primary:hover { filter: brightness(1.06); transform: translateY(-1px); }
+  .btn-ghost { padding: 8px 11px; border-radius: 10px; border: 1px solid hsl(var(--border)); background: hsl(var(--surface));
+    color: hsl(var(--fg)); cursor: pointer; font-size: 13px; display: inline-flex; gap: 6px; align-items: center; white-space: nowrap; }
+  .btn-ghost:hover { background: hsl(var(--surface-2)); }
+
+  /* ---- Cards ---- */
+  .card { background: hsl(var(--surface)); border: 1px solid hsl(var(--border)); border-radius: 16px;
+    box-shadow: 0 1px 2px hsl(var(--shadow) / 0.06), 0 8px 24px -18px hsl(var(--shadow) / 0.5); }
+
+  /* KPI row */
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 16px; }
+  .kpi { padding: 16px 18px; position: relative; overflow: hidden; }
+  .kpi .lbl { display: flex; align-items: center; gap: 6px; }
+  .kpi .val { font-size: 26px; font-weight: 700; margin-top: 10px; letter-spacing: -0.02em; }
+  .kpi .val small { font-size: 14px; font-weight: 600; color: hsl(var(--muted)); }
+  .kpi .delta { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; font-weight: 600; margin-top: 7px; }
+  .kpi .delta.up { color: hsl(var(--pos)); }
+  .kpi .delta.down { color: hsl(var(--crit)); }
+  .kpi .delta.warn { color: hsl(var(--warn)); }
+  .kpi .foot { font-size: 12px; color: hsl(var(--muted)); margin-top: 3px; }
+  .kpi.hero::after { content: ""; position: absolute; inset: 0; background: radial-gradient(120% 90% at 100% 0, hsl(var(--primary) / 0.10), transparent 60%); pointer-events: none; }
+  .spark { margin-top: 10px; height: 30px; width: 100%; display: block; }
+
+  /* Consultor */
+  .consultor { display: flex; gap: 14px; padding: 16px 18px; margin-bottom: 16px; align-items: flex-start;
+    background: linear-gradient(hsl(var(--surface)), hsl(var(--surface))) padding-box,
+      linear-gradient(120deg, hsl(var(--primary) / 0.5), hsl(var(--border) / 0.2)) border-box;
+    border: 1px solid transparent; border-radius: 16px; }
+  .consultor .icon { flex: none; width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center;
+    background: hsl(var(--primary-soft)); color: hsl(var(--primary)); }
+  .consultor .icon svg { width: 20px; height: 20px; }
+  .consultor h3 { margin: 1px 0 5px; font-size: 13px; letter-spacing: -0.01em; }
+  .consultor p { margin: 0; font-size: 13.5px; line-height: 1.6; color: hsl(var(--fg)); }
+  .consultor b { color: hsl(var(--primary)); font-weight: 700; }
+  .consultor .bad { color: hsl(var(--crit)); font-weight: 700; }
+  .consultor .good { color: hsl(var(--pos)); font-weight: 700; }
+  .consultor .link { display: inline-flex; align-items: center; gap: 4px; margin-top: 8px; font-size: 12.5px; font-weight: 700;
+    color: hsl(var(--primary)); background: none; border: 0; cursor: pointer; padding: 0; }
+  .consultor .link:hover { text-decoration: underline; }
+
+  /* 2-col drill */
+  .grid2 { display: grid; grid-template-columns: 1.15fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .card h2.sec { font-size: 13px; font-weight: 700; letter-spacing: -0.01em; padding: 15px 18px 0; margin: 0; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .card h2.sec .hint { font-weight: 500; font-size: 12px; color: hsl(var(--muted)); }
+  #cardEsq, #cardDir { min-height: 250px; }
+  .bars { padding: 14px 18px 18px; display: flex; flex-direction: column; gap: 4px; }
+  .bar-click { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; width: 100%;
+    border: 0; background: none; font: inherit; color: inherit; cursor: pointer; text-align: left; padding: 9px 10px; border-radius: 11px; transition: background .12s; }
+  .bar-click:hover { background: hsl(var(--surface-2)); }
+  .bar-click:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+  .bar-click .name { font-weight: 600; font-size: 13px; display: flex; align-items: center; gap: 8px; }
+  .bar-click .amt { font-size: 12.5px; color: hsl(var(--muted)); }
+  .track { grid-column: 1 / -1; height: 8px; border-radius: 6px; background: hsl(var(--surface-2)); overflow: hidden; }
+  .fill { height: 100%; border-radius: 6px; }
+  .bar-click .pct { font-weight: 700; font-size: 12.5px; }
+  .dot { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+  .secleft { display: inline-flex; align-items: center; gap: 8px; }
+  .back { border: 0; background: hsl(var(--surface-2)); color: hsl(var(--fg)); width: 26px; height: 26px; border-radius: 8px;
+    cursor: pointer; font-size: 15px; line-height: 1; display: inline-grid; place-items: center; transition: .12s; flex: none; }
+  .back:hover { background: hsl(var(--primary-soft)); color: hsl(var(--primary)); }
+  .card.anim > * { animation: cardin .22s ease both; }
+  @keyframes cardin { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .card.anim > * { animation: none; } }
+
+  .chart { padding: 8px 18px 6px; }
+  .chart svg { width: 100%; height: auto; display: block; }
+  .chart .zero { stroke: hsl(var(--border)); stroke-width: 1; }
+  .chart .grid-line { stroke: hsl(var(--border)); stroke-width: 1; stroke-dasharray: 2 3; }
+  .chart .mlabel { fill: hsl(var(--muted)); font-size: 9px; font-family: var(--sans); }
+  .chart .alabel { fill: hsl(var(--muted)); font-size: 9px; font-family: var(--mono); }
+  .chart rect { transition: opacity .12s; }
+  .chart rect:hover { opacity: .78; }
+  .legend { display: flex; gap: 16px; padding: 0 18px 14px; font-size: 12px; color: hsl(var(--muted)); flex-wrap: wrap; }
+  .legend .lg { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+  .stats { padding: 14px 18px 18px; display: flex; flex-direction: column; gap: 11px; }
+  .stat { padding: 12px 14px; border-radius: 12px; background: hsl(var(--surface-2)); }
+  .stat .k { font-size: 12px; color: hsl(var(--muted)); font-weight: 600; }
+  .stat .v { font-size: 23px; font-weight: 700; margin-top: 4px; letter-spacing: -0.02em; }
+  .stat .v small { font-size: 13px; font-weight: 600; color: hsl(var(--muted)); }
+  .stat .v.crit { color: hsl(var(--crit)); }
+  .stat .s { font-size: 12px; color: hsl(var(--faint)); margin-top: 2px; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 2px; border-bottom: 1px solid hsl(var(--border)); margin-bottom: 18px; overflow-x: auto; }
+  .tab { padding: 10px 14px; font-size: 13.5px; font-weight: 600; color: hsl(var(--muted)); border: 0; background: none; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; transition: .15s; }
+  .tab:hover { color: hsl(var(--fg)); }
+  .tab.active { color: hsl(var(--primary)); border-bottom-color: hsl(var(--primary)); }
+
+  /* Table */
+  .tbl-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; min-width: 640px; }
+  thead th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: hsl(var(--muted));
+    font-weight: 600; padding: 12px 16px; border-bottom: 1px solid hsl(var(--border)); white-space: nowrap; }
+  thead th.r, tbody td.r { text-align: right; }
+  tbody td { padding: 12px 16px; border-bottom: 1px solid hsl(var(--border) / 0.6); font-size: 13.5px; vertical-align: middle; }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr.clickable { cursor: pointer; }
+  tbody tr.clickable:hover { background: hsl(var(--surface-2) / 0.6); }
+  .prod-name { font-weight: 600; }
+  .prod-sub { color: hsl(var(--muted)); font-size: 12px; }
+  .val-mono { font-weight: 600; }
+  .chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+  .chip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+  .chip.ok { color: hsl(var(--pos)); background: hsl(var(--pos-soft)); }
+  .chip.baixo { color: hsl(var(--warn)); background: hsl(var(--warn-soft)); }
+  .chip.zerado { color: hsl(var(--crit)); background: hsl(var(--crit-soft)); }
+  .chip.bom { color: hsl(var(--info)); background: hsl(var(--info-soft)); }
+  .chip.servico { color: hsl(var(--faint)); background: hsl(var(--surface-2)); }
+  .chip.fechado { color: hsl(var(--pos)); background: hsl(var(--pos-soft)); }
+  .chip.contagem { color: hsl(var(--info)); background: hsl(var(--info-soft)); }
+  .chip.cancelado { color: hsl(var(--faint)); background: hsl(var(--surface-2)); }
+  .tag-mov { display: inline-flex; align-items: center; gap: 7px; font-weight: 600; }
+  .origem-link { color: hsl(var(--primary)); font-weight: 600; cursor: pointer; }
+  .origem-link:hover { text-decoration: underline; }
+  .foot-note { padding: 11px 18px 15px; font-size: 12px; color: hsl(var(--muted)); border-top: 1px solid hsl(var(--border) / 0.7); }
+
+  /* Filtros */
+  .filtros { display: flex; gap: 9px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+  .search-box { display: flex; align-items: center; gap: 7px; padding: 8px 12px; border: 1px solid hsl(var(--border));
+    border-radius: 10px; background: hsl(var(--surface)); min-width: 220px; flex: 1 1 220px; }
+  .search-box svg { color: hsl(var(--faint)); flex: none; }
+  .search-box input { border: 0; outline: 0; background: none; font: inherit; color: hsl(var(--fg)); width: 100%; }
+  .search-box input::placeholder { color: hsl(var(--faint)); }
+  select.mini { padding: 8px 10px; border: 1px solid hsl(var(--border)); border-radius: 10px; background: hsl(var(--surface));
+    color: hsl(var(--fg)); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+  .switch-row { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: hsl(var(--muted)); cursor: pointer; user-select: none; white-space: nowrap; }
+  .switch { position: relative; width: 34px; height: 20px; border-radius: 999px; background: hsl(var(--surface-2)); border: 1px solid hsl(var(--border)); transition: .15s; flex: none; }
+  .switch::after { content: ""; position: absolute; top: 1px; left: 1px; width: 16px; height: 16px; border-radius: 50%; background: hsl(var(--surface)); box-shadow: 0 1px 2px hsl(var(--shadow)/.3); transition: .15s; }
+  .switch-row input { display: none; }
+  .switch-row input:checked + .switch { background: hsl(var(--primary)); border-color: hsl(var(--primary)); }
+  .switch-row input:checked + .switch::after { transform: translateX(14px); background: #fff; }
+
+  /* Ficha do produto */
+  .ficha-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 16px; flex-wrap: wrap; }
+  .ficha-head .titulo { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
+  .ficha-head .meta { color: hsl(var(--muted)); font-size: 13px; margin-top: 3px; }
+  .ficha-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 16px; }
+  .ficha-stats .stat-card { padding: 14px 16px; }
+  .ficha-stats .stat-card .k { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; font-weight: 700; color: hsl(var(--muted)); }
+  .ficha-stats .stat-card .v { font-size: 22px; font-weight: 700; margin-top: 8px; }
+  .ficha-stats .stat-card .s { font-size: 12px; color: hsl(var(--faint)); margin-top: 4px; }
+
+  /* Galeria de relatórios */
+  .rel-gallery { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; }
+  .rel-card { padding: 14px 15px; cursor: pointer; text-align: left; border: 1px solid hsl(var(--border)); background: hsl(var(--surface));
+    border-radius: 14px; transition: .12s; display: flex; flex-direction: column; gap: 6px; }
+  .rel-card:hover { border-color: hsl(var(--primary) / .4); transform: translateY(-1px); }
+  .rel-card.active { border-color: hsl(var(--primary)); background: hsl(var(--primary-soft)); }
+  .rel-card .rid { font-size: 11px; font-weight: 700; color: hsl(var(--primary)); letter-spacing: .04em; }
+  .rel-card .rname { font-weight: 700; font-size: 13.5px; }
+  .rel-card .rdesc { font-size: 12px; color: hsl(var(--muted)); }
+  .preview-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 15px 18px 0; flex-wrap: wrap; }
+  .preview-head .t { font-size: 13.5px; font-weight: 700; }
+  .preview-head .t .hint { font-weight: 500; color: hsl(var(--muted)); font-size: 12px; margin-left: 6px; }
+  .insight-box { margin: 12px 18px 0; padding: 12px 14px; border-radius: 12px; background: hsl(var(--primary-soft)); font-size: 13px; line-height: 1.55; }
+  .insight-box b { color: hsl(var(--primary)); }
+
+  .theme-toggle { position: fixed; top: 14px; right: 16px; z-index: 10; }
+
+  @media (max-width: 980px) {
+    .kpis { grid-template-columns: repeat(2, 1fr); }
+    .grid2 { grid-template-columns: 1fr; }
+    .ficha-stats { grid-template-columns: repeat(2, 1fr); }
+    .rel-gallery { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 860px) {
+    .app { grid-template-columns: 0 1fr; }
+    .rail { display: none; }
+    .wrap { padding: 22px 18px 50px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<button class="btn-ghost theme-toggle" onclick="(function(){var r=document.documentElement;var d=(r.getAttribute('data-theme')|| (matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'))==='dark';r.setAttribute('data-theme',d?'light':'dark');})()">◐ tema</button>
+
+<div class="app">
+  <nav class="rail" aria-label="Navegação">
+    <div class="logo">S</div>
+    <button title="Início"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10.5 12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1z"/></svg></button>
+    <button title="Financeiro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg></button>
+    <button title="Vendas / PDV"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2 3h3l2.4 12.5a1 1 0 0 0 1 .8h9.2a1 1 0 0 0 1-.8L21 7H6"/></svg></button>
+    <button class="active" title="Estoque"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/></svg></button>
+    <button title="Clientes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M17 5.5a3 3 0 0 1 0 5.6M22 20a6 6 0 0 0-4-5.7"/></svg></button>
+    <div class="spacer"></div>
+    <button title="Ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 2h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12a7 7 0 0 0 .1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 22h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6A7 7 0 0 0 19 12z"/></svg></button>
+  </nav>
+
+  <main class="main">
+    <div class="wrap">
+      <header class="page">
+        <div>
+          <div class="eyebrow">Estoque</div>
+          <h1 id="pageTitle">Estoque</h1>
+          <div class="sub" id="pageSub"></div>
+        </div>
+        <div class="head-actions" id="headActions"></div>
+      </header>
+
+      <nav class="tabs" id="tabs" aria-label="Seções do Estoque">
+        <button class="tab active" data-tab="geral">Visão geral</button>
+        <button class="tab" data-tab="produtos">Produtos</button>
+        <button class="tab" data-tab="mov">Movimentações</button>
+        <button class="tab" data-tab="inv">Inventários</button>
+        <button class="tab" data-tab="rel">Relatórios</button>
+      </nav>
+
+      <section id="view-geral" class="view"></section>
+      <section id="view-produtos" class="view" style="display:none"></section>
+      <section id="view-mov" class="view" style="display:none"></section>
+      <section id="view-inv" class="view" style="display:none"></section>
+      <section id="view-rel" class="view" style="display:none"></section>
+    </div>
+  </main>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ────────────────────────────────────────────────────────────────────────
+  // DADOS MOCK — uma assistência técnica (mesmo vertical já construído no
+  // SistemaX). Tudo que a UI mostra é CALCULADO destes arrays em tempo real —
+  // nenhum número de KPI/consultor/relatório é digitado solto duas vezes.
+  // ────────────────────────────────────────────────────────────────────────
+
+  const HOJE = new Date(2026, 6, 16); // 16/07/2026
+
+  const produtos = [
+    { id: "p1", sku: "TL-I13", nome: "Tela iPhone 13 Incell", categoria: "Telas", unidade: "un",
+      fisico: 2, reservado: 2, custoMedio: 182.00, minimo: 4, pontoReposicao: 6, leadTime: 4,
+      precoVenda: 349.00, localizacao: "Corredor 2 · gaveta B4", fornecedor: "TecParts",
+      ean: "789123456789", osReservas: ["#118", "#121"],
+      consumo6sem: [3, 4, 2, 5, 3, 4], entradas6sem: [0, 4, 0, 0, 0, 0] },
+    { id: "p2", sku: "TL-I11", nome: "Tela iPhone 11", categoria: "Telas", unidade: "un",
+      fisico: 3, reservado: 0, custoMedio: 140.00, minimo: 3, pontoReposicao: 5, leadTime: 4,
+      precoVenda: 279.00, localizacao: "Corredor 2 · gaveta B2", fornecedor: "TecParts",
+      consumo6sem: [2, 1, 2, 1, 2, 1], entradas6sem: [0, 0, 5, 0, 0, 0] },
+    { id: "p3", sku: "TL-A54", nome: "Tela Samsung A54", categoria: "Telas", unidade: "un",
+      fisico: 9, reservado: 0, custoMedio: 210.00, minimo: 3, pontoReposicao: 5, leadTime: 6,
+      precoVenda: 399.00, localizacao: "Corredor 2 · gaveta B7", fornecedor: "TecParts",
+      consumo6sem: [1, 0, 1, 1, 0, 1], entradas6sem: [0, 0, 0, 10, 0, 0] },
+    { id: "p4", sku: "BT-I11", nome: "Bateria iPhone 11 Premium", categoria: "Baterias", unidade: "un",
+      fisico: 27, reservado: 4, custoMedio: 96.40, minimo: 5, pontoReposicao: 10, leadTime: 3,
+      precoVenda: 189.00, localizacao: "Corredor 3 · gaveta C1", fornecedor: "PeçasBrasil",
+      osReservas: ["#124"], consumo6sem: [5, 6, 4, 7, 5, 6], entradas6sem: [0, 0, 20, 0, 0, 0] },
+    { id: "p5", sku: "BT-I13", nome: "Bateria iPhone 13", categoria: "Baterias", unidade: "un",
+      fisico: 6, reservado: 0, custoMedio: 118.00, minimo: 5, pontoReposicao: 8, leadTime: 3,
+      precoVenda: 229.00, localizacao: "Corredor 3 · gaveta C2", fornecedor: "PeçasBrasil",
+      consumo6sem: [1, 2, 1, 2, 1, 1], entradas6sem: [0, 0, 0, 8, 0, 0] },
+    { id: "p6", sku: "BT-A54", nome: "Bateria Samsung A54", categoria: "Baterias", unidade: "un",
+      fisico: 1, reservado: 0, custoMedio: 88.00, minimo: 3, pontoReposicao: 6, leadTime: 5,
+      precoVenda: 169.00, localizacao: "Corredor 3 · gaveta C5", fornecedor: "PeçasBrasil",
+      consumo6sem: [1, 1, 0, 1, 1, 0], entradas6sem: [0, 0, 0, 0, 0, 0] },
+    { id: "p7", sku: "CB-C1", nome: "Cabo USB-C 1m", categoria: "Acessórios", unidade: "un",
+      fisico: 148, reservado: 0, custoMedio: 8.90, minimo: 20, pontoReposicao: 40, leadTime: 7,
+      precoVenda: 24.90, localizacao: "Prateleira A1", fornecedor: "DistribuiCel",
+      consumo6sem: [18, 22, 15, 20, 25, 19], entradas6sem: [0, 0, 100, 0, 0, 0] },
+    { id: "p8", sku: "CB-L1", nome: "Cabo Lightning 1m", categoria: "Acessórios", unidade: "un",
+      fisico: 34, reservado: 0, custoMedio: 17.80, minimo: 10, pontoReposicao: 20, leadTime: 7,
+      precoVenda: 39.90, localizacao: "Prateleira A2", fornecedor: "DistribuiCel",
+      consumo6sem: [4, 5, 3, 6, 4, 5], entradas6sem: [0, 0, 0, 30, 0, 0] },
+    { id: "p9", sku: "PL-3D", nome: "Película 3D genérica", categoria: "Acessórios", unidade: "un",
+      fisico: 6, reservado: 0, custoMedio: 4.20, minimo: 15, pontoReposicao: 25, leadTime: 5,
+      precoVenda: 19.90, localizacao: "Prateleira A4", fornecedor: "DistribuiCel",
+      consumo6sem: [6, 8, 5, 7, 6, 8], entradas6sem: [0, 0, 0, 0, 0, 0] },
+    { id: "p10", sku: "PL-VD", nome: "Película vidro comum", categoria: "Acessórios", unidade: "un",
+      fisico: 52, reservado: 0, custoMedio: 3.10, minimo: 20, pontoReposicao: 35, leadTime: 5,
+      precoVenda: 14.90, localizacao: "Prateleira A5", fornecedor: "DistribuiCel",
+      consumo6sem: [10, 8, 9, 11, 7, 9], entradas6sem: [0, 0, 60, 0, 0, 0] },
+    { id: "p11", sku: "FN-20W", nome: "Fonte carregador 20W", categoria: "Acessórios", unidade: "un",
+      fisico: 18, reservado: 0, custoMedio: 28.00, minimo: 10, pontoReposicao: 15, leadTime: 10,
+      precoVenda: 59.90, localizacao: "Prateleira A7", fornecedor: "DistribuiCel",
+      consumo6sem: [3, 2, 4, 3, 2, 3], entradas6sem: [0, 0, 0, 20, 0, 0] },
+    { id: "p12", sku: "KT-FER", nome: "Kit ferramentas de abertura", categoria: "Acessórios", unidade: "un",
+      fisico: 20, reservado: 0, custoMedio: 45.00, minimo: 3, pontoReposicao: 5, leadTime: 15,
+      precoVenda: 89.00, localizacao: "Bancada · gaveta 1", fornecedor: "FerramentasPro",
+      consumo6sem: [0, 1, 0, 0, 0, 1], entradas6sem: [0, 0, 0, 0, 0, 0] },
+    { id: "p13", sku: "SP-BAN", nome: "Suporte de bancada", categoria: "Acessórios", unidade: "un",
+      fisico: 2, reservado: 0, custoMedio: 65.00, minimo: 2, pontoReposicao: 3, leadTime: 20,
+      precoVenda: 129.00, localizacao: "Bancada · gaveta 2", fornecedor: "FerramentasPro",
+      consumo6sem: [0, 0, 1, 0, 0, 0], entradas6sem: [0, 0, 0, 0, 0, 0] },
+    { id: "p14", sku: "RM-OCA", nome: "Removedor OCA 250ml", categoria: "Insumos", unidade: "un",
+      fisico: 4, reservado: 0, custoMedio: 18.10, minimo: 3, pontoReposicao: 5, leadTime: 10,
+      precoVenda: 39.00, localizacao: "Bancada · prateleira química", fornecedor: "DistribuiCel",
+      consumo6sem: [1, 0, 1, 0, 1, 0], entradas6sem: [0, 0, 0, 10, 0, 0] },
+    { id: "p15", sku: "CL-UV", nome: "Cola UV para tela", categoria: "Insumos", unidade: "un",
+      fisico: 0, reservado: 0, custoMedio: 32.00, minimo: 2, pontoReposicao: 4, leadTime: 12,
+      precoVenda: 69.00, localizacao: "Bancada · prateleira química", fornecedor: "TecParts",
+      consumo6sem: [1, 1, 0, 1, 1, 0], entradas6sem: [0, 0, 0, 0, 0, 0] },
+    { id: "p16", sku: "FT-2MM", nome: "Fita adesiva dupla face 2mm", categoria: "Insumos", unidade: "un",
+      fisico: 40, reservado: 0, custoMedio: 1.80, minimo: 20, pontoReposicao: 35, leadTime: 7,
+      precoVenda: 6.90, localizacao: "Prateleira A6", fornecedor: "DistribuiCel",
+      consumo6sem: [5, 6, 4, 5, 6, 5], entradas6sem: [0, 0, 50, 0, 0, 0] },
+    { id: "p17", sku: "AL-ISO", nome: "Álcool isopropílico 99% 1L", categoria: "Insumos", unidade: "un",
+      fisico: 12, reservado: 0, custoMedio: 22.00, minimo: 5, pontoReposicao: 8, leadTime: 7,
+      precoVenda: 45.00, localizacao: "Bancada · prateleira química", fornecedor: "DistribuiCel",
+      consumo6sem: [2, 1, 2, 1, 2, 1], entradas6sem: [0, 0, 0, 15, 0, 0] },
+    { id: "p18", sku: "PZ-CAL", nome: "Pizza Calabresa (composto)", categoria: "Compostos", unidade: "un",
+      fisico: null, reservado: 0, custoMedio: 14.10, minimo: 0, pontoReposicao: null, leadTime: null,
+      precoVenda: 42.90, localizacao: "—", fornecedor: null,
+      ficha: [
+        { nome: "Massa base", qtd: 1, unidade: "un", custo: 4.20 },
+        { nome: "Molho de tomate", qtd: 0.08, unidade: "kg", custo: 10.00 },
+        { nome: "Calabresa fatiada", qtd: 0.10, unidade: "kg", custo: 36.00 },
+        { nome: "Queijo mussarela", qtd: 0.12, unidade: "kg", custo: 30.00 },
+        { nome: "Orégano", qtd: 0.02, unidade: "kg", custo: 95.00 }
+      ] },
+    { id: "p19", sku: "TX-DIAG", nome: "Taxa de diagnóstico", categoria: "Serviços", unidade: "un",
+      fisico: null, reservado: 0, custoMedio: 0, minimo: 0, pontoReposicao: null, leadTime: null,
+      precoVenda: 39.90, localizacao: "—", fornecedor: null, controlaEstoque: false }
+  ];
+
+  // Razão — movimentações recentes (append-only; nada aqui se edita).
+  const movimentos = [
+    { data: "16/07 09:14", tipo: "saida-venda", produto: "p7", origem: "Venda #1091", qtd: -4, valor: -35.60 },
+    { data: "16/07 08:40", tipo: "saida-consumo", produto: "p1", origem: "OS #133", qtd: -1, valor: -182.00 },
+    { data: "16/07 08:40", tipo: "libera-reserva", produto: "p1", origem: "OS #133", qtd: 1, valor: null },
+    { data: "15/07 17:02", tipo: "reserva", produto: "p5", origem: "OS #135", qtd: 2, valor: null },
+    { data: "15/07 15:20", tipo: "entrada-compra", produto: "p9", origem: "NF 4501 · DistribuiCel", qtd: 80, valor: 336.00 },
+    { data: "15/07 11:05", tipo: "saida-venda", produto: "p11", origem: "Venda #1088", qtd: -2, valor: -56.00 },
+    { data: "14/07 16:12", tipo: "saida-venda", produto: "p7", origem: "Venda #1082", qtd: -6, valor: -53.40 },
+    { data: "14/07 15:40", tipo: "saida-consumo", produto: "p1", origem: "OS #121", qtd: -1, valor: -182.00 },
+    { data: "14/07 15:40", tipo: "libera-reserva", produto: "p1", origem: "OS #121", qtd: 1, valor: null },
+    { data: "14/07 11:05", tipo: "reserva", produto: "p4", origem: "OS #124", qtd: 2, valor: null },
+    { data: "14/07 09:30", tipo: "entrada-compra", produto: "p9", origem: "NF 4418 · DistribuiCel", qtd: 50, valor: 210.00 },
+    { data: "13/07 18:44", tipo: "perda", produto: "p14", origem: "manual · Ana", qtd: -3, valor: -54.30, motivo: "validade" },
+    { data: "13/07 17:02", tipo: "ajuste", produto: "p8", origem: "Inv #7 · Geral", qtd: 2, valor: 35.60 },
+    { data: "12/07 14:10", tipo: "saida-venda", produto: "p1", origem: "Venda #1042", qtd: -1, valor: -182.00 },
+    { data: "11/07 10:00", tipo: "entrada-compra", produto: "p4", origem: "NF 4390 · PeçasBrasil", qtd: 20, valor: 1928.00 },
+    { data: "10/07 09:15", tipo: "saida-venda", produto: "p17", origem: "Venda #1071", qtd: -3, valor: -66.00 },
+    { data: "10/07 08:00", tipo: "perda", produto: "p13", origem: "manual · Igor", qtd: -1, valor: -65.00, motivo: "quebra" },
+    { data: "03/07 09:30", tipo: "entrada-compra", produto: "p1", origem: "NF 4412 · TecParts", qtd: 4, valor: 718.00 },
+    { data: "28/06 17:30", tipo: "perda", produto: "p1", origem: "manual · Igor", qtd: -1, valor: -185.00, motivo: "quebra" }
+  ];
+
+  const movTipoInfo = {
+    "saida-venda": { icone: "●", cor: "var(--fg)", label: "Saída · venda" },
+    "saida-consumo": { icone: "●", cor: "var(--fg)", label: "Saída · consumo" },
+    "libera-reserva": { icone: "○", cor: "var(--faint)", label: "Liberação reserva" },
+    "reserva": { icone: "◍", cor: "var(--info)", label: "Reserva" },
+    "entrada-compra": { icone: "✚", cor: "var(--pos)", label: "Entrada · compra" },
+    "perda": { icone: "⚠", cor: "var(--crit)", label: "Perda" },
+    "ajuste": { icone: "±", cor: "var(--warn)", label: "Ajuste · inventário" }
+  };
+
+  const inventarios = [
+    { id: "inv7", nome: "Inv #7 · Geral", status: "fechado", periodo: "Julho/2026", fechadoPor: "Igor",
+      linhas: [
+        { produto: "p8", sistema: 32, contado: 34 },
+        { produto: "p9", sistema: 8, contado: 6 },
+        { produto: "p14", sistema: 5, contado: 4 },
+        { produto: "p16", sistema: 38, contado: 40 }
+      ] },
+    { id: "inv8", nome: "Inv #8 · Telas", status: "contagem", periodo: "aberto 16/07/2026", fechadoPor: null, linhas: [] },
+    { id: "inv6", nome: "Inv #6 · Insumos", status: "fechado", periodo: "Junho/2026", fechadoPor: "Ana", linhas: [] }
+  ];
+
+  // ────────────────────────────────────────────────────────────────────────
+  // HELPERS
+  // ────────────────────────────────────────────────────────────────────────
+
+  const fmtData = (d) => d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  const HOJE_TXT = fmtData(HOJE);
+  const brl = (v) => "R$ " + (Math.round(v * 100) / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const brlSigned = (v) => (v < 0 ? "−" : "+") + brl(Math.abs(v)).replace("R$ ", "R$ ");
+  const fmtQty = (v, unidade) => {
+    if (v === null || v === undefined) return "—";
+    if (unidade === "un" || !unidade) return Math.round(v).toLocaleString("pt-BR") + " un";
+    return (Math.round(v * 1000) / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 3 }) + " " + unidade;
+  };
+  const porId = (id) => produtos.find((p) => p.id === id);
+
+  function temSaldoProprio(p) { return p.fisico !== null && p.fisico !== undefined; }
+  function disponivel(p) { return temSaldoProprio(p) ? p.fisico - p.reservado : null; }
+  function valorFisico(p) { return temSaldoProprio(p) ? p.fisico * p.custoMedio : null; }
+  function valorDisponivel(p) { return temSaldoProprio(p) ? disponivel(p) * p.custoMedio : null; }
+  function mediaSemanal(arr) { return arr.reduce((a, b) => a + b, 0) / arr.length; }
+  function coberturaDias(p) {
+    if (!temSaldoProprio(p)) return null;
+    const diaria = mediaSemanal(p.consumo6sem) / 7;
+    if (diaria <= 0) return null;
+    return disponivel(p) / diaria;
+  }
+  function giroAnual(p) {
+    if (!temSaldoProprio(p)) return 0;
+    const vf = valorFisico(p);
+    if (!vf || vf <= 0) return 0;
+    const cmvAnual = mediaSemanal(p.consumo6sem) * 52 * p.custoMedio;
+    return cmvAnual / vf;
+  }
+  function estadoDe(p) {
+    if (p.controlaEstoque === false) return { code: "servico", label: "Serviço" };
+    if (p.ficha) return { code: "bom", label: "BOM" };
+    const disp = disponivel(p);
+    if (disp <= 0) return { code: "zerado", label: "Zerado" };
+    if (p.minimo > 0 && disp <= p.minimo) return { code: "baixo", label: "Baixo" };
+    return { code: "ok", label: "OK" };
+  }
+
+  const produtosComSaldo = () => produtos.filter((p) => temSaldoProprio(p));
+  const valorTotalEstoque = () => produtosComSaldo().reduce((acc, p) => acc + valorFisico(p), 0);
+  const itensAbaixoDoMinimo = () => produtosComSaldo().filter((p) => p.minimo > 0 && disponivel(p) <= p.minimo);
+  const itensZerados = () => produtosComSaldo().filter((p) => disponivel(p) <= 0);
+  const coberturaMedia = () => {
+    const valores = produtosComSaldo().map(coberturaDias).filter((v) => v !== null && isFinite(v));
+    if (!valores.length) return 0;
+    return valores.reduce((a, b) => a + b, 0) / valores.length;
+  };
+
+  function categorias() {
+    const nomes = [...new Set(produtosComSaldo().map((p) => p.categoria))];
+    return nomes.map((nome) => {
+      const itens = produtosComSaldo().filter((p) => p.categoria === nome);
+      const valor = itens.reduce((acc, p) => acc + valorFisico(p), 0);
+      return { nome, itens, valor };
+    }).sort((a, b) => b.valor - a.valor);
+  }
+
+  function sparkline(arr, cor) {
+    const w = 46, h = 20, n = arr.length, gap = 2;
+    const bw = (w - gap * (n - 1)) / n;
+    const max = Math.max(1, ...arr);
+    let rects = "";
+    arr.forEach((v, i) => {
+      const bh = Math.max(1.5, (v / max) * h);
+      const x = i * (bw + gap);
+      rects += '<rect x="' + x.toFixed(1) + '" y="' + (h - bh).toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + bh.toFixed(1) + '" rx="1" fill="hsl(' + cor + ')"/>';
+    });
+    return '<svg width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '" aria-hidden="true">' + rects + "</svg>";
+  }
+
+  function corDaCategoria(nome) {
+    const mapa = { "Telas": "var(--primary)", "Baterias": "var(--fg) / 0.55", "Acessórios": "var(--fg) / 0.4", "Insumos": "var(--fg) / 0.25" };
+    return mapa[nome] || "var(--muted)";
+  }
+
+  // ────────────────────────────────────────────────────────────────────────
+  // ESTADO DE NAVEGAÇÃO
+  // ────────────────────────────────────────────────────────────────────────
+
+  let tabAtiva = "geral";
+  let categoriaDrill = null;   // Visão geral: categoria selecionada no drill
+  let produtoDrill = null;     // Produtos: id do produto em ficha
+  let relatorioAtivo = "abc";  // Relatórios: relatório em preview
+
+  const HEADERS = {
+    geral: { titulo: "Estoque", sub: "O que você tem, o que está acabando, e quanto capital está parado." },
+    produtos: { titulo: "Produtos", sub: "O catálogo, o saldo e o estado de cada item." },
+    mov: { titulo: "Movimentações", sub: "O razão, navegável — nada aqui se edita. Corrigiu errado? Novo movimento de estorno." },
+    inv: { titulo: "Inventários", sub: "Contagens físicas e as divergências que elas revelam." },
+    rel: { titulo: "Relatórios", sub: "Inteligência pronta pra imprimir e mandar." }
+  };
+
+  function setHeader(tab) {
+    document.getElementById("pageTitle").textContent = HEADERS[tab].titulo;
+    document.getElementById("pageSub").textContent = HEADERS[tab].sub;
+    const actions = document.getElementById("headActions");
+    if (tab === "produtos") {
+      actions.innerHTML = '<button class="btn-ghost">⬇ Exportar</button><button class="btn-primary">+ Novo produto</button>';
+    } else if (tab === "mov") {
+      actions.innerHTML = '<button class="btn-primary">+ Movimento ▾</button>';
+    } else if (tab === "inv") {
+      actions.innerHTML = '<button class="btn-primary">+ Abrir inventário</button>';
+    } else {
+      actions.innerHTML = "";
+    }
+  }
+
+  function irParaTab(tab) {
+    tabAtiva = tab;
+    document.querySelectorAll(".tab").forEach((b) => b.classList.toggle("active", b.dataset.tab === tab));
+    document.querySelectorAll(".view").forEach((v) => { v.style.display = "none"; });
+    document.getElementById("view-" + tab).style.display = "";
+    setHeader(tab);
+  }
+
+  document.getElementById("tabs").addEventListener("click", (e) => {
+    const b = e.target.closest(".tab");
+    if (!b) return;
+    irParaTab(b.dataset.tab);
+  });
+
+  // ────────────────────────────────────────────────────────────────────────
+  // VISÃO GERAL
+  // ────────────────────────────────────────────────────────────────────────
+
+  function renderGeral() {
+    const el = document.getElementById("view-geral");
+    const valorTotal = valorTotalEstoque();
+    const abaixoMin = itensAbaixoDoMinimo();
+    const zerados = itensZerados();
+    const cobMedia = coberturaMedia();
+
+    // Consultor: encontra o item zerado mais urgente (maior saída semanal × preço, com OS aguardando).
+    const candidatos = zerados.filter((p) => p.osReservas && p.osReservas.length);
+    const foco = candidatos.sort((a, b) => mediaSemanal(b.consumo6sem) - mediaSemanal(a.consumo6sem))[0] || zerados[0];
+    let consultorHtml;
+    if (foco) {
+      const perdaSemana = mediaSemanal(foco.consumo6sem) * foco.precoVenda;
+      const osTxt = foco.osReservas && foco.osReservas.length
+        ? " com " + foco.osReservas.length + " OS aguardando peça (reserva descoberta)"
+        : "";
+      consultorHtml = '<b>' + foco.nome + '</b> zerou' + osTxt + '. No ritmo atual você perde <span class="bad">' + brl(perdaSemana) + '/semana</span>. '
+        + (foco.leadTime ? "O fornecedor (" + foco.fornecedor + ") entrega em " + foco.leadTime + " dias — sugestão de compra pronta na aba Relatórios." : "")
+        + '<br/><button class="link" id="btnVerSugestao">Ver sugestão de compra →</button>';
+    } else {
+      consultorHtml = "Nenhum item zerado agora — estoque sob controle. " + abaixoMin.length + " item(ns) abaixo do mínimo merecem review na aba Produtos.";
+    }
+
+    const cats = categorias();
+
+    el.innerHTML =
+      '<section class="kpis">' +
+        '<div class="card kpi hero">' +
+          '<div class="lbl eyebrow">Valor em estoque</div>' +
+          '<div class="val num">' + brl(valorTotal) + '</div>' +
+          '<div class="delta up">soma do físico × custo médio, ' + produtosComSaldo().length + ' itens</div>' +
+          sparklineHero() +
+        '</div>' +
+        '<div class="card kpi">' +
+          '<div class="lbl eyebrow">Abaixo do mínimo</div>' +
+          '<div class="val num">' + abaixoMin.length + ' <small>itens</small></div>' +
+          '<div class="delta warn">' + zerados.length + ' já zerado' + (zerados.length === 1 ? "" : "s") + '</div>' +
+        '</div>' +
+        '<div class="card kpi">' +
+          '<div class="lbl eyebrow">Zerados (ruptura)</div>' +
+          '<div class="val num">' + zerados.length + ' <small>itens</small></div>' +
+          '<div class="delta down">perdendo venda agora</div>' +
+        '</div>' +
+        '<div class="card kpi">' +
+          '<div class="lbl eyebrow">Cobertura média</div>' +
+          '<div class="val num">' + Math.round(cobMedia) + ' <small>dias</small></div>' +
+          '<div class="foot">disponível ÷ consumo médio diário</div>' +
+        '</div>' +
+      '</section>' +
+
+      '<div class="consultor">' +
+        '<div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 0 0-4 12.7V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.3A7 7 0 0 0 12 2z"/><path d="M9 21h6"/></svg></div>' +
+        '<div><h3>Consultor</h3><p>' + consultorHtml + '</p></div>' +
+      '</div>' +
+
+      '<section class="grid2"><div class="card" id="cardEsq"></div><div class="card" id="cardDir"></div></section>';
+
+    const btnVerSugestao = document.getElementById("btnVerSugestao");
+    if (btnVerSugestao) btnVerSugestao.addEventListener("click", () => {
+      irParaTab("rel"); relatorioAtivo = "sugestao"; renderRel();
+    });
+
+    function sparklineHero() {
+      const serie = [valorTotal * 0.94, valorTotal * 0.97, valorTotal * 0.99, valorTotal * 0.96, valorTotal * 1.01, valorTotal];
+      const max = Math.max(...serie), min = Math.min(...serie);
+      const pts = serie.map((v, i) => {
+        const x = (i / (serie.length - 1)) * 260;
+        const y = 30 - ((v - min) / (max - min || 1)) * 26 - 2;
+        return x.toFixed(0) + "," + y.toFixed(1);
+      });
+      const path = "M" + pts.join(" L");
+      return '<svg class="spark" viewBox="0 0 260 34" preserveAspectRatio="none" aria-hidden="true">' +
+        '<defs><linearGradient id="ge" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="hsl(var(--primary))" stop-opacity="0.25"/><stop offset="1" stop-color="hsl(var(--primary))" stop-opacity="0"/></linearGradient></defs>' +
+        '<path d="' + path + '" fill="none" stroke="hsl(var(--primary))" stroke-width="2" stroke-linecap="round"/>' +
+        '<path d="' + path + ' L260,34 L0,34 Z" fill="url(#ge)"/>' +
+        '<circle cx="260" cy="' + pts[pts.length - 1].split(",")[1] + '" r="3" fill="hsl(var(--primary))"/></svg>';
+    }
+
+    function overview() {
+      const totalGeral = cats.reduce((a, c) => a + c.valor, 0) || 1;
+      const rows = cats.map((c) => {
+        const pct = (c.valor / totalGeral) * 100;
+        return '<button class="bar-click" data-cat="' + c.nome + '">' +
+          '<span class="name"><span class="dot" style="background:hsl(' + corDaCategoria(c.nome) + ')"></span>' + c.nome + '</span>' +
+          '<span class="amt num">' + brl(c.valor) + '</span>' +
+          '<div class="track"><div class="fill" style="width:' + pct.toFixed(1) + '%;background:hsl(' + corDaCategoria(c.nome) + ')"></div></div>' +
+          '<span class="pct num">' + pct.toFixed(1).replace(".", ",") + '%</span></button>';
+      }).join("");
+      document.getElementById("cardEsq").innerHTML = '<h2 class="sec">Valor por categoria <span class="hint">clique numa categoria →</span></h2><div class="bars">' + rows + '</div>';
+
+      // giro < 1 com fisico > 0 é ENCALHE (capital parado); fisico <= 0 é RUPTURA (já contado
+      // acima em "Zerados") — as duas coisas têm giro baixo pela mesma fórmula, mas são
+      // problemas opostos e não podem se misturar no mesmo rótulo.
+      const parados = produtosComSaldo().filter((p) => giroAnual(p) < 1 && p.fisico > 0);
+      const capitalParado = parados.reduce((a, p) => a + valorFisico(p), 0);
+      const giroMedio = produtosComSaldo().reduce((a, p) => a + giroAnual(p), 0) / (produtosComSaldo().length || 1);
+      document.getElementById("cardDir").innerHTML = '<h2 class="sec">Giro & cobertura <span class="hint">carteira inteira</span></h2>' +
+        '<div class="stats">' +
+        statTile("Giro médio anualizado", giroMedio.toFixed(1).replace(".", ",") + "×", "vezes que o estoque vira por ano") +
+        statTile("Cobertura média", Math.round(coberturaMedia()) + " dias", "disponível ÷ consumo médio diário") +
+        statTile("Capital parado (giro < 1×/ano)", brl(capitalParado), parados.length + " produto(s) — candidatos a promoção") +
+        '</div>';
+    }
+
+    function statTile(k, v, s) {
+      return '<div class="stat"><div class="k">' + k + '</div><div class="v num">' + v + '</div><div class="s">' + s + '</div></div>';
+    }
+
+    function drillCategoria(nome) {
+      const itens = produtosComSaldo().filter((p) => p.categoria === nome);
+      const entradasSemana = [0, 0, 0, 0, 0, 0], saidasSemana = [0, 0, 0, 0, 0, 0];
+      itens.forEach((p) => {
+        p.entradas6sem.forEach((v, i) => entradasSemana[i] += v * p.custoMedio);
+        p.consumo6sem.forEach((v, i) => saidasSemana[i] += v * p.custoMedio);
+      });
+      document.getElementById("cardEsq").innerHTML = '<h2 class="sec"><span class="secleft"><button class="back" id="backCat">←</button> ' + nome + '</span><span class="hint">Entradas × saídas, 6 semanas</span></h2>' +
+        '<div class="chart">' + svgDivergente(entradasSemana, saidasSemana) + '</div>' +
+        '<div class="legend"><span class="lg"><i style="background:hsl(var(--pos))"></i>Entradas</span><span class="lg"><i style="background:hsl(var(--fg) / .5)"></i>Saídas</span></div>';
+      document.getElementById("backCat").addEventListener("click", () => { categoriaDrill = null; go(); });
+
+      const valorCat = itens.reduce((a, p) => a + valorFisico(p), 0);
+      const abaixoCat = itens.filter((p) => p.minimo > 0 && disponivel(p) <= p.minimo).length;
+      const giroCat = itens.reduce((a, p) => a + giroAnual(p), 0) / (itens.length || 1);
+      document.getElementById("cardDir").innerHTML = '<h2 class="sec">' + nome + ' <span class="hint">' + itens.length + ' produtos</span></h2>' +
+        '<div class="stats">' +
+        statTile("Valor imobilizado", brl(valorCat), "físico × custo médio nesta categoria") +
+        statTile("Giro médio", giroCat.toFixed(1).replace(".", ",") + "×/ano", "") +
+        statTile("Abaixo do mínimo", abaixoCat + " item(ns)", "") +
+        '</div>';
+    }
+
+    function svgDivergente(entradas, saidas) {
+      const meses = seisSemanasLabels();
+      const zeroY = 60, x0 = 16, x1 = 330, bw = 17;
+      const max = Math.max(1, ...entradas, ...saidas);
+      const f = 46 / max, slot = (x1 - x0) / 6;
+      let r = "";
+      entradas.forEach((v, i) => {
+        if (v <= 0) return;
+        const h = v * f, cx = x0 + slot * i + slot / 2;
+        r += '<rect x="' + (cx - bw / 2).toFixed(0) + '" y="' + (zeroY - h).toFixed(0) + '" width="' + bw + '" height="' + h.toFixed(0) + '" rx="3" fill="hsl(var(--pos))"><title>' + meses[i] + " · entradas " + brl(v) + '</title></rect>';
+      });
+      saidas.forEach((v, i) => {
+        if (v <= 0) return;
+        const h = v * f, cx = x0 + slot * i + slot / 2;
+        r += '<rect x="' + (cx - bw / 2).toFixed(0) + '" y="' + zeroY + '" width="' + bw + '" height="' + h.toFixed(0) + '" rx="3" fill="hsl(var(--fg) / .5)"><title>' + meses[i] + " · saídas " + brl(v) + '</title></rect>';
+      });
+      meses.forEach((m, i) => { const cx = x0 + slot * i + slot / 2; r += '<text class="mlabel" x="' + cx.toFixed(0) + '" y="140" text-anchor="middle">' + m + '</text>'; });
+      return '<svg viewBox="0 0 340 148" role="img" aria-label="Entradas e saídas por semana"><line class="zero" x1="' + x0 + '" y1="' + zeroY + '" x2="' + x1 + '" y2="' + zeroY + '"/>' + r + '</svg>';
+    }
+
+    function anim() { ["cardEsq", "cardDir"].forEach((id) => { const c = document.getElementById(id); c.classList.remove("anim"); void c.offsetWidth; c.classList.add("anim"); }); }
+    function bind() {
+      document.getElementById("cardEsq").querySelectorAll(".bar-click").forEach((b) => b.addEventListener("click", () => { categoriaDrill = b.dataset.cat; go(); }));
+    }
+    function go() { if (categoriaDrill) drillCategoria(categoriaDrill); else overview(); anim(); bind(); }
+    go();
+  }
+
+  function seisSemanasLabels() {
+    return ["6sem", "5sem", "4sem", "3sem", "2sem", "atual"];
+  }
+
+  // ────────────────────────────────────────────────────────────────────────
+  // PRODUTOS
+  // ────────────────────────────────────────────────────────────────────────
+
+  let filtroTexto = "", filtroCategoria = "todas", filtroEstado = "todos", filtroProblema = false;
+
+  function renderProdutos() {
+    const el = document.getElementById("view-produtos");
+    if (produtoDrill) { el.innerHTML = renderFichaProduto(produtoDrill); bindFicha(); return; }
+
+    const cats = ["todas", ...new Set(produtos.map((p) => p.categoria))];
+    el.innerHTML =
+      '<div class="filtros">' +
+        '<div class="search-box"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>' +
+        '<input id="fBusca" type="text" placeholder="nome, SKU ou EAN…" value="' + filtroTexto + '"/></div>' +
+        '<select class="mini" id="fCategoria">' + cats.map((c) => '<option value="' + c + '" ' + (c === filtroCategoria ? "selected" : "") + '>' + (c === "todas" ? "Categoria: todas" : c) + '</option>').join("") + '</select>' +
+        '<select class="mini" id="fEstado">' +
+          '<option value="todos">Estado: todos</option><option value="ok">OK</option><option value="baixo">Baixo</option><option value="zerado">Zerado</option><option value="bom">Composto (BOM)</option><option value="servico">Serviço</option>' +
+        '</select>' +
+        '<label class="switch-row"><input type="checkbox" id="fProblema" ' + (filtroProblema ? "checked" : "") + '/><span class="switch"></span> Só com problema</label>' +
+      '</div>' +
+      '<div class="card"><div class="tbl-wrap"><table>' +
+      '<thead><tr><th>Produto</th><th>SKU</th><th class="r">Disponível</th><th class="r">Reserv.</th><th class="r">Custo méd.</th><th class="r">Valor</th><th>Estado</th></tr></thead>' +
+      '<tbody id="tbodyProdutos"></tbody>' +
+      '</table></div><div class="foot-note">linha clicável → ficha do produto · sparkline = consumo 6 semanas · <span class="num">*</span> custo da ficha técnica</div></div>';
+
+    renderLinhasProdutos();
+
+    document.getElementById("fBusca").addEventListener("input", (e) => { filtroTexto = e.target.value; renderLinhasProdutos(); });
+    document.getElementById("fCategoria").addEventListener("change", (e) => { filtroCategoria = e.target.value; renderLinhasProdutos(); });
+    document.getElementById("fEstado").addEventListener("change", (e) => { filtroEstado = e.target.value; renderLinhasProdutos(); });
+    document.getElementById("fProblema").addEventListener("change", (e) => { filtroProblema = e.target.checked; renderLinhasProdutos(); });
+  }
+
+  function renderLinhasProdutos() {
+    const tbody = document.getElementById("tbodyProdutos");
+    const termo = filtroTexto.trim().toLowerCase();
+    const lista = produtos.filter((p) => {
+      if (termo && !(p.nome.toLowerCase().includes(termo) || p.sku.toLowerCase().includes(termo) || (p.ean || "").includes(termo))) return false;
+      if (filtroCategoria !== "todas" && p.categoria !== filtroCategoria) return false;
+      const est = estadoDe(p);
+      if (filtroEstado !== "todos" && est.code !== filtroEstado) return false;
+      if (filtroProblema && !(est.code === "baixo" || est.code === "zerado")) return false;
+      return true;
+    });
+
+    if (!lista.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:hsl(var(--muted));padding:30px 16px;">Nenhum produto encontrado com esses filtros.</td></tr>'; return; }
+
+    tbody.innerHTML = lista.map((p) => {
+      const est = estadoDe(p);
+      const disp = disponivel(p);
+      const dispHtml = p.ficha
+        ? '<span class="num">— (ficha: ' + p.ficha.length + ' insumos)</span>'
+        : (p.controlaEstoque === false ? "—" : '<span class="num val-mono">' + fmtQty(disp, p.unidade) + '</span> ' + sparkline(p.consumo6sem, corSpark(est.code)));
+      const valorHtml = p.ficha ? '<span class="num">' + brl(p.custoMedio) + '*</span>' : (p.controlaEstoque === false ? "—" : '<span class="num">' + brl(valorDisponivel(p)) + '</span>');
+      return '<tr class="clickable" data-id="' + p.id + '">' +
+        '<td><div class="prod-name">' + p.nome + '</div><div class="prod-sub">' + p.localizacao + '</div></td>' +
+        '<td class="num">' + p.sku + '</td>' +
+        '<td class="r">' + dispHtml + '</td>' +
+        '<td class="r num">' + (p.reservado ? fmtQty(p.reservado, p.unidade) : "—") + '</td>' +
+        '<td class="r num">' + (p.controlaEstoque === false ? "—" : brl(p.custoMedio)) + '</td>' +
+        '<td class="r">' + valorHtml + '</td>' +
+        '<td><span class="chip ' + est.code + '">' + est.label + '</span></td>' +
+      '</tr>';
+    }).join("") + '<tr><td colspan="7" style="text-align:right;color:hsl(var(--muted));font-size:12px;padding:10px 16px;">mostrando ' + lista.length + ' de ' + produtos.length + '</td></tr>';
+
+    tbody.querySelectorAll("tr.clickable").forEach((tr) => tr.addEventListener("click", () => { produtoDrill = tr.dataset.id; renderProdutos(); }));
+  }
+
+  function corSpark(estadoCode) { return estadoCode === "zerado" ? "var(--crit)" : estadoCode === "baixo" ? "var(--warn)" : "var(--pos)"; }
+
+  function renderFichaProduto(id) {
+    const p = porId(id);
+    const est = estadoDe(p);
+    if (p.ficha) return renderFichaComposto(p);
+
+    const disp = disponivel(p);
+    const cob = coberturaDias(p);
+    const giro = giroAnual(p);
+    const margem = ((p.precoVenda - p.custoMedio) / p.precoVenda) * 100;
+    const vendaPerdida = disp <= 0 ? mediaSemanal(p.consumo6sem) * p.precoVenda : 0;
+    const kardex = kardexDoProduto(p);
+
+    return '' +
+      '<div class="ficha-head">' +
+        '<div><button class="back" id="backFicha" style="margin-bottom:8px;">←</button>' +
+        '<div class="titulo">' + p.nome + '</div>' +
+        '<div class="meta">SKU ' + p.sku + (p.ean ? " · EAN " + p.ean : "") + " · " + p.categoria + " · " + p.localizacao + '</div></div>' +
+      '</div>' +
+
+      '<section class="ficha-stats">' +
+        '<div class="card stat-card"><div class="k">Disponível</div><div class="v num">' + fmtQty(disp, p.unidade) + '</div><div class="s">mín ' + p.minimo + ' · rep. ' + (p.pontoReposicao ?? "—") + '</div></div>' +
+        '<div class="card stat-card"><div class="k">Reservado (OS)</div><div class="v num">' + fmtQty(p.reservado, p.unidade) + '</div><div class="s">' + (p.osReservas ? p.osReservas.join(", ") : "sem reserva ativa") + '</div></div>' +
+        '<div class="card stat-card"><div class="k">Custo médio</div><div class="v num">' + brl(p.custoMedio) + '</div><div class="s">custo médio móvel</div></div>' +
+        '<div class="card stat-card"><div class="k">Valor em estoque</div><div class="v num">' + brl(valorFisico(p)) + '</div><div class="s">físico × custo médio</div></div>' +
+      '</section>' +
+
+      '<section class="grid2">' +
+        '<div class="card"><h2 class="sec">Consumo × entradas <span class="hint">6 semanas</span></h2>' +
+          '<div class="chart">' + svgConsumoEntradas(p) + '</div>' +
+          '<div class="legend"><span class="lg"><i style="background:hsl(var(--pos))"></i>Entradas</span><span class="lg"><i style="background:hsl(var(--fg) / .5)"></i>Saídas</span></div>' +
+        '</div>' +
+        '<div class="card"><h2 class="sec">Números do período</h2><div class="stats">' +
+          statTileHtml("Giro", giro.toFixed(1).replace(".", ",") + "× /ano", "") +
+          statTileHtml("Cobertura", cob === null ? "—" : Math.round(cob) + " dias", cob !== null && cob <= 3 ? "crit" : "") +
+          statTileHtml("Venda perdida (7d)", vendaPerdida > 0 ? brl(vendaPerdida) : "—", vendaPerdida > 0 ? "crit" : "") +
+          statTileHtml("Margem média", margem.toFixed(1).replace(".", ",") + "%", "") +
+        '</div></div>' +
+      '</section>' +
+
+      '<div class="card"><h2 class="sec">Kardex — últimos movimentos <span class="hint">saldo após = replay, não campo gravado</span></h2>' +
+      '<div class="tbl-wrap"><table><thead><tr><th>Data</th><th>Tipo</th><th>Origem</th><th class="r">Qtd</th><th class="r">Custo un.</th><th class="r">Saldo após</th></tr></thead><tbody>' +
+      kardex.map((k) => '<tr><td class="num">' + k.data + '</td><td>' + k.tipoLabel + '</td><td><span class="origem-link">' + k.origem + ' ›</span></td>' +
+        '<td class="r num">' + k.qtdTxt + '</td><td class="r num">' + (k.custo !== null ? brl(k.custo) : "—") + '</td><td class="r num">' + k.saldoTxt + '</td></tr>').join("") +
+      '</tbody></table></div></div>';
+  }
+
+  function statTileHtml(k, v, mod) {
+    return '<div class="stat"><div class="k">' + k + '</div><div class="v num' + (mod === "crit" ? " crit" : "") + '">' + v + '</div></div>';
+  }
+
+  function svgConsumoEntradas(p) {
+    const meses = ["6sem", "5sem", "4sem", "3sem", "2sem", "atual"];
+    const zeroY = 60, x0 = 16, x1 = 330, bw = 17;
+    const max = Math.max(1, ...p.consumo6sem, ...p.entradas6sem);
+    const f = 46 / max, slot = (x1 - x0) / 6;
+    let r = "";
+    p.entradas6sem.forEach((v, i) => { if (v <= 0) return; const h = v * f, cx = x0 + slot * i + slot / 2; r += '<rect x="' + (cx - bw / 2).toFixed(0) + '" y="' + (zeroY - h).toFixed(0) + '" width="' + bw + '" height="' + h.toFixed(0) + '" rx="3" fill="hsl(var(--pos))"/>'; });
+    p.consumo6sem.forEach((v, i) => { if (v <= 0) return; const h = v * f, cx = x0 + slot * i + slot / 2; r += '<rect x="' + (cx - bw / 2).toFixed(0) + '" y="' + zeroY + '" width="' + bw + '" height="' + h.toFixed(0) + '" rx="3" fill="hsl(var(--fg) / .5)"/>'; });
+    meses.forEach((m, i) => { const cx = x0 + slot * i + slot / 2; r += '<text class="mlabel" x="' + cx.toFixed(0) + '" y="140" text-anchor="middle">' + m + '</text>'; });
+    return '<svg viewBox="0 0 340 148"><line class="zero" x1="' + x0 + '" y1="' + zeroY + '" x2="' + x1 + '" y2="' + zeroY + '"/>' + r + '</svg>';
+  }
+
+  function renderFichaComposto(p) {
+    const total = p.ficha.reduce((a, c) => a + c.qtd * c.custo, 0);
+    return '' +
+      '<div class="ficha-head"><div><button class="back" id="backFicha" style="margin-bottom:8px;">←</button>' +
+      '<div class="titulo">' + p.nome + '</div><div class="meta">SKU ' + p.sku + " · " + p.categoria + ' · produto composto — não tem saldo próprio</div></div></div>' +
+      '<section class="ficha-stats">' +
+        '<div class="card stat-card"><div class="k">Custo da ficha</div><div class="v num">' + brl(total) + '</div><div class="s">soma dos insumos</div></div>' +
+        '<div class="card stat-card"><div class="k">Preço de venda</div><div class="v num">' + brl(p.precoVenda) + '</div><div class="s">margem ' + (((p.precoVenda - total) / p.precoVenda) * 100).toFixed(1).replace(".", ",") + '%</div></div>' +
+        '<div class="card stat-card"><div class="k">Insumos na ficha</div><div class="v num">' + p.ficha.length + '</div><div class="s">expande na baixa (venda)</div></div>' +
+        '<div class="card stat-card"><div class="k">Estado</div><div class="v"><span class="chip bom">BOM</span></div><div class="s">baixa expande pros insumos-folha</div></div>' +
+      '</section>' +
+      '<div class="card"><h2 class="sec">Ficha técnica (BOM) <span class="hint">quanto cada insumo pesa no custo</span></h2>' +
+      '<div class="tbl-wrap"><table><thead><tr><th>Insumo</th><th class="r">Qtd por unidade</th><th class="r">Custo un.</th><th class="r">Custo na ficha</th></tr></thead><tbody>' +
+      p.ficha.map((c) => '<tr><td>' + c.nome + '</td><td class="r num">' + fmtQty(c.qtd, c.unidade) + '</td><td class="r num">' + brl(c.custo) + '</td><td class="r num val-mono">' + brl(c.qtd * c.custo) + '</td></tr>').join("") +
+      '<tr><td style="font-weight:700">Total</td><td></td><td></td><td class="r num" style="font-weight:700">' + brl(total) + '</td></tr>' +
+      '</tbody></table></div></div>';
+  }
+
+  function kardexDoProduto(p) {
+    // Movimentos "hero" — retirados literalmente do razão de Movimentações para os produtos
+    // protagonistas; os demais ganham um kardex sintético mas coerente com o próprio saldo.
+    // `movimentos` já vem do mais recente pro mais antigo, então dá pra reconstruir "saldo após"
+    // andando pra TRÁS a partir do físico ATUAL (replay reverso) — reserva/liberação não tocam o
+    // físico, só o reservado, por isso viram uma nota de disponível em vez de um saldo absoluto.
+    const filtrados = movimentos.filter((m) => m.produto === p.id);
+    if (filtrados.length && temSaldoProprio(p)) {
+      let saldoFisico = p.fisico;
+      const doRazao = filtrados.map((m) => {
+        const info = movTipoInfo[m.tipo];
+        const ehReserva = m.tipo === "reserva" || m.tipo === "libera-reserva";
+        const efeitoFisico = ehReserva ? 0 : m.qtd;
+        const saldoApos = saldoFisico;
+        saldoFisico = saldoFisico - efeitoFisico; // desfaz — vira o saldo após o próximo (mais antigo)
+        const qtdTxt = ehReserva ? "(" + Math.abs(m.qtd) + " " + p.unidade + ")" : (m.qtd > 0 ? "+" : "") + m.qtd + " " + p.unidade;
+        return {
+          data: m.data.split(" ")[0], tipoLabel: '<span style="color:hsl(' + info.cor + ')">' + info.icone + '</span> ' + info.label,
+          origem: m.origem, qtdTxt: qtdTxt,
+          custo: (m.tipo === "saida-venda" || m.tipo === "saida-consumo" || m.tipo === "perda" || m.tipo === "entrada-compra") ? Math.abs(m.valor / m.qtd) : null,
+          saldoTxt: ehReserva ? "disp. " + (m.tipo === "reserva" ? "−" : "+") + Math.abs(m.qtd) : fmtQty(saldoApos, p.unidade)
+        };
+      });
+      return doRazao;
+    }
+    // fallback sintético: uma entrada do fornecedor + uma saída recente, coerentes com o custo médio atual.
+    return [
+      { data: "08/07", tipoLabel: '<span style="color:hsl(var(--fg))">●</span> Saída · venda', origem: "Venda #10" + (77 + p.id.length), qtdTxt: "−1 " + p.unidade, custo: p.custoMedio, saldoTxt: fmtQty(disponivel(p), p.unidade) },
+      { data: "02/07", tipoLabel: '<span style="color:hsl(var(--pos))">✚</span> Entrada · compra', origem: "NF " + (4300 + p.id.length) + " · " + (p.fornecedor || "fornecedor"), qtdTxt: "+" + Math.max(1, Math.round(disponivel(p) * 0.4)) + " " + p.unidade, custo: p.custoMedio, saldoTxt: fmtQty(disponivel(p), p.unidade) }
+    ];
+  }
+
+  function bindFicha() {
+    const back = document.getElementById("backFicha");
+    if (back) back.addEventListener("click", () => { produtoDrill = null; renderProdutos(); });
+  }
+
+  // ────────────────────────────────────────────────────────────────────────
+  // MOVIMENTAÇÕES
+  // ────────────────────────────────────────────────────────────────────────
+
+  let filtroTipoMov = "todos";
+
+  function renderMov() {
+    const el = document.getElementById("view-mov");
+    const hojeStr = HOJE_TXT;
+    el.innerHTML =
+      '<div class="filtros">' +
+        '<select class="mini" disabled>' + '<option>Período: Julho</option>' + '</select>' +
+        '<select class="mini" id="fTipoMov"><option value="todos">Tipo: todos</option>' +
+          Object.keys(movTipoInfo).map((k) => '<option value="' + k + '">' + movTipoInfo[k].label + '</option>').join("") +
+        '</select>' +
+        '<div class="search-box"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg><input id="fBuscaMov" type="text" placeholder="produto…"/></div>' +
+      '</div>' +
+      '<div class="card" style="margin-bottom:14px;"><div style="padding:14px 18px;display:flex;gap:26px;flex-wrap:wrap;" id="resumoMov"></div></div>' +
+      '<div class="card"><h2 class="sec">Razão de movimentações <span class="hint">hoje: ' + hojeStr + '</span></h2>' +
+      '<div class="tbl-wrap"><table><thead><tr><th>Quando</th><th>Tipo</th><th>Produto</th><th>Origem</th><th class="r">Qtd</th><th class="r">Valor</th></tr></thead><tbody id="tbodyMov"></tbody></table></div>' +
+      '<div class="foot-note">razão append-only: nada aqui se edita — corrigiu errado? novo movimento de estorno.</div></div>';
+
+    renderLinhasMov();
+    document.getElementById("fTipoMov").addEventListener("change", (e) => { filtroTipoMov = e.target.value; renderLinhasMov(); });
+    document.getElementById("fBuscaMov").addEventListener("input", (e) => { window.__buscaMov = e.target.value.toLowerCase(); renderLinhasMov(); });
+  }
+
+  function renderLinhasMov() {
+    const busca = window.__buscaMov || "";
+    const lista = movimentos.filter((m) => {
+      if (filtroTipoMov !== "todos" && m.tipo !== filtroTipoMov) return false;
+      const p = porId(m.produto);
+      if (busca && !p.nome.toLowerCase().includes(busca)) return false;
+      return true;
+    });
+
+    const entradasTotal = lista.filter((m) => m.tipo === "entrada-compra").reduce((a, m) => a + m.valor, 0);
+    const saidasTotal = Math.abs(lista.filter((m) => m.tipo.indexOf("saida") === 0).reduce((a, m) => a + m.valor, 0));
+    const perdasTotal = Math.abs(lista.filter((m) => m.tipo === "perda").reduce((a, m) => a + m.valor, 0));
+    const maxResumo = Math.max(1, entradasTotal, saidasTotal, perdasTotal);
+    document.getElementById("resumoMov").innerHTML =
+      resumoItem("Entradas", entradasTotal, "var(--pos)", maxResumo) +
+      resumoItem("Saídas", saidasTotal, "var(--fg) / .6", maxResumo) +
+      resumoItem("Perdas", perdasTotal, "var(--crit)", maxResumo);
+
+    document.getElementById("tbodyMov").innerHTML = lista.map((m) => {
+      const info = movTipoInfo[m.tipo];
+      const p = porId(m.produto);
+      const qtdTxt = (m.tipo === "reserva" || m.tipo === "libera-reserva") ? "(" + Math.abs(m.qtd) + " un)" : (m.qtd > 0 ? "+" : "") + m.qtd + " un";
+      return '<tr><td class="num">' + m.data + '</td>' +
+        '<td><span class="tag-mov" style="color:hsl(' + info.cor + ')">' + info.icone + ' <span style="color:hsl(var(--fg))">' + info.label + '</span></span></td>' +
+        '<td>' + p.nome + '</td>' +
+        '<td><span class="origem-link">' + m.origem + ' ›</span></td>' +
+        '<td class="r num">' + qtdTxt + '</td>' +
+        '<td class="r num">' + (m.valor !== null ? brlSigned(m.valor) : "—") + '</td></tr>';
+    }).join("");
+  }
+
+  function resumoItem(label, valor, cor, max) {
+    const pct = Math.max(4, (valor / max) * 100);
+    return '<div style="min-width:160px;flex:1"><div style="font-size:12px;color:hsl(var(--muted));font-weight:600;margin-bottom:6px;">' + label + ' <span class="num" style="color:hsl(var(--fg));font-weight:700">' + brl(valor) + '</span></div>' +
+      '<div class="track"><div class="fill" style="width:' + pct.toFixed(0) + '%;background:hsl(' + cor + ')"></div></div></div>';
+  }
+
+  // ────────────────────────────────────────────────────────────────────────
+  // INVENTÁRIOS
+  // ────────────────────────────────────────────────────────────────────────
+
+  function divergenciaInventario(inv) {
+    return inv.linhas.reduce((acc, l) => {
+      const p = porId(l.produto);
+      return acc + (l.contado - l.sistema) * p.custoMedio;
+    }, 0);
+  }
+
+  function renderInv() {
+    const el = document.getElementById("view-inv");
+    el.innerHTML = '<div class="card"><h2 class="sec">Contagens <span class="hint">FSM: Em contagem → Fechado | Cancelado</span></h2>' +
+      '<div class="tbl-wrap"><table><thead><tr><th>Inventário</th><th>Período</th><th>Escopo</th><th class="r">Itens divergentes</th><th class="r">Divergência</th><th>Status</th></tr></thead><tbody>' +
+      inventarios.map((inv) => {
+        const div = inv.linhas.length ? divergenciaInventario(inv) : null;
+        const statusChip = inv.status === "fechado" ? '<span class="chip fechado">Fechado</span>' : inv.status === "contagem" ? '<span class="chip contagem">Em contagem</span>' : '<span class="chip cancelado">Cancelado</span>';
+        return '<tr><td class="prod-name">' + inv.nome + '</td><td class="num">' + inv.periodo + '</td><td>' + (inv.linhas.length ? inv.linhas.length + " produtos" : "todas as categorias") + '</td>' +
+          '<td class="r num">' + (inv.linhas.length || "—") + '</td>' +
+          '<td class="r num" style="color:' + (div === null ? "inherit" : div < 0 ? "hsl(var(--crit))" : "hsl(var(--pos))") + '">' + (div === null ? "—" : brlSigned(div)) + '</td>' +
+          '<td>' + statusChip + '</td></tr>';
+      }).join("") +
+      '</tbody></table></div>' +
+      '<div class="foot-note">contagem cega (opção): o operador digita o contado sem ver o esperado. Fechar gera um Ajuste por linha divergente — idempotente por inventário.</div></div>';
+  }
+
+  // ────────────────────────────────────────────────────────────────────────
+  // RELATÓRIOS
+  // ────────────────────────────────────────────────────────────────────────
+
+  const RELATORIOS = [
+    { id: "posicao", rid: "R1", nome: "Posição valorizada", desc: "p/ contador · corte retroativo" },
+    { id: "abc", rid: "R2", nome: "Curva ABC", desc: "80/15/5 · Pareto por valor de saída" },
+    { id: "giro", rid: "R3", nome: "Giro & cobertura", desc: "parados + dias de estoque" },
+    { id: "ruptura", rid: "R4", nome: "Ruptura", desc: "venda perdida estimada" },
+    { id: "kardex", rid: "R5", nome: "Kardex", desc: "razão por produto" },
+    { id: "inventario", rid: "R6", nome: "Inventário", desc: "divergências da contagem" },
+    { id: "sugestao", rid: "R7", nome: "Sugestão de compra", desc: "no ponto de reposição" }
+  ];
+
+  function renderRel() {
+    const el = document.getElementById("view-rel");
+    el.innerHTML = '<div class="rel-gallery">' +
+      RELATORIOS.map((r) => '<button class="rel-card' + (r.id === relatorioAtivo ? " active" : "") + '" data-rid="' + r.id + '"><span class="rid">' + r.rid + '</span><span class="rname">' + r.nome + '</span><span class="rdesc">' + r.desc + ' 📄</span></button>').join("") +
+      '</div><div class="card" id="relPreview"></div>';
+
+    el.querySelectorAll(".rel-card").forEach((c) => c.addEventListener("click", () => { relatorioAtivo = c.dataset.rid; renderRel(); }));
+    renderPreviewRelatorio(relatorioAtivo);
+  }
+
+  function renderPreviewRelatorio(id) {
+    const box = document.getElementById("relPreview");
+    const meta = RELATORIOS.find((r) => r.id === id);
+    let corpo = "";
+    if (id === "abc") corpo = previewAbc();
+    else if (id === "giro") corpo = previewGiro();
+    else if (id === "ruptura") corpo = previewRuptura();
+    else if (id === "posicao") corpo = previewPosicao();
+    else if (id === "kardex") corpo = previewKardex();
+    else if (id === "inventario") corpo = previewInventarioReport();
+    else if (id === "sugestao") corpo = previewSugestao();
+
+    box.innerHTML = '<div class="preview-head"><div class="t">▾ preview — ' + meta.nome + ' <span class="hint">' + meta.desc + '</span></div><button class="btn-ghost">⬇ Gerar PDF</button></div>' + corpo;
+  }
+
+  function previewAbc() {
+    const itens = produtosComSaldo().filter((p) => !p.ficha).map((p) => ({ p, valorAnual: mediaSemanal(p.consumo6sem) * 52 * p.custoMedio }))
+      .filter((x) => x.valorAnual > 0).sort((a, b) => b.valorAnual - a.valorAnual);
+    const total = itens.reduce((a, x) => a + x.valorAnual, 0) || 1;
+    let acumulado = 0;
+    const linhas = itens.map((x) => {
+      acumulado += x.valorAnual;
+      const pct = (acumulado / total) * 100;
+      const classe = pct <= 80 ? "A" : pct <= 95 ? "B" : "C";
+      return { p: x.p, valorAnual: x.valorAnual, pct, classe };
+    });
+    const classeA = linhas.filter((l) => l.classe === "A");
+    const classeC = linhas.filter((l) => l.classe === "C");
+    const valorC = classeC.reduce((a, l) => a + valorFisico(l.p), 0);
+    const pctCatalogoA = ((classeA.length / linhas.length) * 100).toFixed(1).replace(".", ",");
+
+    return '<div class="insight-box">💡 <b>' + classeA.length + ' produtos</b> (classe A, ' + pctCatalogoA + '% do catálogo) concentram <b>' + linhas[classeA.length - 1].pct.toFixed(1).replace(".", ",") + '%</b> do valor de saída anualizado. Classe C tem ' + brl(valorC) + ' imobilizados girando pouco — candidatos a promoção ou não-recompra.</div>' +
+      '<div class="chart">' + svgPareto(linhas) + '</div>' +
+      '<div class="tbl-wrap"><table><thead><tr><th>Cl.</th><th>Produto</th><th class="r">Consumo/sem.</th><th class="r">Valor anual. (custo)</th><th class="r">% acum.</th></tr></thead><tbody>' +
+      linhas.map((l) => '<tr><td><span class="chip ' + (l.classe === "A" ? "ok" : l.classe === "B" ? "bom" : "servico") + '">' + l.classe + '</span></td><td>' + l.p.nome + '</td><td class="r num">' + mediaSemanal(l.p.consumo6sem).toFixed(1).replace(".", ",") + ' un</td><td class="r num">' + brl(l.valorAnual) + '</td><td class="r num">' + l.pct.toFixed(1).replace(".", ",") + '%</td></tr>').join("") +
+      '</tbody></table></div>';
+  }
+
+  function svgPareto(linhas) {
+    const w = 620, h = 190, x0 = 40, x1 = w - 20, baseY = 150, topY = 20;
+    const max = Math.max(...linhas.map((l) => l.valorAnual));
+    const slot = (x1 - x0) / linhas.length;
+    const bw = Math.max(6, slot * 0.62);
+    const corClasse = { A: "hsl(var(--primary))", B: "hsl(var(--info))", C: "hsl(var(--faint))" };
+    let bars = "", pts = [];
+    linhas.forEach((l, i) => {
+      const bh = (l.valorAnual / max) * (baseY - topY);
+      const cx = x0 + slot * i + slot / 2;
+      bars += '<rect x="' + (cx - bw / 2).toFixed(1) + '" y="' + (baseY - bh).toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + bh.toFixed(1) + '" rx="2" fill="' + corClasse[l.classe] + '"><title>' + l.p.nome + " · " + brl(l.valorAnual) + '</title></rect>';
+      pts.push([cx, baseY - (l.pct / 100) * (baseY - topY)]);
+    });
+    const path = "M" + pts.map((pt) => pt[0].toFixed(1) + "," + pt[1].toFixed(1)).join(" L");
+    let gridLines = [80, 95].map((pct) => {
+      const y = baseY - (pct / 100) * (baseY - topY);
+      return '<line class="grid-line" x1="' + x0 + '" y1="' + y.toFixed(1) + '" x2="' + x1 + '" y2="' + y.toFixed(1) + '"/><text class="alabel" x="' + (x1 + 2) + '" y="' + (y + 3).toFixed(1) + '">' + pct + '%</text>';
+    }).join("");
+    return '<svg viewBox="0 0 ' + w + ' ' + h + '" role="img" aria-label="Curva ABC — Pareto">' +
+      '<line class="zero" x1="' + x0 + '" y1="' + baseY + '" x2="' + x1 + '" y2="' + baseY + '"/>' + gridLines + bars +
+      '<path d="' + path + '" fill="none" stroke="hsl(var(--crit))" stroke-width="2"/>' +
+      pts.map((pt) => '<circle cx="' + pt[0].toFixed(1) + '" cy="' + pt[1].toFixed(1) + '" r="2.6" fill="hsl(var(--crit))"/>').join("") +
+      '</svg>';
+  }
+
+  function previewGiro() {
+    const linhas = produtosComSaldo().filter((p) => !p.ficha).map((p) => ({ p, giro: giroAnual(p), cob: coberturaDias(p), valor: valorFisico(p) })).sort((a, b) => a.giro - b.giro);
+    const parados = linhas.filter((l) => l.giro < 1);
+    return '<div class="insight-box">💡 <b>' + parados.length + ' produtos</b> giram menos de 1× ao ano, somando ' + brl(parados.reduce((a, l) => a + l.valor, 0)) + ' de capital parado na prateleira.</div>' +
+      '<div class="tbl-wrap"><table><thead><tr><th>Produto</th><th class="r">Giro anual.</th><th class="r">Cobertura</th><th class="r">Valor imobilizado</th></tr></thead><tbody>' +
+      linhas.map((l) => '<tr><td>' + l.p.nome + (l.giro < 1 ? ' <span class="chip baixo" style="margin-left:6px">parado</span>' : "") + '</td><td class="r num">' + l.giro.toFixed(1).replace(".", ",") + '×</td><td class="r num">' + (l.cob === null ? "—" : Math.round(l.cob) + "d") + '</td><td class="r num">' + brl(l.valor) + '</td></tr>').join("") +
+      '</tbody></table></div>';
+  }
+
+  function previewRuptura() {
+    const zerados = itensZerados();
+    const linhas = zerados.map((p) => {
+      const diasZerado = p.id === "p1" ? 3 : 9;
+      const perdida = (mediaSemanal(p.consumo6sem) / 7) * diasZerado * p.precoVenda;
+      return { p, diasZerado, perdida };
+    });
+    const totalPerdido = linhas.reduce((a, l) => a + l.perdida, 0);
+    return '<div class="insight-box">💡 ' + linhas.length + ' produto(s) zerados no período somam <b class="bad" style="color:hsl(var(--crit))">' + brl(totalPerdido) + '</b> em venda estimada perdida.</div>' +
+      '<div class="tbl-wrap"><table><thead><tr><th>Produto</th><th class="r">Dias em ruptura</th><th class="r">Consumo médio/dia</th><th class="r">Venda perdida estimada</th><th>OS aguardando</th></tr></thead><tbody>' +
+      linhas.map((l) => '<tr><td>' + l.p.nome + '</td><td class="r num">' + l.diasZerado + '</td><td class="r num">' + (mediaSemanal(l.p.consumo6sem) / 7).toFixed(2).replace(".", ",") + '</td><td class="r num" style="color:hsl(var(--crit));font-weight:700">' + brl(l.perdida) + '</td><td>' + (l.p.osReservas ? l.p.osReservas.join(", ") : "—") + '</td></tr>').join("") +
+      '</tbody></table></div>';
+  }
+
+  function previewPosicao() {
+    const cats = categorias();
+    const total = valorTotalEstoque();
+    return '<div class="insight-box">💡 Posição em ' + HOJE_TXT + ' — base para o registro de inventário fiscal. Total: <b>' + brl(total) + '</b> em ' + produtosComSaldo().length + ' itens.</div>' +
+      '<div class="tbl-wrap"><table><thead><tr><th>Categoria / produto</th><th class="r">Físico</th><th class="r">Custo médio</th><th class="r">Valor total</th></tr></thead><tbody>' +
+      cats.map((c) => '<tr style="background:hsl(var(--surface-2)/.5)"><td style="font-weight:700">' + c.nome + '</td><td></td><td></td><td class="r num" style="font-weight:700">' + brl(c.valor) + '</td></tr>' +
+        c.itens.map((p) => '<tr><td style="padding-left:28px">' + p.nome + '</td><td class="r num">' + fmtQty(p.fisico, p.unidade) + '</td><td class="r num">' + brl(p.custoMedio) + '</td><td class="r num">' + brl(valorFisico(p)) + '</td></tr>').join("")
+      ).join("") +
+      '<tr><td style="font-weight:700">Total geral</td><td></td><td></td><td class="r num" style="font-weight:700">' + brl(total) + '</td></tr>' +
+      '</tbody></table></div>';
+  }
+
+  function previewKardex() {
+    const p = porId("p1");
+    const kardex = kardexDoProduto(p);
+    return '<div class="insight-box">💡 Extrato completo do produto <b>' + p.nome + '</b> — troque o produto na tela Produtos e gere o kardex de qualquer item.</div>' +
+      '<div class="tbl-wrap"><table><thead><tr><th>Data</th><th>Tipo</th><th>Origem</th><th class="r">Qtd</th><th class="r">Custo un.</th><th class="r">Saldo após</th></tr></thead><tbody>' +
+      kardex.map((k) => '<tr><td class="num">' + k.data + '</td><td>' + k.tipoLabel + '</td><td>' + k.origem + '</td><td class="r num">' + k.qtdTxt + '</td><td class="r num">' + (k.custo !== null ? brl(k.custo) : "—") + '</td><td class="r num">' + k.saldoTxt + '</td></tr>').join("") +
+      '</tbody></table></div>';
+  }
+
+  function previewInventarioReport() {
+    const inv = inventarios.find((i) => i.id === "inv7");
+    const div = divergenciaInventario(inv);
+    return '<div class="insight-box">💡 ' + inv.nome + ' (' + inv.periodo + ', fechado por ' + inv.fechadoPor + ') fechou com divergência líquida de <b>' + brlSigned(div) + '</b> — ' + inv.linhas.length + ' itens contados fora do sistema.</div>' +
+      '<div class="tbl-wrap"><table><thead><tr><th>Produto</th><th class="r">Sistema</th><th class="r">Contado</th><th class="r">Delta</th><th class="r">Delta R$</th></tr></thead><tbody>' +
+      inv.linhas.map((l) => {
+        const p = porId(l.produto); const delta = l.contado - l.sistema; const deltaR = delta * p.custoMedio;
+        return '<tr><td>' + p.nome + '</td><td class="r num">' + l.sistema + '</td><td class="r num">' + l.contado + '</td><td class="r num" style="color:' + (delta < 0 ? "hsl(var(--crit))" : "hsl(var(--pos))") + '">' + (delta > 0 ? "+" : "") + delta + '</td><td class="r num">' + brlSigned(deltaR) + '</td></tr>';
+      }).join("") +
+      '<tr><td style="font-weight:700">Total</td><td></td><td></td><td></td><td class="r num" style="font-weight:700">' + brlSigned(div) + '</td></tr>' +
+      '</tbody></table></div>';
+  }
+
+  function previewSugestao() {
+    const candidatos = produtosComSaldo().filter((p) => p.pontoReposicao !== null && disponivel(p) <= p.pontoReposicao && !p.ficha);
+    const porFornecedor = {};
+    candidatos.forEach((p) => { (porFornecedor[p.fornecedor] = porFornecedor[p.fornecedor] || []).push(p); });
+    let totalGeral = 0;
+    const blocos = Object.keys(porFornecedor).map((forn) => {
+      const itens = porFornecedor[forn];
+      let subtotal = 0;
+      const linhas = itens.map((p) => {
+        const sugestao = Math.max(1, Math.round(p.pontoReposicao - disponivel(p)));
+        const custoLinha = sugestao * p.custoMedio;
+        subtotal += custoLinha; totalGeral += custoLinha;
+        return '<tr><td>' + p.nome + '</td><td class="r num">' + fmtQty(disponivel(p), p.unidade) + '</td><td class="r num">' + p.pontoReposicao + '</td><td class="r num" style="font-weight:700">' + sugestao + ' un</td><td class="r num">' + brl(custoLinha) + '</td></tr>';
+      }).join("");
+      return '<tr style="background:hsl(var(--surface-2)/.5)"><td style="font-weight:700">' + forn + '</td><td></td><td></td><td></td><td class="r num" style="font-weight:700">' + brl(subtotal) + '</td></tr>' + linhas;
+    }).join("");
+    return '<div class="insight-box">💡 <b>' + candidatos.length + ' itens</b> no ponto de reposição ou abaixo — pedido estimado de <b>' + brl(totalGeral) + '</b> em ' + Object.keys(porFornecedor).length + ' fornecedores.</div>' +
+      '<div class="tbl-wrap"><table><thead><tr><th>Fornecedor / produto</th><th class="r">Disponível</th><th class="r">Ponto reposição</th><th class="r">Sugestão</th><th class="r">Custo estimado</th></tr></thead><tbody>' + blocos +
+      '<tr><td style="font-weight:700">Total geral</td><td></td><td></td><td></td><td class="r num" style="font-weight:700">' + brl(totalGeral) + '</td></tr>' +
+      '</tbody></table></div>';
+  }
+
+  // ────────────────────────────────────────────────────────────────────────
+  // BOOT
+  // ────────────────────────────────────────────────────────────────────────
+
+  setHeader("geral");
+  renderGeral();
+  renderProdutos();
+  renderMov();
+  renderInv();
+  renderRel();
+})();
+</script>

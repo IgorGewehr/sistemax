@@ -1,0 +1,1413 @@
+<style>
+  :root {
+    /* Neutros/marca herdados dos tokens do app (saas-erp) — mesma identidade do mockup de Financeiro */
+    --bg: 210 40% 98%;
+    --surface: 0 0% 100%;
+    --surface-2: 210 40% 96.5%;
+    --fg: 222 47% 11%;
+    --muted: 215 16% 47%;
+    --faint: 215 20% 65%;
+    --border: 214 32% 90%;
+    --primary: 0 72% 51%;
+    --primary-soft: 0 72% 96%;
+    --pos: 152 58% 40%;
+    --pos-soft: 152 55% 94%;
+    --warn: 32 90% 44%;
+    --warn-soft: 38 92% 94%;
+    --crit: 349 78% 48%;
+    --crit-soft: 349 80% 96%;
+    --ring: 0 72% 51%;
+    --shadow: 220 40% 20%;
+    --mono: "SF Mono", ui-monospace, "JetBrains Mono", "Cascadia Code", Menlo, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  }
+  /* Tema CLARO é o padrão do produto — dark só via toggle explícito (data-theme="dark"). */
+  :root[data-theme="light"] {
+    --bg: 210 40% 98%; --surface: 0 0% 100%; --surface-2: 210 40% 96.5%;
+    --fg: 222 47% 11%; --muted: 215 16% 47%; --faint: 215 20% 65%; --border: 214 32% 90%;
+    --primary: 0 72% 51%; --primary-soft: 0 72% 96%; --pos: 152 58% 40%; --pos-soft: 152 55% 94%;
+    --warn: 32 90% 44%; --warn-soft: 38 92% 94%; --crit: 349 78% 48%; --crit-soft: 349 80% 96%; --shadow: 220 40% 20%;
+  }
+  :root[data-theme="dark"] {
+    --bg: 222 47% 5%; --surface: 220 40% 7.5%; --surface-2: 218 34% 11%;
+    --fg: 210 40% 96%; --muted: 215 20% 60%; --faint: 215 18% 42%; --border: 215 25% 16%;
+    --primary: 0 72% 58%; --primary-soft: 0 45% 13%; --pos: 152 55% 50%; --pos-soft: 152 40% 12%;
+    --warn: 38 92% 55%; --warn-soft: 36 45% 13%; --crit: 350 85% 62%; --crit-soft: 349 45% 14%; --shadow: 222 60% 2%;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: hsl(var(--bg)); color: hsl(var(--fg));
+    font-family: var(--sans); -webkit-font-smoothing: antialiased;
+    font-size: 14px; line-height: 1.5;
+  }
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .eyebrow { text-transform: uppercase; letter-spacing: 0.08em; font-size: 11px; font-weight: 600; color: hsl(var(--muted)); }
+  button { font-family: inherit; }
+  :focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+
+  /* ---- App shell ---- */
+  .app { display: grid; grid-template-columns: 60px 1fr; min-height: 100vh; }
+  .rail {
+    background: hsl(var(--surface)); border-right: 1px solid hsl(var(--border));
+    display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 0;
+  }
+  .rail .logo {
+    width: 34px; height: 34px; border-radius: 10px; margin-bottom: 10px;
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(0 72% 40%));
+    display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 15px;
+    box-shadow: 0 4px 14px hsl(var(--primary) / 0.4);
+  }
+  .rail button {
+    width: 40px; height: 40px; border-radius: 11px; border: 0; background: transparent;
+    color: hsl(var(--faint)); cursor: pointer; display: grid; place-items: center; transition: .15s;
+  }
+  .rail button svg { width: 20px; height: 20px; }
+  .rail button:hover { background: hsl(var(--surface-2)); color: hsl(var(--fg)); }
+  .rail button.active { background: hsl(var(--primary-soft)); color: hsl(var(--primary)); }
+  .rail .spacer { flex: 1; }
+
+  .main { min-width: 0; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 26px 32px 60px; }
+
+  /* ---- Header ---- */
+  header.page { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 22px; flex-wrap: wrap; }
+  header.page h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; margin: 4px 0 2px; text-wrap: balance; }
+  header.page .sub { color: hsl(var(--muted)); font-size: 13.5px; }
+  .head-actions { display: flex; align-items: center; gap: 10px; }
+  .period { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border: 1px solid hsl(var(--border));
+    border-radius: 10px; background: hsl(var(--surface)); font-weight: 600; font-size: 13px; }
+  .btn-primary {
+    display: inline-flex; align-items: center; gap: 7px; padding: 9px 15px; border-radius: 10px; border: 0;
+    background: hsl(var(--primary)); color: #fff; font-weight: 600; font-size: 13.5px; cursor: pointer;
+    box-shadow: 0 4px 14px hsl(var(--primary) / 0.35); transition: transform .12s, filter .12s;
+  }
+  .btn-primary:hover { filter: brightness(1.06); transform: translateY(-1px); }
+  .btn-primary:disabled { opacity: .45; cursor: not-allowed; transform: none; box-shadow: none; }
+  .btn-ghost { padding: 8px 11px; border-radius: 10px; border: 1px solid hsl(var(--border)); background: hsl(var(--surface));
+    color: hsl(var(--fg)); cursor: pointer; font-size: 13px; display: inline-flex; gap: 6px; align-items: center; }
+  .btn-ghost.small { padding: 6px 10px; font-size: 12.5px; }
+  .btn-danger-text { border: 0; background: none; color: hsl(var(--crit)); cursor: pointer; font-size: 13px; font-weight: 600; padding: 8px 4px; }
+
+  /* ---- Cards ---- */
+  .card { background: hsl(var(--surface)); border: 1px solid hsl(var(--border)); border-radius: 16px;
+    box-shadow: 0 1px 2px hsl(var(--shadow) / 0.06), 0 8px 24px -18px hsl(var(--shadow) / 0.5); }
+
+  /* KPI row */
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 16px; }
+  .kpi { padding: 16px 18px; position: relative; overflow: hidden; }
+  .kpi .lbl { display: flex; align-items: center; gap: 6px; }
+  .kpi .val { font-size: 27px; font-weight: 700; margin-top: 10px; letter-spacing: -0.02em; }
+  .kpi .val small { font-size: 15px; font-weight: 600; color: hsl(var(--muted)); }
+  .kpi .delta { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; font-weight: 600; margin-top: 7px; }
+  .kpi .delta.up { color: hsl(var(--pos)); }
+  .kpi .delta.down { color: hsl(var(--crit)); }
+  .kpi .foot { font-size: 12px; color: hsl(var(--muted)); margin-top: 3px; }
+  .kpi.hero::after { content: ""; position: absolute; inset: 0; background: radial-gradient(120% 90% at 100% 0, hsl(var(--primary) / 0.10), transparent 60%); pointer-events: none; }
+  .spark { margin-top: 10px; height: 34px; width: 100%; display: block; }
+
+  /* Consultor */
+  .consultor { display: flex; gap: 14px; padding: 16px 18px; margin-bottom: 16px; align-items: flex-start;
+    background:
+      linear-gradient(hsl(var(--surface)), hsl(var(--surface))) padding-box,
+      linear-gradient(120deg, hsl(var(--primary) / 0.5), hsl(var(--border) / 0.2)) border-box;
+    border: 1px solid transparent; border-radius: 16px; }
+  .consultor .icon { flex: none; width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center;
+    background: hsl(var(--primary-soft)); color: hsl(var(--primary)); }
+  .consultor .icon svg { width: 20px; height: 20px; }
+  .consultor h3 { margin: 1px 0 5px; font-size: 13px; letter-spacing: -0.01em; }
+  .consultor p { margin: 0; font-size: 13.5px; line-height: 1.6; color: hsl(var(--fg)); }
+  .consultor b { color: hsl(var(--primary)); font-weight: 700; }
+
+  /* 2-col análise interativa */
+  .grid2 { display: grid; grid-template-columns: 1.15fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .card h2.sec { font-size: 13px; font-weight: 700; letter-spacing: -0.01em; padding: 15px 18px 0; margin: 0; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+  .card h2.sec .hint { font-weight: 500; font-size: 12px; color: hsl(var(--muted)); text-align: right; }
+
+  .bars { padding: 14px 18px 18px; display: flex; flex-direction: column; gap: 13px; }
+  .bar-row { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; }
+  .bar-row .name { font-weight: 600; font-size: 13px; }
+  .bar-row .amt { font-size: 12.5px; color: hsl(var(--muted)); }
+  .track { grid-column: 1 / -1; height: 8px; border-radius: 6px; background: hsl(var(--surface-2)); overflow: hidden; }
+  .fill { height: 100%; border-radius: 6px; }
+  .bar-row .pct { font-weight: 700; font-size: 12.5px; }
+
+  /* Tabela */
+  .tbl-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; min-width: 640px; }
+  thead th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: hsl(var(--muted));
+    font-weight: 600; padding: 12px 16px; border-bottom: 1px solid hsl(var(--border)); }
+  thead th.r, tbody td.r { text-align: right; }
+  tbody td { padding: 13px 16px; border-bottom: 1px solid hsl(var(--border) / 0.6); font-size: 13.5px; vertical-align: top; }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr.os-row:hover { background: hsl(var(--surface-2) / 0.6); cursor: pointer; }
+  .cli { color: hsl(var(--muted)); font-size: 12.5px; }
+  .row-note { font-size: 12px; color: hsl(var(--muted)); margin-top: 4px; }
+  .row-note.warn { color: hsl(var(--warn)); font-weight: 600; }
+  .val-mono { font-weight: 600; }
+  .chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+  .chip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: none; }
+  .chip.st-aberta { color: hsl(var(--muted)); background: hsl(var(--surface-2)); }
+  .chip.st-diagnostico { color: hsl(222 47% 30%); background: hsl(215 30% 93%); }
+  :root[data-theme="dark"] .chip.st-diagnostico { color: hsl(210 60% 78%); background: hsl(215 30% 16%); }
+  .chip.st-aguardando { color: hsl(var(--warn)); background: hsl(var(--warn-soft)); }
+  .chip.st-aprovada { color: hsl(var(--pos)); background: hsl(var(--pos-soft)); }
+  .chip.st-execucao { color: hsl(var(--primary)); background: hsl(var(--primary-soft)); }
+  .chip.st-pronta { color: hsl(var(--pos)); background: hsl(var(--pos-soft)); }
+  .chip.st-pronta.atraso { color: hsl(var(--crit)); background: hsl(var(--crit-soft)); }
+  .chip.st-entregue { color: hsl(var(--faint)); background: hsl(var(--surface-2)); }
+  .chip.st-reprovada { color: hsl(var(--crit)); background: hsl(var(--crit-soft)); }
+  .chip.st-devolvida { color: hsl(var(--faint)); background: hsl(var(--surface-2)); }
+  .chip.st-cancelada { color: hsl(var(--faint)); background: hsl(var(--surface-2)); }
+  tr.st-cancelada-row td:not(.st) { color: hsl(var(--faint)); text-decoration: line-through; text-decoration-color: hsl(var(--faint) / 0.5); }
+  .action-btn { border: 0; background: none; color: hsl(var(--primary)); font-weight: 600; font-size: 12.5px; cursor: pointer; padding: 0; }
+  .action-btn:hover { text-decoration: underline; }
+  .action-dash { color: hsl(var(--faint)); font-size: 12.5px; }
+
+  .subhead { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+  .seg { display: inline-flex; background: hsl(var(--surface-2)); border: 1px solid hsl(var(--border)); border-radius: 11px; padding: 3px; gap: 2px; }
+  .seg button { padding: 7px 13px; border: 0; background: none; border-radius: 8px; font-size: 13px; font-weight: 600; color: hsl(var(--muted)); cursor: pointer; }
+  .seg button.active { background: hsl(var(--surface)); color: hsl(var(--fg)); box-shadow: 0 1px 3px hsl(var(--shadow) / 0.2); }
+  .search { display: flex; align-items: center; gap: 7px; padding: 8px 12px; border: 1px solid hsl(var(--border)); border-radius: 10px;
+    background: hsl(var(--surface)); color: hsl(var(--faint)); }
+  .search input { border: 0; background: none; outline: 0; font: inherit; color: hsl(var(--fg)); width: 160px; }
+
+  /* Gráfico funil (bars horizontais clicáveis) + stat tiles */
+  .bars.sel { padding: 12px; gap: 2px; }
+  .bar-click { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; width: 100%;
+    border: 0; background: none; font: inherit; color: inherit; cursor: pointer; text-align: left; padding: 9px 10px; border-radius: 11px; transition: background .12s; }
+  .bar-click:hover { background: hsl(var(--surface-2)); }
+  .secleft { display: inline-flex; align-items: center; gap: 8px; }
+  .back { border: 0; background: hsl(var(--surface-2)); color: hsl(var(--fg)); width: 26px; height: 26px; border-radius: 8px;
+    cursor: pointer; font-size: 15px; line-height: 1; display: inline-grid; place-items: center; transition: .12s; flex: none; }
+  .back:hover { background: hsl(var(--primary-soft)); color: hsl(var(--primary)); }
+  .card.anim > * { animation: cardin .22s ease both; }
+  @keyframes cardin { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .card.anim > *, .view-enter { animation: none !important; } }
+
+  .stats { padding: 14px 18px 18px; display: flex; flex-direction: column; gap: 11px; }
+  .stat { padding: 12px 14px; border-radius: 12px; background: hsl(var(--surface-2)); }
+  .stat .k { font-size: 12px; color: hsl(var(--muted)); font-weight: 600; }
+  .stat .v { font-size: 25px; font-weight: 700; margin-top: 4px; letter-spacing: -0.02em; }
+  .stat .v small { font-size: 14px; font-weight: 600; color: hsl(var(--muted)); }
+  .stat .s { font-size: 12px; color: hsl(var(--faint)); margin-top: 2px; }
+
+  .drill-list { padding: 8px 10px 14px; display: flex; flex-direction: column; gap: 2px; }
+  .drill-row { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 10px;
+    border: 0; background: none; font: inherit; color: inherit; cursor: pointer; text-align: left; padding: 9px 10px; border-radius: 11px; }
+  .drill-row:hover { background: hsl(var(--surface-2)); }
+  .drill-row .who { font-weight: 600; font-size: 13px; }
+  .drill-row .meta { font-size: 12px; color: hsl(var(--muted)); }
+  .drill-row .age { font-size: 12px; font-weight: 600; color: hsl(var(--warn)); white-space: nowrap; }
+
+  .theme-toggle { position: fixed; top: 14px; right: 16px; z-index: 10; }
+
+  /* ---- Detalhe da OS: linha do tempo vertical ---- */
+  .voltar { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; color: hsl(var(--muted));
+    font-size: 13px; font-weight: 600; cursor: pointer; padding: 6px 0; margin-bottom: 6px; }
+  .voltar:hover { color: hsl(var(--fg)); }
+  .voltar svg { width: 15px; height: 15px; }
+
+  .os-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; margin-bottom: 4px; flex-wrap: wrap; }
+  .os-head .titulo { font-size: 19px; font-weight: 700; letter-spacing: -0.01em; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .os-head .meta { color: hsl(var(--muted)); font-size: 13px; margin-top: 4px; }
+  .os-menu-wrap { position: relative; }
+  .os-menu { position: absolute; right: 0; top: calc(100% + 6px); background: hsl(var(--surface)); border: 1px solid hsl(var(--border));
+    border-radius: 12px; box-shadow: 0 8px 24px -10px hsl(var(--shadow) / 0.4); min-width: 168px; padding: 6px; z-index: 5; }
+  .os-menu button { width: 100%; text-align: left; border: 0; background: none; padding: 9px 10px; border-radius: 8px; font-size: 13px;
+    cursor: pointer; color: hsl(var(--fg)); }
+  .os-menu button:hover { background: hsl(var(--surface-2)); }
+  .os-menu button.perigo { color: hsl(var(--crit)); }
+  .os-menu button:disabled { color: hsl(var(--faint)); cursor: not-allowed; }
+  .os-menu .stub { font-size: 11px; color: hsl(var(--faint)); padding: 2px 10px 6px; }
+
+  .timeline { margin-top: 18px; display: flex; flex-direction: column; gap: 0; }
+  .step { border-left: 2px solid hsl(var(--border)); padding: 0 0 22px 20px; position: relative; }
+  .step:last-child { padding-bottom: 2px; }
+  .step::before { content: ""; position: absolute; left: -7px; top: 2px; width: 12px; height: 12px; border-radius: 50%;
+    background: hsl(var(--surface)); border: 2px solid hsl(var(--border)); }
+  .step.done { border-left-color: hsl(var(--pos) / 0.4); }
+  .step.done::before { border-color: hsl(var(--pos)); background: hsl(var(--pos)); }
+  .step.current { border-left-color: hsl(var(--primary)); }
+  .step.current::before { border-color: hsl(var(--primary)); background: hsl(var(--primary)); width: 14px; height: 14px; left: -8px; box-shadow: 0 0 0 4px hsl(var(--primary-soft)); }
+  .step.ghost::before { background: hsl(var(--surface-2)); }
+  .step.ghost .step-head { color: hsl(var(--faint)); }
+  .step-head { display: flex; align-items: baseline; gap: 10px; font-weight: 700; font-size: 12.5px; letter-spacing: 0.03em; text-transform: uppercase; flex-wrap: wrap; }
+  .step-head .quando { font-weight: 500; text-transform: none; letter-spacing: 0; color: hsl(var(--muted)); font-size: 12.5px; }
+  .step-summary { margin-top: 6px; font-size: 13px; color: hsl(var(--muted)); line-height: 1.5; }
+  .step-summary b { color: hsl(var(--fg)); font-weight: 600; }
+  details.step-done summary { cursor: pointer; list-style: none; }
+  details.step-done summary::-webkit-details-marker { display: none; }
+  details.step-done summary::after { content: "▾"; float: right; color: hsl(var(--faint)); font-size: 11px; transform: rotate(-90deg); display: inline-block; transition: transform .15s; }
+  details.step-done[open] summary::after { transform: rotate(0deg); }
+
+  .step-body { margin-top: 12px; background: hsl(var(--surface-2)); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
+  .field-row { display: flex; flex-direction: column; gap: 5px; }
+  .field-row label { font-size: 12px; font-weight: 600; color: hsl(var(--muted)); }
+  .field-row input[type="text"], .field-row input[type="number"], .field-row textarea, .field-row select {
+    font: inherit; padding: 8px 11px; border-radius: 9px; border: 1px solid hsl(var(--border)); background: hsl(var(--surface));
+    color: hsl(var(--fg)); width: 100%; }
+  .field-row textarea { resize: vertical; min-height: 54px; }
+  .field-two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .field-three { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 10px; }
+  .inline-err { color: hsl(var(--crit)); font-size: 12px; font-weight: 600; }
+
+  .canal-btns, .pagto-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip-btn { border: 1px solid hsl(var(--border)); background: hsl(var(--surface)); border-radius: 10px; padding: 8px 13px;
+    font-size: 13px; font-weight: 600; cursor: pointer; color: hsl(var(--fg)); }
+  .chip-btn:hover { background: hsl(var(--surface-2)); }
+  .chip-btn.selected { background: hsl(var(--primary)); border-color: hsl(var(--primary)); color: #fff; }
+
+  .peca-linha { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 10px; background: hsl(var(--surface)); }
+  .peca-linha .desc { flex: 1; font-size: 13px; }
+  .peca-linha .desc .sub { color: hsl(var(--muted)); font-size: 12px; }
+  .peca-linha .preco { font-weight: 600; white-space: nowrap; }
+  .peca-linha .marcar { border: 1px solid hsl(var(--border)); background: hsl(var(--surface)); border-radius: 8px; padding: 6px 11px;
+    font-size: 12.5px; font-weight: 600; cursor: pointer; color: hsl(var(--primary)); white-space: nowrap; }
+  .peca-linha .marcar:hover { background: hsl(var(--primary-soft)); }
+  .peca-linha.aplicada { opacity: .72; }
+  .peca-linha.aplicada .marcar { color: hsl(var(--pos)); border-color: transparent; cursor: default; background: hsl(var(--pos-soft)); }
+
+  .total-row { display: flex; align-items: baseline; justify-content: space-between; padding-top: 6px; border-top: 1px dashed hsl(var(--border)); }
+  .total-row .lbl { font-size: 12.5px; font-weight: 600; color: hsl(var(--muted)); text-transform: uppercase; letter-spacing: .04em; }
+  .total-row .val { font-size: 22px; font-weight: 700; }
+
+  .aviso-cliente { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: hsl(var(--muted)); }
+  .recibo { padding: 14px 16px; border-radius: 12px; background: hsl(var(--pos-soft)); color: hsl(150 35% 18%); font-size: 13px; line-height: 1.7; }
+  :root[data-theme="dark"] .recibo { color: hsl(150 45% 88%); }
+  .recibo b { font-weight: 700; }
+  .banner-info { padding: 12px 14px; border-radius: 12px; font-size: 13px; display: flex; gap: 10px; align-items: flex-start; }
+  .banner-info.crit { background: hsl(var(--crit-soft)); color: hsl(349 60% 26%); }
+  :root[data-theme="dark"] .banner-info.crit { color: hsl(349 70% 88%); }
+  .banner-info svg { flex: none; margin-top: 1px; }
+
+  .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: hsl(var(--fg)); color: hsl(var(--bg));
+    padding: 11px 18px; border-radius: 11px; font-size: 13px; font-weight: 600; box-shadow: 0 10px 30px -10px hsl(var(--shadow) / 0.6);
+    opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 20; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(-4px); }
+
+  .senha-field { display: inline-flex; align-items: center; gap: 6px; }
+  .senha-field button { border: 0; background: none; color: hsl(var(--muted)); cursor: pointer; padding: 2px; display: inline-flex; }
+  .senha-field button:hover { color: hsl(var(--primary)); }
+
+  .view { }
+  .view-enter { animation: cardin .22s ease both; }
+
+  @media (max-width: 860px) {
+    .kpis { grid-template-columns: repeat(2, 1fr); }
+    .grid2 { grid-template-columns: 1fr; }
+    .field-two, .field-three { grid-template-columns: 1fr; }
+    .app { grid-template-columns: 0 1fr; }
+    .rail { display: none; }
+    .wrap { padding: 22px 18px 50px; }
+  }
+</style>
+
+<button class="btn-ghost theme-toggle" onclick="(function(){var r=document.documentElement;var d=(r.getAttribute('data-theme')|| (matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'))==='dark';r.setAttribute('data-theme',d?'light':'dark');})()">◐ tema</button>
+
+<div class="app">
+  <nav class="rail" aria-label="Navegação">
+    <div class="logo">S</div>
+    <button title="Início"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10.5 12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1z"/></svg></button>
+    <button title="Financeiro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg></button>
+    <button title="Vendas / PDV"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2 3h3l2.4 12.5a1 1 0 0 0 1 .8h9.2a1 1 0 0 0 1-.8L21 7H6"/></svg></button>
+    <button class="active" title="Assistência Técnica"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14.7 6.3a4 4 0 0 1-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 1 5.4-5.4l-2.6 2.6-2-.5-.5-2z"/></svg></button>
+    <button title="Estoque"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/></svg></button>
+    <button title="Clientes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M17 5.5a3 3 0 0 1 0 5.6M22 20a6 6 0 0 0-4-5.7"/></svg></button>
+    <div class="spacer"></div>
+    <button title="Ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 2h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12a7 7 0 0 0 .1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 22h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6A7 7 0 0 0 19 12z"/></svg></button>
+  </nav>
+
+  <main class="main">
+    <div class="wrap">
+      <div id="viewLista"></div>
+      <div id="viewDetalhe" style="display:none"></div>
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function () {
+  "use strict";
+
+  // ───────────────────────────────────────────────────────────────────────
+  // Utilidades
+  // ───────────────────────────────────────────────────────────────────────
+  const HOJE = new Date(2026, 6, 18, 10, 0); // 18/07/2026 — "hoje" fixo do mockup
+  const DIA_MS = 86400000;
+
+  function brl(centavos) {
+    const v = (centavos / 100).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return "R$ " + v;
+  }
+  function brlOuTraco(centavos) { return centavos > 0 ? brl(centavos) : "—"; }
+  function fmtData(d) { return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }); }
+  function fmtDataCompleta(d) { return d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" }); }
+  function diaSemana(d) { const s = d.toLocaleDateString("pt-BR", { weekday: "long" }); return s.charAt(0).toUpperCase() + s.slice(1); }
+  function diasEntre(de, ate) { return Math.floor((ate.setHours ? ate : new Date(ate)) - de) / DIA_MS; }
+  function diasDesde(d) { return Math.max(0, Math.floor((HOJE - d) / DIA_MS)); }
+  function hoje(offsetDias) { const d = new Date(HOJE); d.setDate(d.getDate() + offsetDias); return d; }
+  function esc(s) { return String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])); }
+  function uid() { return "l" + Math.random().toString(36).slice(2, 9); }
+  function toast(msg) {
+    const el = document.getElementById("toast");
+    el.textContent = msg;
+    el.classList.add("show");
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => el.classList.remove("show"), 2600);
+  }
+
+  const TERMINAIS = ["Entregue", "Cancelada", "DevolvidaSemReparo"];
+  const ehTerminal = st => TERMINAIS.includes(st);
+
+  const STATUS_LABEL = {
+    Aberta: "Aberta", EmDiagnostico: "Diagnóstico", AguardandoAprovacao: "Aguard. aprovação",
+    Aprovada: "Aprovada", EmExecucao: "Em execução", Pronta: "Pronta", Entregue: "Entregue",
+    Reprovada: "Reprovada", DevolvidaSemReparo: "Devolvida", Cancelada: "Cancelada"
+  };
+  const STATUS_CLASS = {
+    Aberta: "st-aberta", EmDiagnostico: "st-diagnostico", AguardandoAprovacao: "st-aguardando",
+    Aprovada: "st-aprovada", EmExecucao: "st-execucao", Pronta: "st-pronta", Entregue: "st-entregue",
+    Reprovada: "st-reprovada", DevolvidaSemReparo: "st-devolvida", Cancelada: "st-cancelada"
+  };
+
+  // ───────────────────────────────────────────────────────────────────────
+  // Dados (em memória — o mockup muta o próprio estado ao clicar nas ações,
+  // exatamente como a FSM do agregado OrdemDeServico faria)
+  // ───────────────────────────────────────────────────────────────────────
+  const OS = [
+    {
+      numero: "OS-0042", cliente: "Loja Tudo Micro-ondas", telefone: "(11) 3345-2201",
+      equipamento: "Micro-ondas", marca: "LG", modelo: "MS2595 30L", serie: "LG9930221", senha: null,
+      acessorios: "—", estadoEntrada: "prato giratório não gira, painel ok",
+      defeito: "não esquenta", tecnico: null, abertaEm: hoje(0), prazo: null,
+      status: "Aberta", diagnostico: null, orcamento: null, aprovacao: null,
+      historico: [{ para: "Aberta", em: hoje(0) }]
+    },
+    {
+      numero: "OS-0035", cliente: "Aline Costa", telefone: "(11) 97711-4420",
+      equipamento: "Smartwatch", marca: "Samsung", modelo: "Galaxy Watch 5", serie: "SM-R900F", senha: "0000",
+      acessorios: "pulseira extra", estadoEntrada: "vidro sem trincas, pulseira gasta",
+      defeito: "não carrega mais", tecnico: "Igor", abertaEm: hoje(-2), prazo: hoje(2),
+      status: "EmDiagnostico", diagnostico: null, orcamento: null, aprovacao: null,
+      historico: [{ para: "Aberta", em: hoje(-2) }, { para: "EmDiagnostico", em: hoje(-1) }]
+    },
+    {
+      numero: "OS-0037", cliente: "Fernanda Alves", telefone: "(11) 98212-7734",
+      equipamento: "Notebook", marca: "Acer", modelo: "Aspire 5", serie: "NX-A5PT-992", senha: "fernanda21",
+      acessorios: "carregador original", estadoEntrada: "carcaça com trinca no canto esquerdo",
+      defeito: "tela azul ao ligar, reinicia sozinho", tecnico: "Igor", abertaEm: hoje(-3), prazo: hoje(2),
+      status: "EmDiagnostico", diagnostico: null, orcamento: null, aprovacao: null,
+      historico: [{ para: "Aberta", em: hoje(-3) }, { para: "EmDiagnostico", em: hoje(-2) }]
+    },
+    {
+      numero: "OS-0041", cliente: "Carlos Mendes", telefone: "(11) 99456-1120",
+      equipamento: "Celular", marca: "Apple", modelo: "iPhone 12", serie: "IMEI 356... 0912", senha: "241199",
+      acessorios: "capinha transparente", estadoEntrada: "tela com trinca no canto superior",
+      defeito: "tela não responde ao toque", tecnico: "Marina", abertaEm: hoje(-3), prazo: hoje(3),
+      status: "AguardandoAprovacao", diagnostico: "Tela (digitalizador) quebrada — substituição necessária.",
+      orcamento: { pecas: [{ desc: "Tela iPhone 12 (digitalizador)", produtoId: "prod-tela-ip12", qtd: 1, preco: 31000 }], maoDeObra: 12000, validadeDias: 4, enviadoEm: hoje(-2) },
+      aprovacao: null,
+      historico: [{ para: "Aberta", em: hoje(-3) }, { para: "EmDiagnostico", em: hoje(-3) }, { para: "AguardandoAprovacao", em: hoje(-2) }]
+    },
+    {
+      numero: "OS-0038", cliente: "Maria Souza", telefone: "(11) 98877-3321",
+      equipamento: "Notebook", marca: "Dell", modelo: "G15 5511", serie: "DL-G15-77213", senha: "maria2020",
+      acessorios: "mochila, carregador", estadoEntrada: "tampa com risco leve",
+      defeito: "trava e desliga sozinho em jogos", tecnico: "Igor", abertaEm: hoje(-8), prazo: hoje(-1),
+      status: "AguardandoAprovacao", diagnostico: "Placa de vídeo com superaquecimento — troca da GPU dedicada.",
+      orcamento: { pecas: [{ desc: "Placa de vídeo RTX 3050 (recondicionada)", produtoId: "prod-gpu-3050", qtd: 1, preco: 47000 }], maoDeObra: 15000, validadeDias: 7, enviadoEm: hoje(-5) },
+      aprovacao: null,
+      historico: [{ para: "Aberta", em: hoje(-8) }, { para: "EmDiagnostico", em: hoje(-7) }, { para: "AguardandoAprovacao", em: hoje(-5) }]
+    },
+    {
+      numero: "OS-0043", cliente: "Gabriel Rocha", telefone: "(11) 96654-8871",
+      equipamento: "Ventilador", marca: "Mondial", modelo: "Turbo 40cm", serie: "—", senha: null,
+      acessorios: "—", estadoEntrada: "hélice com uma pá trincada",
+      defeito: "não liga em nenhuma velocidade", tecnico: "Marina", abertaEm: hoje(-1), prazo: hoje(4),
+      status: "AguardandoAprovacao", diagnostico: "Motor queimado + hélice trincada — troca de ambos.",
+      orcamento: { pecas: [{ desc: "Hélice 40cm", produtoId: "prod-helice-40", qtd: 1, preco: 7000 }], maoDeObra: 12000, validadeDias: 10, enviadoEm: hoje(0) },
+      aprovacao: null,
+      historico: [{ para: "Aberta", em: hoje(-1) }, { para: "EmDiagnostico", em: hoje(-1) }, { para: "AguardandoAprovacao", em: hoje(0) }]
+    },
+    {
+      numero: "OS-0039", cliente: "Roberto Dias", telefone: "(11) 99321-6650",
+      equipamento: 'Smart TV 50"', marca: "Samsung", modelo: "AU7700", serie: "ST-AU77-2091", senha: null,
+      acessorios: "controle remoto", estadoEntrada: "moldura ok",
+      defeito: "imagem com listras verticais", tecnico: "Igor", abertaEm: hoje(-6), prazo: hoje(1),
+      status: "Aprovada", diagnostico: "Placa T-CON danificada — substituição.",
+      orcamento: { pecas: [{ desc: "Placa T-CON AU7700", produtoId: "prod-tcon-au77", qtd: 1, preco: 47000 }], maoDeObra: 15000, validadeDias: 7, enviadoEm: hoje(-4) },
+      aprovacao: { decisao: "Aprovada", canal: "WhatsApp", em: hoje(-3) },
+      historico: [{ para: "Aberta", em: hoje(-6) }, { para: "EmDiagnostico", em: hoje(-5) }, { para: "AguardandoAprovacao", em: hoje(-4) }, { para: "Aprovada", em: hoje(-3) }]
+    },
+    {
+      numero: "OS-0040", cliente: "Pedro Lima", telefone: "(11) 98877-1234",
+      equipamento: "Console", marca: "Sony", modelo: "PS5 CFI-1214A", serie: "X1234", senha: "1234",
+      acessorios: "1 controle", estadoEntrada: "risco na tampa superior",
+      defeito: "desliga sozinho após 10 min de jogo", tecnico: "Igor", abertaEm: hoje(-4), prazo: hoje(0),
+      status: "EmExecucao", diagnostico: "Pasta térmica ressecada + fonte com capacitor estufado.",
+      orcamento: {
+        pecas: [
+          { desc: "Pasta térmica MX-4", produtoId: "prod-pasta-mx4", qtd: 1, preco: 4000 },
+          { desc: "Fonte ADP-400DR", produtoId: "prod-fonte-adp400", qtd: 1, preco: 35000 },
+          { desc: "Kit parafusos", produtoId: "prod-kit-parafusos", qtd: 1, preco: 0 }
+        ], maoDeObra: 12000, validadeDias: 10, enviadoEm: hoje(-3)
+      },
+      aprovacao: { decisao: "Aprovada", canal: "WhatsApp", em: hoje(-3) },
+      maoDeObraFinal: 12000,
+      pecasExecucao: [
+        { linhaId: "l1", desc: "Pasta térmica MX-4", produtoId: "prod-pasta-mx4", qtd: 1, preco: 4000, origem: "orcada", aplicada: true },
+        { linhaId: "l2", desc: "Fonte ADP-400DR", produtoId: "prod-fonte-adp400", qtd: 1, preco: 35000, origem: "orcada", aplicada: true },
+        { linhaId: "l3", desc: "Kit parafusos", produtoId: "prod-kit-parafusos", qtd: 1, preco: 0, origem: "orcada", aplicada: false }
+      ],
+      historico: [{ para: "Aberta", em: hoje(-4) }, { para: "EmDiagnostico", em: hoje(-3) }, { para: "AguardandoAprovacao", em: hoje(-3) }, { para: "Aprovada", em: hoje(-3) }, { para: "EmExecucao", em: hoje(-2) }]
+    },
+    {
+      numero: "OS-0036", cliente: "Ana Beatriz", telefone: "(11) 97744-8890",
+      equipamento: "Celular", marca: "Xiaomi", modelo: "Redmi Note 11", serie: "IMEI 812... 4471", senha: "0512",
+      acessorios: "—", estadoEntrada: "tampa traseira com trinca",
+      defeito: "câmera traseira não foca", tecnico: "Marina", abertaEm: hoje(-9), prazo: hoje(-3),
+      status: "Pronta", diagnostico: "Módulo de câmera traseira com defeito — substituído.",
+      orcamento: { pecas: [{ desc: "Câmera traseira 50MP", produtoId: "prod-cam-rn11", qtd: 1, preco: 23000 }], maoDeObra: 12000, validadeDias: 7, enviadoEm: hoje(-7) },
+      aprovacao: { decisao: "Aprovada", canal: "Presencial", em: hoje(-6) },
+      maoDeObraFinal: 12000,
+      pecasExecucao: [{ linhaId: "l1", desc: "Câmera traseira 50MP", produtoId: "prod-cam-rn11", qtd: 1, preco: 23000, origem: "orcada", aplicada: true }],
+      historico: [{ para: "Aberta", em: hoje(-9) }, { para: "EmDiagnostico", em: hoje(-8) }, { para: "AguardandoAprovacao", em: hoje(-7) }, { para: "Aprovada", em: hoje(-6) }, { para: "EmExecucao", em: hoje(-6) }, { para: "Pronta", em: hoje(-6) }]
+    },
+    {
+      numero: "OS-0032", cliente: "Renata Alves", telefone: "(11) 99887-4432",
+      equipamento: "Caixa de som", marca: "JBL", modelo: "Charge 5", serie: "JBL-C5-8821", senha: null,
+      acessorios: "cabo USB-C", estadoEntrada: "carcaça ok, sem danos visíveis",
+      defeito: "não liga mais", tecnico: "Igor", abertaEm: hoje(-10), prazo: hoje(-4),
+      status: "Pronta", diagnostico: "Bateria interna inchada — substituída.",
+      orcamento: { pecas: [{ desc: "Bateria JBL Charge 5", produtoId: "prod-bat-jblc5", qtd: 1, preco: 51000 }], maoDeObra: 12000, validadeDias: 7, enviadoEm: hoje(-8) },
+      aprovacao: { decisao: "Aprovada", canal: "Telefone", em: hoje(-7) },
+      maoDeObraFinal: 12000,
+      pecasExecucao: [{ linhaId: "l1", desc: "Bateria JBL Charge 5", produtoId: "prod-bat-jblc5", qtd: 1, preco: 51000, origem: "orcada", aplicada: true }],
+      historico: [{ para: "Aberta", em: hoje(-10) }, { para: "EmDiagnostico", em: hoje(-9) }, { para: "AguardandoAprovacao", em: hoje(-8) }, { para: "Aprovada", em: hoje(-7) }, { para: "EmExecucao", em: hoje(-7) }, { para: "Pronta", em: hoje(-2) }]
+    },
+    {
+      numero: "OS-0034", cliente: "Bruno Castro", telefone: "(11) 98123-7765",
+      equipamento: "Impressora", marca: "Epson", modelo: "L3150", serie: "EP-L3150-991", senha: null,
+      acessorios: "cabo de força", estadoEntrada: "tampa do scanner arranhada",
+      defeito: "não puxa o papel", tecnico: "Marina", abertaEm: hoje(-12), prazo: hoje(-6),
+      status: "Reprovada", diagnostico: "Cilindro de tração desgastado — precisa de kit de manutenção completo.",
+      orcamento: { pecas: [{ desc: "Kit de manutenção L3150", produtoId: "prod-kit-l3150", qtd: 1, preco: 18000 }], maoDeObra: 8000, validadeDias: 7, enviadoEm: hoje(-9) },
+      aprovacao: { decisao: "Reprovada", canal: "Telefone", em: hoje(-8) },
+      motivoReprovacao: "Cliente disse que vale mais a pena comprar uma nova.",
+      historico: [{ para: "Aberta", em: hoje(-12) }, { para: "EmDiagnostico", em: hoje(-11) }, { para: "AguardandoAprovacao", em: hoje(-9) }, { para: "Reprovada", em: hoje(-8) }]
+    },
+    {
+      numero: "OS-0027", cliente: "Tiago Nunes", telefone: "(11) 97456-2201",
+      equipamento: "Caixa de som", marca: "JBL", modelo: "Flip 5", serie: "JBL-F5-1120", senha: null,
+      acessorios: "—", estadoEntrada: "sem danos",
+      defeito: "sem som em um dos lados", tecnico: "Igor", abertaEm: hoje(-18), prazo: hoje(-12),
+      status: "DevolvidaSemReparo", diagnostico: "Alto-falante rompido — peça descontinuada, sem reposição no mercado nacional.",
+      orcamento: { pecas: [], maoDeObra: 0, validadeDias: 5, enviadoEm: hoje(-16) },
+      aprovacao: { decisao: "Reprovada", canal: "WhatsApp", em: hoje(-15) },
+      motivoReprovacao: "Peça descontinuada — sem reparo possível.",
+      taxaDiagnostico: 0, dataEntrega: hoje(-15),
+      historico: [{ para: "Aberta", em: hoje(-18) }, { para: "EmDiagnostico", em: hoje(-17) }, { para: "AguardandoAprovacao", em: hoje(-16) }, { para: "Reprovada", em: hoje(-15) }, { para: "DevolvidaSemReparo", em: hoje(-15) }]
+    },
+    {
+      numero: "OS-0031", cliente: "Juliana Prado", telefone: "(11) 99887-1123",
+      equipamento: "Tablet", marca: "Apple", modelo: 'iPad 9ª geração', serie: "IMEI 771... 2290", senha: "juliana19",
+      acessorios: "capa com teclado", estadoEntrada: "tela ok",
+      defeito: "bateria não segura carga", tecnico: "Marina", abertaEm: hoje(-13), prazo: hoje(-8),
+      status: "Entregue", diagnostico: "Bateria com desgaste acima de 90% — substituída.",
+      orcamento: { pecas: [{ desc: "Bateria iPad 9", produtoId: "prod-bat-ipad9", qtd: 1, preco: 29800 }], maoDeObra: 13000, validadeDias: 7, enviadoEm: hoje(-11) },
+      aprovacao: { decisao: "Aprovada", canal: "WhatsApp", em: hoje(-10) },
+      valorServico: 13000, valorPecas: 29800, formaPagamento: "Pix", desconto: 0, garantiaDias: 90, dataEntrega: hoje(-8),
+      historico: [{ para: "Aberta", em: hoje(-13) }, { para: "EmDiagnostico", em: hoje(-12) }, { para: "AguardandoAprovacao", em: hoje(-11) }, { para: "Aprovada", em: hoje(-10) }, { para: "EmExecucao", em: hoje(-10) }, { para: "Pronta", em: hoje(-9) }, { para: "Entregue", em: hoje(-8) }]
+    },
+    {
+      numero: "OS-0030", cliente: "Marcos Vieira", telefone: "(11) 98212-4471",
+      equipamento: "Console", marca: "Microsoft", modelo: "Xbox Series S", serie: "XB-SS-88213", senha: null,
+      acessorios: "1 controle", estadoEntrada: "sem danos",
+      defeito: "trava de tempos em tempos", tecnico: "Igor", abertaEm: hoje(-16), prazo: hoje(-11),
+      status: "Entregue", diagnostico: "Pasta térmica ressecada — aplicada nova.",
+      orcamento: { pecas: [{ desc: "Pasta térmica MX-4", produtoId: "prod-pasta-mx4", qtd: 1, preco: 4000 }], maoDeObra: 12000, validadeDias: 7, enviadoEm: hoje(-14) },
+      aprovacao: { decisao: "Aprovada", canal: "Presencial", em: hoje(-13) },
+      valorServico: 12000, valorPecas: 4000, formaPagamento: "Dinheiro", desconto: 0, garantiaDias: 90, dataEntrega: hoje(-13),
+      historico: [{ para: "Aberta", em: hoje(-16) }, { para: "EmDiagnostico", em: hoje(-15) }, { para: "AguardandoAprovacao", em: hoje(-14) }, { para: "Aprovada", em: hoje(-13) }, { para: "EmExecucao", em: hoje(-13) }, { para: "Pronta", em: hoje(-13) }, { para: "Entregue", em: hoje(-13) }]
+    },
+    {
+      numero: "OS-0029", cliente: "Camila Rezende", telefone: "(11) 99456-7723",
+      equipamento: 'Smart TV 43"', marca: "LG", modelo: "UQ7500", serie: "LG-UQ75-4471", senha: null,
+      acessorios: "controle remoto", estadoEntrada: "moldura com risco leve",
+      defeito: "não liga", tecnico: "Marina", abertaEm: hoje(-21), prazo: hoje(-16),
+      status: "Entregue", diagnostico: "Placa fonte queimada — substituída.",
+      orcamento: { pecas: [{ desc: "Placa fonte UQ7500", produtoId: "prod-fonte-uq75", qtd: 1, preco: 48000 }], maoDeObra: 15000, validadeDias: 7, enviadoEm: hoje(-19) },
+      aprovacao: { decisao: "Aprovada", canal: "WhatsApp", em: hoje(-18) },
+      valorServico: 15000, valorPecas: 48000, formaPagamento: "CartaoCredito", desconto: 0, garantiaDias: 90, dataEntrega: hoje(-16),
+      historico: [{ para: "Aberta", em: hoje(-21) }, { para: "EmDiagnostico", em: hoje(-20) }, { para: "AguardandoAprovacao", em: hoje(-19) }, { para: "Aprovada", em: hoje(-18) }, { para: "EmExecucao", em: hoje(-18) }, { para: "Pronta", em: hoje(-17) }, { para: "Entregue", em: hoje(-16) }]
+    },
+    {
+      numero: "OS-0028", cliente: "Sandra Melo", telefone: "(11) 97321-8890",
+      equipamento: "Liquidificador", marca: "Philips", modelo: "Walita RI2032", serie: "—", senha: null,
+      acessorios: "copo de vidro", estadoEntrada: "copo com uma rachadura pequena",
+      defeito: "motor não gira", tecnico: "Igor", abertaEm: hoje(-15), prazo: hoje(-9),
+      status: "Cancelada", diagnostico: "Motor queimado — orçamento em andamento.",
+      orcamento: null, aprovacao: null, motivoCancelamento: "Cliente comprou um novo antes da resposta.",
+      historico: [{ para: "Aberta", em: hoje(-15) }, { para: "EmDiagnostico", em: hoje(-14) }, { para: "Cancelada", em: hoje(-12) }]
+    }
+  ];
+
+  // ───────────────────────────────────────────────────────────────────────
+  // Derivações — os mesmos cálculos que o agregado C# expõe (EstaAtrasada,
+  // OrcamentoVencido, TotalGeral) reimplementados aqui sobre os dados do mock
+  // ───────────────────────────────────────────────────────────────────────
+  function totalOrcamento(orc) {
+    if (!orc) return 0;
+    return orc.maoDeObra + orc.pecas.reduce((s, p) => s + p.preco * p.qtd, 0);
+  }
+  function totalExecucaoAtual(os) {
+    const mao = os.maoDeObraFinal ?? (os.orcamento ? os.orcamento.maoDeObra : 0);
+    const pecas = (os.pecasExecucao || []).reduce((s, p) => s + p.preco * p.qtd, 0);
+    return mao + pecas;
+  }
+  function valorAtual(os) {
+    switch (os.status) {
+      case "Entregue": return os.valorServico + os.valorPecas;
+      case "DevolvidaSemReparo": return os.taxaDiagnostico || 0;
+      case "Cancelada": return 0;
+      case "EmExecucao": case "Pronta": return totalExecucaoAtual(os);
+      case "AguardandoAprovacao": case "Aprovada": case "Reprovada": return totalOrcamento(os.orcamento);
+      default: return 0;
+    }
+  }
+  function entrouEm(os, status) {
+    const linha = os.historico.find(h => h.para === status);
+    return linha ? linha.em : null;
+  }
+  function addDias(data, dias) { const d = new Date(data); d.setDate(d.getDate() + dias); return d; }
+  function atrasada(os) {
+    if (ehTerminal(os.status) || !os.prazo) return false;
+    const h = new Date(HOJE); h.setHours(0, 0, 0, 0);
+    const p = new Date(os.prazo); p.setHours(0, 0, 0, 0);
+    return h.getTime() > p.getTime();
+  }
+  function orcamentoVencido(os) {
+    if (os.status !== "AguardandoAprovacao" || !os.orcamento) return false;
+    return HOJE > addDias(os.orcamento.enviadoEm, os.orcamento.validadeDias);
+  }
+
+  // ───────────────────────────────────────────────────────────────────────
+  // Estado de navegação
+  // ───────────────────────────────────────────────────────────────────────
+  let telaAtual = "lista"; // "lista" | "detalhe"
+  let osSelecionada = null;
+  let filtroFila = "ativas"; // ativas | todas | encerradas
+  let buscaFila = "";
+  let etapaDrillAtual = null; // null = overview do funil
+
+  function irParaDetalhe(numero) {
+    osSelecionada = OS.find(o => o.numero === numero);
+    telaAtual = "detalhe";
+    render();
+    window.scrollTo(0, 0);
+  }
+  function voltarParaLista() {
+    telaAtual = "lista";
+    osSelecionada = null;
+    render();
+  }
+  window.irParaDetalhe = irParaDetalhe;
+  window.voltarParaLista = voltarParaLista;
+
+  // ───────────────────────────────────────────────────────────────────────
+  // Render raiz
+  // ───────────────────────────────────────────────────────────────────────
+  function render() {
+    const lista = document.getElementById("viewLista");
+    const detalhe = document.getElementById("viewDetalhe");
+    if (telaAtual === "lista") {
+      lista.style.display = ""; detalhe.style.display = "none";
+      lista.innerHTML = renderLista();
+      lista.classList.remove("view-enter"); void lista.offsetWidth; lista.classList.add("view-enter");
+      bindLista();
+    } else {
+      lista.style.display = "none"; detalhe.style.display = "";
+      detalhe.innerHTML = renderDetalhe(osSelecionada);
+      detalhe.classList.remove("view-enter"); void detalhe.offsetWidth; detalhe.classList.add("view-enter");
+      bindDetalhe(osSelecionada);
+    }
+  }
+
+  // ───────────────────────────────────────────────────────────────────────
+  // TELA 1 — Lista
+  // ───────────────────────────────────────────────────────────────────────
+  function renderLista() {
+    const ativas = OS.filter(o => !ehTerminal(o.status));
+    const aguardando = OS.filter(o => o.status === "AguardandoAprovacao");
+    const prontas = OS.filter(o => o.status === "Pronta");
+    const faturadasMes = OS.filter(o => (o.status === "Entregue" || o.status === "DevolvidaSemReparo") && os_mesmoMes(entregaData(o)));
+
+    const naBancadaValor = ativas.reduce((s, o) => s + valorAtual(o), 0);
+    const esperandoValor = aguardando.reduce((s, o) => s + valorAtual(o), 0);
+    const esperandoDiasMedio = aguardando.length
+      ? (aguardando.reduce((s, o) => s + diasDesde(o.orcamento.enviadoEm), 0) / aguardando.length) : 0;
+    const prontasValor = prontas.reduce((s, o) => s + valorAtual(o), 0);
+    const prontasMaisAntigaDias = prontas.length
+      ? Math.max(...prontas.map(o => diasDesde(entrouEm(o, "Pronta")))) : 0;
+    const faturadoValor = faturadasMes.reduce((s, o) => s + valorAtual(o), 0);
+    const faturadoServico = faturadasMes.reduce((s, o) => s + (o.valorServico ?? o.taxaDiagnostico ?? 0), 0);
+    const faturadoPecas = faturadasMes.reduce((s, o) => s + (o.valorPecas ?? 0), 0);
+    const servPct = faturadoValor ? Math.round((faturadoServico / faturadoValor) * 100) : 0;
+    const pecPct = 100 - servPct;
+    const FATURADO_MES_ANTERIOR_CENTS = 132500;
+    const deltaMes = faturadoValor - FATURADO_MES_ANTERIOR_CENTS;
+    const deltaPct = FATURADO_MES_ANTERIOR_CENTS ? Math.round((deltaMes / FATURADO_MES_ANTERIOR_CENTS) * 100) : 0;
+
+    const maiorAguardando = aguardando.slice().sort((a, b) => valorAtual(b) - valorAtual(a))[0];
+    const diasEsperaLongos = aguardando.filter(o => diasDesde(o.orcamento.enviadoEm) >= 5);
+
+    return `
+      <header class="page">
+        <div>
+          <div class="eyebrow">Assistência Técnica · Ordens de Serviço</div>
+          <h1>Ordens de Serviço</h1>
+          <div class="sub">A bancada, o que espera o cliente, e o que isso vale.</div>
+        </div>
+        <div class="head-actions">
+          <div class="period">Julho 2026 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></div>
+          <button class="btn-primary" onclick="toastFn('Abertura de nova OS — fora do escopo deste protótipo (fluxo de 6 campos descrito no plano).')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg> Nova OS
+          </button>
+        </div>
+      </header>
+
+      <section class="kpis">
+        <div class="card kpi hero">
+          <div class="lbl eyebrow">Na bancada</div>
+          <div class="val num">${ativas.length} <small>OS</small></div>
+          <div class="delta">${brl(naBancadaValor)} em potencial</div>
+          <svg class="spark" viewBox="0 0 260 34" preserveAspectRatio="none" aria-hidden="true">
+            <defs><linearGradient id="gOs" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="hsl(var(--primary))" stop-opacity="0.28"/><stop offset="1" stop-color="hsl(var(--primary))" stop-opacity="0"/></linearGradient></defs>
+            <path d="M0,24 L52,20 L104,14 L156,17 L208,10 L260,13" fill="none" stroke="hsl(var(--primary))" stroke-width="2" stroke-linecap="round"/>
+            <path d="M0,24 L52,20 L104,14 L156,17 L208,10 L260,13 L260,34 L0,34 Z" fill="url(#gOs)"/>
+            <circle cx="260" cy="13" r="3" fill="hsl(var(--primary))"/>
+          </svg>
+          <div class="foot">entregas concluídas por semana</div>
+        </div>
+        <div class="card kpi">
+          <div class="lbl eyebrow">Esperando o cliente</div>
+          <div class="val num">${brl(esperandoValor)}</div>
+          <div class="delta down">${aguardando.length} orçamento${aguardando.length === 1 ? "" : "s"} em aberto</div>
+          <div class="foot">${esperandoDiasMedio.toFixed(1).replace(".", ",")} dias médios de espera</div>
+        </div>
+        <div class="card kpi">
+          <div class="lbl eyebrow">Prontas p/ retirada</div>
+          <div class="val num">${brl(prontasValor)}</div>
+          <div class="delta">${prontas.length} OS na prateleira</div>
+          <div class="foot">${prontas.length ? `mais antiga: há ${prontasMaisAntigaDias}d` : "nenhuma no momento"}</div>
+        </div>
+        <div class="card kpi">
+          <div class="lbl eyebrow">Faturado no mês</div>
+          <div class="val num">${brl(faturadoValor)}</div>
+          <div class="delta ${deltaMes >= 0 ? "up" : "down"}">${deltaMes >= 0 ? "▲" : "▼"} ${Math.abs(deltaPct)}% vs jun</div>
+          <div class="foot">serviço ${servPct}% · peças ${pecPct}%</div>
+        </div>
+      </section>
+
+      <div class="consultor">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 0 0-4 12.7V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.3A7 7 0 0 0 12 2z"/><path d="M9 21h6"/></svg></div>
+        <div>
+          <h3>Super Consultor</h3>
+          <p>${diasEsperaLongos.length
+            ? `<b>${diasEsperaLongos.length} orçamento${diasEsperaLongos.length > 1 ? "s" : ""} esperam resposta há mais de 5 dias</b> — ${brl(diasEsperaLongos.reduce((s, o) => s + valorAtual(o), 0))} parados. O de maior valor é a ${esc(maiorAguardando.equipamento.toLowerCase())} da <b>${esc(maiorAguardando.cliente.split(" ")[0])} (${maiorAguardando.numero}, ${brl(valorAtual(maiorAguardando))})</b>; o orçamento vence ${diaSemana(addDias(maiorAguardando.orcamento.enviadoEm, maiorAguardando.orcamento.validadeDias)).toLowerCase()}. Mande o lembrete antes de abrir OS nova.`
+            : `Nenhum orçamento parado há mais de 5 dias — a fila de aprovação está saudável. Foco da semana: ${prontas.length} OS prontas esperando retirada, ${brl(prontasValor)} em dinheiro parado na prateleira.`}</p>
+        </div>
+      </div>
+
+      <section class="grid2">
+        <div class="card" id="cardEsq"></div>
+        <div class="card" id="cardDir"></div>
+      </section>
+
+      ${renderFila()}
+    `;
+  }
+
+  function entregaData(o) { return o.dataEntrega || null; }
+  function os_mesmoMes(d) { return d && d.getFullYear() === HOJE.getFullYear() && d.getMonth() === HOJE.getMonth(); }
+
+  // ---- funil (buckets) — dados computados a partir de OS[] ----
+  const BUCKETS = [
+    { key: "aguardando", label: "Aguard. aprovação", statuses: ["AguardandoAprovacao"] },
+    { key: "execucao", label: "Em execução", statuses: ["EmExecucao", "Aprovada"] },
+    { key: "prontas", label: "Prontas", statuses: ["Pronta"] },
+    { key: "diagnostico", label: "Diagnóstico", statuses: ["EmDiagnostico"] },
+    { key: "abertas", label: "Abertas", statuses: ["Aberta"] }
+  ];
+  function bucketDados() {
+    return BUCKETS.map(b => {
+      const itens = OS.filter(o => b.statuses.includes(o.status));
+      return { ...b, itens, count: itens.length, valor: itens.reduce((s, o) => s + valorAtual(o), 0) };
+    });
+  }
+
+  function renderFunilOverview() {
+    const dados = bucketDados();
+    const max = Math.max(1, ...dados.map(d => d.count));
+    const rows = dados.map(d => `
+      <button class="bar-click" data-bucket="${d.key}">
+        <span class="name">${esc(d.label)}</span><span class="amt num">${d.count} · ${brlOuTraco(d.valor)}</span>
+        <div class="track"><div class="fill" style="width:${(d.count / max) * 100}%;background:hsl(var(--primary))"></div></div>
+      </button>`).join("");
+    return `<h2 class="sec">Onde as OS travam <span class="hint">clique numa etapa →</span></h2><div class="bars sel">${rows}</div>`;
+  }
+  function renderOperacaoTiles() {
+    const entregues = OS.filter(o => o.status === "Entregue");
+    const portaAPorta = entregues.length
+      ? entregues.reduce((s, o) => s + diasEntre(o.abertaEm, o.dataEntrega), 0) / entregues.length : 0;
+    const decididas = OS.filter(o => o.aprovacao);
+    const aprovadas = decididas.filter(o => o.aprovacao.decisao === "Aprovada");
+    const taxaAprov = decididas.length ? Math.round((aprovadas.length / decididas.length) * 100) : 0;
+    const comValor = OS.filter(o => valorAtual(o) > 0);
+    const ticketMedio = comValor.length ? comValor.reduce((s, o) => s + valorAtual(o), 0) / comValor.length : 0;
+    return `<h2 class="sec">Operação</h2>
+      <div class="stats">
+        <div class="stat"><div class="k">Porta-a-porta</div><div class="v num">${portaAPorta.toFixed(1).replace(".", ",")} <small>dias</small></div><div class="s">abertura até entrega</div></div>
+        <div class="stat"><div class="k">Aprovação de orçamento</div><div class="v num">${taxaAprov}<small>%</small></div><div class="s">${aprovadas.length} de ${decididas.length} decididos</div></div>
+        <div class="stat"><div class="k">Ticket médio</div><div class="v num">${brl(Math.round(ticketMedio))}</div><div class="s">serviço + peças, todas as OS com valor</div></div>
+      </div>`;
+  }
+  function renderBucketDrill(bucketKey) {
+    const b = bucketDados().find(x => x.key === bucketKey);
+    const itens = b.itens.slice().sort((x, y) => {
+      const dx = entrouEm(x, x.status) || x.abertaEm, dy = entrouEm(y, y.status) || y.abertaEm;
+      return dx - dy;
+    });
+    const rows = itens.map(o => {
+      const desde = entrouEm(o, o.status) || o.abertaEm;
+      const dias = diasDesde(desde);
+      return `<button class="drill-row" data-numero="${o.numero}">
+        <span><span class="who">${esc(o.numero)} · ${esc(o.cliente)}</span><br><span class="meta">${esc(o.equipamento)} · ${brlOuTraco(valorAtual(o))}</span></span>
+        <span class="age">há ${dias}d</span>
+      </button>`;
+    }).join("") || `<div class="meta" style="padding:10px 14px;color:hsl(var(--muted))">Nenhuma OS nesta etapa.</div>`;
+    return `<h2 class="sec"><span class="secleft"><button class="back" data-voltar-funil aria-label="Voltar">←</button> ${esc(b.label)}</span> <span class="hint">${b.count} OS · ${brlOuTraco(b.valor)}</span></h2>
+      <div class="drill-list">${rows}</div>`;
+  }
+  function renderBucketTiles(bucketKey) {
+    const b = bucketDados().find(x => x.key === bucketKey);
+    const dias = b.itens.map(o => diasDesde(entrouEm(o, o.status) || o.abertaEm));
+    const tempoMedio = dias.length ? dias.reduce((s, d) => s + d, 0) / dias.length : 0;
+    const maisAntiga = dias.length ? Math.max(...dias) : 0;
+    return `<h2 class="sec">${esc(b.label)}</h2>
+      <div class="stats">
+        <div class="stat"><div class="k">Tempo médio nesta etapa</div><div class="v num">${tempoMedio.toFixed(1).replace(".", ",")} <small>dias</small></div></div>
+        <div class="stat"><div class="k">Mais antiga na etapa</div><div class="v num">${maisAntiga} <small>dias</small></div></div>
+        <div class="stat"><div class="k">Valor parado na etapa</div><div class="v num">${brlOuTraco(b.valor)}</div></div>
+      </div>`;
+  }
+
+  function renderFunilCards() {
+    const cardEsq = document.getElementById("cardEsq");
+    const cardDir = document.getElementById("cardDir");
+    if (!cardEsq || !cardDir) return;
+    if (etapaDrillAtual === null) {
+      cardEsq.innerHTML = renderFunilOverview();
+      cardDir.innerHTML = renderOperacaoTiles();
+    } else {
+      cardEsq.innerHTML = renderBucketDrill(etapaDrillAtual);
+      cardDir.innerHTML = renderBucketTiles(etapaDrillAtual);
+    }
+    [cardEsq, cardDir].forEach(c => { c.classList.remove("anim"); void c.offsetWidth; c.classList.add("anim"); });
+
+    cardEsq.querySelectorAll(".bar-click").forEach(b => b.addEventListener("click", () => { etapaDrillAtual = b.dataset.bucket; renderFunilCards(); }));
+    const back = cardEsq.querySelector("[data-voltar-funil]");
+    if (back) back.addEventListener("click", () => { etapaDrillAtual = null; renderFunilCards(); });
+    cardEsq.querySelectorAll("[data-numero]").forEach(b => b.addEventListener("click", () => irParaDetalhe(b.dataset.numero)));
+  }
+
+  // ---- Fila (tabela) ----
+  function acaoPrimaria(o) {
+    switch (o.status) {
+      case "Aberta": return { label: "Registrar diagnóstico", onclick: `irParaDetalhe('${o.numero}')` };
+      case "EmDiagnostico": return { label: "Enviar orçamento", onclick: `irParaDetalhe('${o.numero}')` };
+      case "AguardandoAprovacao": return { label: "Cliente respondeu?", onclick: `irParaDetalhe('${o.numero}')` };
+      case "Aprovada": return { label: "Iniciar execução", onclick: `acaoRapidaIniciarExecucao('${o.numero}')` };
+      case "EmExecucao": {
+        const pendentes = (o.pecasExecucao || []).filter(p => !p.aplicada).length;
+        return pendentes > 0
+          ? { label: `${(o.pecasExecucao.length - pendentes)}/${o.pecasExecucao.length} peças aplicadas`, onclick: `irParaDetalhe('${o.numero}')`, nota: true }
+          : { label: "Concluir execução", onclick: `acaoRapidaConcluirExecucao('${o.numero}')` };
+      }
+      case "Pronta": return { label: "Receber e entregar", onclick: `irParaDetalhe('${o.numero}')` };
+      case "Reprovada": return { label: "Devolver sem reparo", onclick: `irParaDetalhe('${o.numero}')` };
+      default: return null;
+    }
+  }
+
+  function renderFila() {
+    let itens = filtroFila === "ativas" ? OS.filter(o => !ehTerminal(o.status))
+      : filtroFila === "encerradas" ? OS.filter(o => ehTerminal(o.status))
+      : OS.slice();
+
+    if (buscaFila.trim()) {
+      const q = buscaFila.trim().toLowerCase();
+      itens = itens.filter(o => o.numero.toLowerCase().includes(q) || o.cliente.toLowerCase().includes(q) || o.equipamento.toLowerCase().includes(q));
+    }
+
+    itens = itens.slice().sort((a, b) => {
+      const atrasoA = atrasada(a) ? 1 : 0, atrasoB = atrasada(b) ? 1 : 0;
+      if (atrasoA !== atrasoB) return atrasoB - atrasoA;
+      const da = entrouEm(a, a.status) || a.abertaEm, db = entrouEm(b, b.status) || b.abertaEm;
+      return da - db;
+    });
+
+    const rows = itens.map(o => {
+      const chip = `<span class="chip ${STATUS_CLASS[o.status]}${o.status === "Pronta" && atrasada(o) ? " atraso" : ""}">${STATUS_LABEL[o.status]}</span>`;
+      const acao = acaoPrimaria(o);
+      const acaoHtml = acao
+        ? (acao.nota ? `<span class="action-dash">${esc(acao.label)}</span><br><button class="action-btn" onclick="${acao.onclick}">Ver peças →</button>`
+                      : `<button class="action-btn" onclick="${acao.onclick}">${esc(acao.label)}</button>`)
+        : `<span class="action-dash">—</span>`;
+      const notas = [];
+      if (o.status === "AguardandoAprovacao" && orcamentoVencido(o)) notas.push(`<div class="row-note warn">⚠ orçamento vencido</div>`);
+      else if (o.status === "AguardandoAprovacao") {
+        const vence = addDias(o.orcamento.enviadoEm, o.orcamento.validadeDias);
+        notas.push(`<div class="row-note">vence ${diaSemana(vence).toLowerCase()}, ${fmtData(vence)}</div>`);
+      }
+      const prazoTxt = o.prazo ? (atrasada(o) ? `<span style="color:hsl(var(--crit));font-weight:700">atrasada</span>` : fmtData(o.prazo)) : "—";
+      return `<tr class="os-row ${o.status === "Cancelada" ? "st-cancelada-row" : ""}" data-numero="${o.numero}">
+        <td><b class="num">${esc(o.numero)}</b></td>
+        <td>${esc(o.cliente)}<div class="cli">${esc(o.telefone)}</div></td>
+        <td>${esc(o.equipamento)} <span class="cli">${esc(o.marca)}</span></td>
+        <td class="st">${chip}${notas.join("")}</td>
+        <td class="r val-mono num">${brlOuTraco(valorAtual(o))}</td>
+        <td class="r">${prazoTxt}</td>
+        <td class="r" onclick="event.stopPropagation()">${acaoHtml}</td>
+      </tr>`;
+    }).join("") || `<tr><td colspan="7" style="text-align:center;color:hsl(var(--muted));padding:26px">Nenhuma OS encontrada.</td></tr>`;
+
+    const total = OS.length, ativasCount = OS.filter(o => !ehTerminal(o.status)).length, encerradasCount = total - ativasCount;
+
+    return `
+      <div class="subhead">
+        <div class="seg">
+          <button class="${filtroFila === "ativas" ? "active" : ""}" data-filtro="ativas">Ativas <span style="opacity:.6;font-weight:500">· ${ativasCount}</span></button>
+          <button class="${filtroFila === "todas" ? "active" : ""}" data-filtro="todas">Todas <span style="opacity:.6;font-weight:500">· ${total}</span></button>
+          <button class="${filtroFila === "encerradas" ? "active" : ""}" data-filtro="encerradas">Encerradas <span style="opacity:.6;font-weight:500">· ${encerradasCount}</span></button>
+        </div>
+        <div class="search">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+          <input type="text" id="buscaFila" placeholder="Buscar OS, cliente, equipamento…" value="${esc(buscaFila)}" />
+        </div>
+      </div>
+      <div class="card">
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>OS</th><th>Cliente</th><th>Equipamento</th><th>Status</th><th class="r">Valor</th><th class="r">Prazo</th><th class="r">Ação</th></tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      </div>`;
+  }
+
+  function bindLista() {
+    renderFunilCards();
+    document.querySelectorAll(".os-row").forEach(tr => tr.addEventListener("click", () => irParaDetalhe(tr.dataset.numero)));
+    document.querySelectorAll("[data-filtro]").forEach(b => b.addEventListener("click", () => { filtroFila = b.dataset.filtro; render(); }));
+    const busca = document.getElementById("buscaFila");
+    if (busca) busca.addEventListener("input", e => { buscaFila = e.target.value; renderFilaSozinha(); });
+  }
+  function renderFilaSozinha() {
+    // Re-renderiza só a fila (mantém foco no campo de busca, ao contrário de um render() completo)
+    // — o resto da tela (KPIs/funil) não muda com a busca, então não precisa re-renderizar.
+    const wrap = document.getElementById("viewLista");
+    const html = renderFila();
+    const temp = document.createElement("div");
+    temp.innerHTML = html;
+    const subhead = wrap.querySelector(".subhead");
+    const tabela = subhead.nextElementSibling;
+    subhead.replaceWith(temp.querySelector(".subhead"));
+    tabela.replaceWith(temp.querySelector(".card"));
+    document.querySelectorAll(".os-row").forEach(tr => tr.addEventListener("click", () => irParaDetalhe(tr.dataset.numero)));
+    document.querySelectorAll("[data-filtro]").forEach(b => b.addEventListener("click", () => { filtroFila = b.dataset.filtro; render(); }));
+    const busca = document.getElementById("buscaFila");
+    busca.addEventListener("input", e => { buscaFila = e.target.value; renderFilaSozinha(); });
+    busca.focus(); busca.selectionStart = busca.selectionEnd = busca.value.length;
+  }
+
+  window.acaoRapidaIniciarExecucao = function (numero) {
+    const os = OS.find(o => o.numero === numero);
+    os.status = "EmExecucao";
+    os.maoDeObraFinal = os.orcamento.maoDeObra;
+    os.pecasExecucao = os.orcamento.pecas.map((p, i) => ({ linhaId: "l" + i, desc: p.desc, produtoId: p.produtoId, qtd: p.qtd, preco: p.preco, origem: "orcada", aplicada: false }));
+    os.historico.push({ para: "EmExecucao", em: HOJE });
+    toast(`${numero} · execução iniciada — peças reservadas baixadas para a bancada.`);
+    render();
+  };
+  window.acaoRapidaConcluirExecucao = function (numero) {
+    const os = OS.find(o => o.numero === numero);
+    os.status = "Pronta";
+    os.historico.push({ para: "Pronta", em: HOJE });
+    toast(`${numero} · pronta para retirada.`);
+    render();
+  };
+  window.toastFn = toast;
+
+  // ───────────────────────────────────────────────────────────────────────
+  // TELA 2 — Detalhe (linha do tempo da FSM)
+  // ───────────────────────────────────────────────────────────────────────
+  const ORDEM_PRINCIPAL = ["Aberta", "EmDiagnostico", "AguardandoAprovacao", "Aprovada", "EmExecucao", "Pronta", "Entregue"];
+
+  function renderDetalhe(os) {
+    const chip = `<span class="chip ${STATUS_CLASS[os.status]}${os.status === "Pronta" && atrasada(os) ? " atraso" : ""}">${STATUS_LABEL[os.status]}</span>`;
+    const desde = diasDesde(os.abertaEm);
+    const prazoTxt = os.prazo ? `prazo ${fmtData(os.prazo)}${atrasada(os) ? " · atrasada" : ""}` : "sem prazo definido";
+
+    return `
+      <button class="voltar" onclick="voltarParaLista()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="m15 18-6-6 6-6"/></svg> Ordens de Serviço</button>
+      <div class="os-head">
+        <div>
+          <div class="titulo">${esc(os.numero)} · ${esc(os.equipamento)} · ${esc(os.cliente)} ${chip}</div>
+          <div class="meta">${esc(os.telefone)} · aberta há ${desde}d · ${prazoTxt}</div>
+        </div>
+        <div class="os-menu-wrap">
+          <button class="btn-ghost small" id="btnMenuOs">Ações ⋯</button>
+          <div class="os-menu" id="menuOs" style="display:none">
+            <button ${ehTerminal(os.status) ? "disabled" : ""} onclick="acaoCancelar('${os.numero}')">Cancelar OS</button>
+            <button onclick="toastFn('Impressão térmica 80mm — stub (Fase D do roteiro).')">Imprimir via/recibo</button>
+            <div class="stub">impressão: fase D do roteiro</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="timeline">
+        ${renderTimeline(os)}
+      </div>
+    `;
+  }
+
+  function renderTimeline(os) {
+    // Ramo Reprovada/DevolvidaSemReparo substitui Aprovada→Entregue depois de AguardandoAprovacao.
+    // Cancelada nunca chega por este ramo (a FSM não permite Cancelar() a partir de Reprovada).
+    const ramoReprovado = os.status === "Reprovada" || os.status === "DevolvidaSemReparo";
+    const passos = ramoReprovado
+      ? ["Aberta", "EmDiagnostico", "AguardandoAprovacao", "Reprovada", "DevolvidaSemReparo"]
+      : ORDEM_PRINCIPAL;
+
+    let indiceAtual = passos.indexOf(os.status);
+    if (os.status === "Cancelada") {
+      // Achar o último status antes de cancelar, pra saber onde parou a linha do tempo.
+      const ultimoAntes = os.historico[os.historico.length - 2]?.para || "Aberta";
+      indiceAtual = passos.indexOf(ultimoAntes);
+      if (indiceAtual < 0) indiceAtual = 0;
+    }
+
+    return passos.map((passo, i) => {
+      const em = entrouEm(os, passo);
+      const ehAtualDeVerdade = i === indiceAtual && os.status !== "Cancelada";
+      const jaPassou = i < indiceAtual || (i === indiceAtual && (os.status === "Cancelada" || ehTerminal(os.status)));
+
+      if (jaPassou) return renderPassoConcluido(os, passo, em);
+      if (ehAtualDeVerdade) return renderPassoAtual(os, passo);
+      // Cancelada não tem "próximos passos" a antecipar — a linha do tempo simplesmente para aqui.
+      if (i > indiceAtual) return os.status === "Cancelada" ? "" : renderPassoFantasma(passo);
+      return "";
+    }).join("") + (os.status === "Cancelada" ? renderBannerCancelada(os) : "");
+  }
+
+  const TITULOS = {
+    Aberta: "Entrada", EmDiagnostico: "Diagnóstico", AguardandoAprovacao: "Orçamento",
+    Aprovada: "Aprovado", EmExecucao: "Execução", Pronta: "Pronta", Entregue: "Entrega",
+    Reprovada: "Reprovado", DevolvidaSemReparo: "Devolução sem reparo"
+  };
+
+  function renderPassoConcluido(os, passo, em) {
+    const titulo = TITULOS[passo];
+    const quando = em ? `${fmtData(em)} · por ${os.tecnico || "—"}` : "";
+    let resumo = "";
+    if (passo === "Aberta") {
+      resumo = `${esc(os.marca)} ${esc(os.modelo)} · série ${esc(os.serie)} · acessórios: ${esc(os.acessorios)}<br>Defeito relatado: "<b>${esc(os.defeito)}</b>"`;
+    } else if (passo === "EmDiagnostico") {
+      resumo = esc(os.diagnostico);
+    } else if (passo === "AguardandoAprovacao") {
+      resumo = os.orcamento ? `Peças ${brl(os.orcamento.pecas.reduce((s,p)=>s+p.preco*p.qtd,0))} + mão de obra ${brl(os.orcamento.maoDeObra)} = <b>${brl(totalOrcamento(os.orcamento))}</b>` : "";
+    } else if (passo === "Aprovada") {
+      resumo = `Aprovado via ${os.aprovacao.canal}`;
+    } else if (passo === "Reprovada") {
+      resumo = `Reprovado via ${os.aprovacao.canal}${os.motivoReprovacao ? ` — "${esc(os.motivoReprovacao)}"` : ""}`;
+    } else if (passo === "EmExecucao") {
+      // OS entregues antigas não guardam o detalhe peça-a-peça (pecasExecucao) — nesse caso,
+      // as peças do orçamento são a melhor aproximação disponível (todas presumidamente aplicadas).
+      const pecasRef = os.pecasExecucao || (os.orcamento ? os.orcamento.pecas : []);
+      const aplicadas = os.pecasExecucao ? os.pecasExecucao.filter(p => p.aplicada).length : pecasRef.length;
+      resumo = `Execução concluída — ${aplicadas}/${pecasRef.length} peças aplicadas`;
+    } else if (passo === "Pronta") {
+      resumo = `Pronta desde ${fmtData(entrouEm(os, "Pronta"))}`;
+    } else if (passo === "Entregue") {
+      const garantiaAte = addDias(os.dataEntrega, os.garantiaDias);
+      resumo = `Entregue ${fmtData(os.dataEntrega)} · ${os.formaPagamento}${os.desconto ? ` · desconto ${brl(os.desconto)}` : ""}<br>`
+        + `Serviço ${brl(os.valorServico)} + peças ${brl(os.valorPecas)} = <b>${brl(os.valorServico + os.valorPecas)}</b><br>`
+        + `Garantia ${os.garantiaDias} dias — até ${fmtData(garantiaAte)}`;
+    } else if (passo === "DevolvidaSemReparo") {
+      resumo = `Devolvido sem reparo ${fmtData(os.dataEntrega)}` + (os.taxaDiagnostico
+        ? ` · taxa de diagnóstico ${brl(os.taxaDiagnostico)}` : " · sem taxa de diagnóstico");
+    }
+    return `<details class="step done step-done">
+        <summary>
+          <div class="step-head">✔ ${titulo.toUpperCase()} <span class="quando">${quando}</span></div>
+        </summary>
+        <div class="step-summary">${resumo}</div>
+      </details>`;
+  }
+
+  function renderPassoFantasma(passo) {
+    const sub = {
+      Aprovada: "aguardando decisão do cliente", EmExecucao: "peças + mão de obra final",
+      Pronta: "avisará o cliente (WhatsApp)", Entregue: "pagamento + garantia + recibo",
+      DevolvidaSemReparo: "taxa de diagnóstico, se houver"
+    }[passo] || "";
+    return `<div class="step ghost"><div class="step-head">○ ${TITULOS[passo].toUpperCase()}</div><div class="step-summary">${sub}</div></div>`;
+  }
+
+  function renderBannerCancelada(os) {
+    return `<div class="step current">
+      <div class="step-head">✕ CANCELADA <span class="quando">${fmtData(entrouEm(os, "Cancelada"))}</span></div>
+      <div class="step-body">
+        <div class="banner-info crit">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v5M12 16h.01"/></svg>
+          <div>Motivo: ${esc(os.motivoCancelamento)}</div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  function renderPassoAtual(os, passo) {
+    const titulo = TITULOS[passo];
+    let corpo = "";
+    if (passo === "Aberta") corpo = corpoAberta(os);
+    else if (passo === "EmDiagnostico") corpo = corpoDiagnostico(os);
+    else if (passo === "AguardandoAprovacao") corpo = corpoAguardandoAprovacao(os);
+    else if (passo === "Aprovada") corpo = corpoAprovada(os);
+    else if (passo === "EmExecucao") corpo = corpoExecucao(os);
+    else if (passo === "Pronta") corpo = corpoEntrega(os);
+
+    // Passos futuros (ghost) são renderizados pelo laço em renderTimeline (i > indiceAtual) — não duplicar aqui.
+    return `<div class="step current">
+      <div class="step-head">● ${titulo.toUpperCase()} <span class="quando">em andamento</span></div>
+      <div class="step-body">${corpo}</div>
+    </div>`;
+  }
+
+  // ---- corpos de cada etapa atual ----
+  function corpoAberta(os) {
+    return `
+      <div class="step-summary">${esc(os.marca)} ${esc(os.modelo)} · série ${esc(os.serie)} · acessórios: ${esc(os.acessorios)}<br>
+      Estado de entrada: ${esc(os.estadoEntrada)}<br>
+      ${os.senha ? `Senha de acesso: ${renderSenha(os.senha)}` : "Sem senha registrada"}<br>
+      Defeito relatado: "<b>${esc(os.defeito)}</b>"</div>
+      <div class="field-two">
+        <div class="field-row"><label>Técnico responsável</label><input type="text" id="cur-tecnico" value="${esc(os.tecnico || "")}" placeholder="Nome do técnico" /></div>
+        <div class="field-row"><label>Previsão de entrega</label><input type="text" id="cur-previsao" value="${os.prazo ? fmtDataCompleta(os.prazo) : ""}" placeholder="dd/mm/aaaa" /></div>
+      </div>
+      <div class="field-row"><label>Diagnóstico</label><textarea id="cur-diagnostico" placeholder="O que o técnico encontrou ao investigar…"></textarea></div>
+      <div id="cur-erro" class="inline-err" style="display:none"></div>
+      <div><button class="btn-primary" onclick="acaoRegistrarDiagnostico('${os.numero}')">Registrar diagnóstico</button></div>`;
+  }
+
+  function corpoDiagnostico(os) {
+    return `
+      <div class="step-summary"><b>Diagnóstico:</b> ${esc(os.diagnostico)}</div>
+      <div class="field-row"><label>Peça prevista (catálogo ou sob encomenda)</label>
+        <div class="field-three">
+          <input type="text" id="cur-peca-desc" placeholder="Descrição da peça" />
+          <input type="number" id="cur-peca-qtd" placeholder="Qtd" value="1" min="1" />
+          <input type="number" id="cur-peca-preco" placeholder="Preço (R$)" step="0.01" />
+        </div>
+      </div>
+      <div class="field-two">
+        <div class="field-row"><label>Mão de obra (R$)</label><input type="number" id="cur-mao-de-obra" step="0.01" placeholder="120,00" /></div>
+        <div class="field-row"><label>Validade do orçamento (dias)</label><input type="number" id="cur-validade" value="10" min="1" /></div>
+      </div>
+      <div id="cur-erro" class="inline-err" style="display:none"></div>
+      <div><button class="btn-primary" onclick="acaoEnviarOrcamento('${os.numero}')">Enviar orçamento</button></div>`;
+  }
+
+  function corpoAguardandoAprovacao(os) {
+    const orc = os.orcamento;
+    const vence = new Date(orc.enviadoEm); vence.setDate(vence.getDate() + orc.validadeDias);
+    const linhas = orc.pecas.map(p => `<div class="peca-linha"><div class="desc">${esc(p.desc)}</div><div class="preco num">${p.qtd} × ${brl(p.preco)}</div></div>`).join("")
+      || `<div class="peca-linha"><div class="desc" style="color:hsl(var(--muted))">Sem peças previstas — só mão de obra.</div></div>`;
+    return `
+      <div class="step-summary">Enviado em ${fmtData(orc.enviadoEm)} · vence ${diaSemana(vence)}, ${fmtData(vence)}${orcamentoVencido(os) ? ` <b style="color:hsl(var(--crit))">— vencido</b>` : ""}</div>
+      <div style="display:flex;flex-direction:column;gap:8px">${linhas}</div>
+      <div class="total-row"><span class="lbl">Total do orçamento</span><span class="val num">${brl(totalOrcamento(orc))}</span></div>
+      <div class="field-row"><label>Canal de resposta do cliente</label>
+        <div class="canal-btns">
+          <button class="chip-btn" data-canal="Presencial">Presencial</button>
+          <button class="chip-btn" data-canal="WhatsApp">WhatsApp</button>
+          <button class="chip-btn" data-canal="Telefone">Telefone</button>
+        </div>
+      </div>
+      <div id="cur-decisao-area" style="display:none">
+        <div class="field-row"><label>Motivo da reprovação (opcional — só relevante se reprovar)</label><textarea id="cur-motivo"></textarea></div>
+        <div id="cur-erro" class="inline-err" style="display:none"></div>
+        <div style="display:flex;gap:10px">
+          <button class="btn-primary" style="background:hsl(var(--pos))" onclick="acaoDecisao('${os.numero}','Aprovada')">✓ Aprovado</button>
+          <button class="btn-primary" style="background:hsl(var(--crit))" onclick="acaoDecisao('${os.numero}','Reprovada')">✕ Reprovado</button>
+        </div>
+      </div>`;
+  }
+
+  function corpoAprovada(os) {
+    return `
+      <div class="step-summary">Aprovado via ${os.aprovacao.canal} em ${fmtData(os.aprovacao.em)}. Peças com produto de catálogo já reservadas no estoque.</div>
+      <div><button class="btn-primary" onclick="acaoIniciarExecucao('${os.numero}')">Iniciar execução</button></div>`;
+  }
+
+  function corpoExecucao(os) {
+    const pecas = os.pecasExecucao || [];
+    const linhas = pecas.map(p => `
+      <div class="peca-linha ${p.aplicada ? "aplicada" : ""}">
+        <div class="desc">${esc(p.desc)}<div class="sub">${p.qtd} × ${brl(p.preco)} · ${p.origem === "extra" ? "peça extra" : "orçada"}</div></div>
+        <div class="preco num">${brl(p.preco * p.qtd)}</div>
+        <button class="marcar" ${p.aplicada ? "disabled" : ""} onclick="acaoAplicarPeca('${os.numero}','${p.linhaId}')">${p.aplicada ? "✔ Aplicada" : "Apliquei"}</button>
+      </div>`).join("");
+    const total = totalExecucaoAtual(os);
+    const maoOrcada = os.orcamento.maoDeObra;
+    return `
+      <div class="step-summary">Peças do orçamento — reservadas no estoque quando o produto veio do catálogo.</div>
+      <div style="display:flex;flex-direction:column;gap:8px">${linhas}</div>
+      <div><button class="btn-ghost small" id="btnTogglePecaExtra">＋ peça extra</button></div>
+      <div id="pecaExtraForm" style="display:none;flex-direction:column;gap:10px">
+        <div class="field-three">
+          <input type="text" id="cur-extra-desc" placeholder="Descrição da peça extra" />
+          <input type="number" id="cur-extra-qtd" placeholder="Qtd" value="1" min="1" />
+          <input type="number" id="cur-extra-preco" placeholder="Preço (R$)" step="0.01" />
+        </div>
+        <label class="aviso-cliente"><input type="checkbox" id="cur-extra-avisado" /> Cliente avisado do novo valor</label>
+        <div id="cur-erro-extra" class="inline-err" style="display:none"></div>
+        <div><button class="btn-ghost small" onclick="acaoAdicionarPecaExtra('${os.numero}')">Adicionar peça extra</button></div>
+      </div>
+      <div class="field-row" style="max-width:240px">
+        <label>Mão de obra (orçado ${brl(maoOrcada)})</label>
+        <input type="number" id="cur-mdo-final" step="0.01" value="${(os.maoDeObraFinal / 100).toFixed(2)}" />
+      </div>
+      <label class="aviso-cliente"><input type="checkbox" id="cur-mdo-avisado" /> Cliente avisado do aumento (se for além do orçado)</label>
+      <div id="cur-erro-mdo" class="inline-err" style="display:none"></div>
+      <div><button class="btn-ghost small" onclick="acaoAjustarMaoDeObra('${os.numero}')">Aplicar novo valor de mão de obra</button></div>
+      <div class="total-row"><span class="lbl">Total até agora</span><span class="val num">${brl(total)}</span></div>
+      <div><button class="btn-primary" onclick="acaoConcluirExecucao('${os.numero}')">✓ Concluir execução</button></div>`;
+  }
+
+  function corpoEntrega(os) {
+    const total = totalExecucaoAtual(os);
+    return `
+      <div class="step-summary">Pronta desde ${fmtData(entrouEm(os, "Pronta"))}. Avisar o cliente por WhatsApp antes da retirada.</div>
+      <div class="total-row"><span class="lbl">Total a receber</span><span class="val num">${brl(total)}</span></div>
+      <div class="field-row"><label>Forma de pagamento</label>
+        <div class="pagto-btns">
+          <button class="chip-btn" data-pagto="Dinheiro">Dinheiro</button>
+          <button class="chip-btn" data-pagto="Pix">Pix</button>
+          <button class="chip-btn" data-pagto="CartaoDebito">Débito</button>
+          <button class="chip-btn" data-pagto="CartaoCredito">Crédito</button>
+        </div>
+      </div>
+      <div class="field-two">
+        <div class="field-row"><label>Desconto (R$)</label><input type="number" id="cur-desconto" step="0.01" value="0" /></div>
+        <div class="field-row"><label>Garantia (dias)</label><input type="number" id="cur-garantia" value="90" min="0" /></div>
+      </div>
+      <div id="cur-erro" class="inline-err" style="display:none"></div>
+      <div><button class="btn-primary" id="btnEntregar" disabled>Selecione a forma de pagamento</button></div>`;
+  }
+
+  function renderSenha(senha) {
+    return `<span class="senha-field"><span id="senhaTxt" data-senha="${esc(senha)}">••••••</span>
+      <button onclick="alternarSenha(this)" title="Mostrar/ocultar (nunca sai impressa)"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button></span>`;
+  }
+  window.alternarSenha = function (btn) {
+    const span = btn.previousElementSibling;
+    const mostrando = span.textContent !== "••••••";
+    span.textContent = mostrando ? "••••••" : span.dataset.senha;
+  };
+
+  // ───────────────────────────────────────────────────────────────────────
+  // Ações de transição (mesmas regras/guardas do agregado C#)
+  // ───────────────────────────────────────────────────────────────────────
+  function erroInline(id, msg) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.textContent = msg; el.style.display = "block";
+  }
+
+  window.acaoRegistrarDiagnostico = function (numero) {
+    const os = OS.find(o => o.numero === numero);
+    const tecnico = document.getElementById("cur-tecnico").value.trim();
+    const diagnostico = document.getElementById("cur-diagnostico").value.trim();
+    const previsaoTxt = document.getElementById("cur-previsao").value.trim();
+    if (!tecnico) return erroInline("cur-erro", "os.tecnico_obrigatorio — atribua um técnico antes de registrar o diagnóstico.");
+    if (!diagnostico) return erroInline("cur-erro", "os.diagnostico_obrigatorio — diagnóstico não pode ser vazio.");
+    os.tecnico = tecnico;
+    os.diagnostico = diagnostico;
+    if (previsaoTxt) {
+      const [d, m, a] = previsaoTxt.split("/").map(Number);
+      if (d && m && a) os.prazo = new Date(a, m - 1, d);
+    }
+    os.status = "EmDiagnostico";
+    os.historico.push({ para: "EmDiagnostico", em: HOJE });
+    toast(`${numero} · diagnóstico registrado.`);
+    render();
+  };
+
+  window.acaoEnviarOrcamento = function (numero) {
+    const os = OS.find(o => o.numero === numero);
+    const desc = document.getElementById("cur-peca-desc").value.trim();
+    const qtd = parseInt(document.getElementById("cur-peca-qtd").value, 10);
+    const precoTxt = document.getElementById("cur-peca-preco").value;
+    const maoTxt = document.getElementById("cur-mao-de-obra").value;
+    const validade = parseInt(document.getElementById("cur-validade").value, 10);
+    if (validade <= 0 || isNaN(validade)) return erroInline("cur-erro", "os.validade_invalida — validade deve ser maior que zero dias.");
+    if (maoTxt === "" || parseFloat(maoTxt) < 0) return erroInline("cur-erro", "os.mao_de_obra_invalida — mão de obra não pode ser negativa.");
+    const pecas = [];
+    if (desc) {
+      if (!qtd || qtd <= 0) return erroInline("cur-erro", "os.quantidade_invalida — quantidade de peça prevista deve ser maior que zero.");
+      pecas.push({ desc, produtoId: "prod-" + desc.toLowerCase().replace(/\s+/g, "-").slice(0, 20), qtd, preco: Math.round(parseFloat(precoTxt || 0) * 100) });
+    }
+    os.orcamento = { pecas, maoDeObra: Math.round(parseFloat(maoTxt) * 100), validadeDias: validade, enviadoEm: HOJE };
+    os.status = "AguardandoAprovacao";
+    os.historico.push({ para: "AguardandoAprovacao", em: HOJE });
+    toast(`${numero} · orçamento enviado — ${brl(totalOrcamento(os.orcamento))}.`);
+    render();
+  };
+
+  window.acaoDecisao = function (numero, decisao) {
+    const os = OS.find(o => o.numero === numero);
+    const canalBtn = document.querySelector(".canal-btns .chip-btn.selected");
+    if (!canalBtn) return erroInline("cur-erro", "Selecione o canal pelo qual o cliente respondeu.");
+    const canal = canalBtn.dataset.canal;
+    os.aprovacao = { decisao, canal, em: HOJE };
+    if (decisao === "Aprovada") {
+      os.status = "Aprovada";
+      os.historico.push({ para: "Aprovada", em: HOJE });
+      toast(`${numero} · aprovada — peças de catálogo reservadas no estoque.`);
+    } else {
+      const motivo = document.getElementById("cur-motivo")?.value.trim() || null;
+      os.motivoReprovacao = motivo;
+      os.status = "Reprovada";
+      os.historico.push({ para: "Reprovada", em: HOJE });
+      toast(`${numero} · reprovada pelo cliente.`);
+    }
+    render();
+  };
+
+  window.acaoIniciarExecucao = function (numero) { acaoRapidaIniciarExecucao(numero); };
+
+  window.acaoAplicarPeca = function (numero, linhaId) {
+    const os = OS.find(o => o.numero === numero);
+    const peca = os.pecasExecucao.find(p => p.linhaId === linhaId);
+    peca.aplicada = true;
+    toast(`Peça "${peca.desc}" aplicada${peca.produtoId ? " — baixa de estoque registrada" : ""}.`);
+    render();
+  };
+
+  window.acaoAdicionarPecaExtra = function (numero) {
+    const os = OS.find(o => o.numero === numero);
+    const desc = document.getElementById("cur-extra-desc").value.trim();
+    const qtd = parseInt(document.getElementById("cur-extra-qtd").value, 10);
+    const preco = parseFloat(document.getElementById("cur-extra-preco").value);
+    const avisado = document.getElementById("cur-extra-avisado").checked;
+    if (!desc) return erroInline("cur-erro-extra", "Descreva a peça extra.");
+    if (!qtd || qtd <= 0) return erroInline("cur-erro-extra", "os.quantidade_invalida — quantidade deve ser maior que zero.");
+    if (isNaN(preco) || preco < 0) return erroInline("cur-erro-extra", "os.preco_invalido — preço unitário não pode ser negativo.");
+    if (!avisado) return erroInline("cur-erro-extra", "os.peca_extra_exige_aviso — confirme que o cliente foi avisado do novo valor.");
+    os.pecasExecucao.push({ linhaId: uid(), desc, produtoId: "prod-extra-" + uid(), qtd, preco: Math.round(preco * 100), origem: "extra", aplicada: true });
+    toast(`Peça extra "${desc}" adicionada — cliente avisado do novo valor.`);
+    render();
+  };
+
+  window.acaoAjustarMaoDeObra = function (numero) {
+    const os = OS.find(o => o.numero === numero);
+    const valor = parseFloat(document.getElementById("cur-mdo-final").value);
+    const avisado = document.getElementById("cur-mdo-avisado").checked;
+    if (isNaN(valor) || valor < 0) return erroInline("cur-erro-mdo", "os.mao_de_obra_invalida — mão de obra não pode ser negativa.");
+    const novoCents = Math.round(valor * 100);
+    if (novoCents > os.orcamento.maoDeObra && !avisado) {
+      return erroInline("cur-erro-mdo", "os.aumento_mao_de_obra_exige_aviso — aumentar acima do orçado exige confirmar que o cliente foi avisado.");
+    }
+    os.maoDeObraFinal = novoCents;
+    toast(`${numero} · mão de obra ajustada para ${brl(novoCents)}.`);
+    render();
+  };
+
+  window.acaoConcluirExecucao = function (numero) { acaoRapidaConcluirExecucao(numero); };
+
+  window.acaoCancelar = function (numero) {
+    const os = OS.find(o => o.numero === numero);
+    if (ehTerminal(os.status)) return;
+    const motivo = "cancelada pelo operador"; // num app real, um prompt/modal pediria o motivo (invariante os.motivo_obrigatorio)
+    os.motivoCancelamento = motivo;
+    os.status = "Cancelada";
+    os.historico.push({ para: "Cancelada", em: HOJE });
+    toast(`${numero} · cancelada — reservas de estoque liberadas.`);
+    voltarParaLista();
+  };
+
+  function bindDetalhe(os) {
+    const btnMenu = document.getElementById("btnMenuOs");
+    const menu = document.getElementById("menuOs");
+    if (btnMenu) {
+      btnMenu.addEventListener("click", e => { e.stopPropagation(); menu.style.display = menu.style.display === "none" ? "block" : "none"; });
+      document.addEventListener("click", () => { menu.style.display = "none"; }, { once: true });
+    }
+    document.querySelectorAll(".canal-btns .chip-btn").forEach(b => b.addEventListener("click", () => {
+      document.querySelectorAll(".canal-btns .chip-btn").forEach(x => x.classList.remove("selected"));
+      b.classList.add("selected");
+      const area = document.getElementById("cur-decisao-area");
+      if (area) area.style.display = "block";
+    }));
+    document.querySelectorAll(".pagto-btns .chip-btn").forEach(b => b.addEventListener("click", () => {
+      document.querySelectorAll(".pagto-btns .chip-btn").forEach(x => x.classList.remove("selected"));
+      b.classList.add("selected");
+      const btn = document.getElementById("btnEntregar");
+      if (btn) { btn.disabled = false; btn.textContent = "Receber e entregar"; btn.dataset.forma = b.dataset.pagto; btn.onclick = () => acaoEntregar(os.numero, b.dataset.pagto); }
+    }));
+    const toggleExtra = document.getElementById("btnTogglePecaExtra");
+    if (toggleExtra) toggleExtra.addEventListener("click", () => {
+      const form = document.getElementById("pecaExtraForm");
+      form.style.display = form.style.display === "none" ? "flex" : "none";
+    });
+  }
+
+  window.acaoEntregar = function (numero, forma) {
+    const os = OS.find(o => o.numero === numero);
+    const descontoTxt = document.getElementById("cur-desconto").value;
+    const garantiaTxt = document.getElementById("cur-garantia").value;
+    const desconto = Math.round(parseFloat(descontoTxt || 0) * 100);
+    const garantiaDias = parseInt(garantiaTxt || 0, 10);
+    const total = totalExecucaoAtual(os);
+    if (isNaN(desconto) || desconto < 0) return erroInline("cur-erro", "os.desconto_invalido — desconto não pode ser negativo.");
+    if (garantiaDias < 0) return erroInline("cur-erro", "os.garantia_invalida — dias de garantia não pode ser negativo.");
+    if (desconto > total) return erroInline("cur-erro", "os.desconto_maior_que_total — desconto não pode ser maior que o total da OS.");
+
+    const maoAtual = os.maoDeObraFinal ?? os.orcamento.maoDeObra;
+    const pecasAtual = total - maoAtual;
+    const valorServico = Math.max(0, maoAtual - desconto);
+    const descontoRestante = Math.max(0, desconto - maoAtual);
+    const valorPecas = pecasAtual - descontoRestante;
+
+    os.status = "Entregue";
+    os.formaPagamento = forma;
+    os.desconto = desconto;
+    os.garantiaDias = garantiaDias;
+    os.dataEntrega = HOJE;
+    os.valorServico = valorServico;
+    os.valorPecas = valorPecas;
+    os.historico.push({ para: "Entregue", em: HOJE });
+
+    if (total > 0) toast(`${numero} · entregue — OsFaturada emitida (${brl(valorServico + valorPecas)}).`);
+    else toast(`${numero} · entregue — OS de garantia, sem fato financeiro.`);
+    render();
+  };
+
+  // ───────────────────────────────────────────────────────────────────────
+  render();
+})();
+</script>

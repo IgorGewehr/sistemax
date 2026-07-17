@@ -1,0 +1,672 @@
+<style>
+  :root {
+    /* Neutros/marca herdados dos tokens do app (saas-erp) — mesmos do mockup aprovado */
+    --bg: 210 40% 98%;
+    --surface: 0 0% 100%;
+    --surface-2: 210 40% 96.5%;
+    --fg: 222 47% 11%;
+    --muted: 215 16% 47%;
+    --faint: 215 20% 65%;
+    --border: 214 32% 90%;
+    --primary: 0 72% 51%;
+    --primary-soft: 0 72% 96%;
+    --pos: 152 58% 40%;
+    --pos-soft: 152 55% 94%;
+    --warn: 32 90% 44%;
+    --warn-soft: 38 92% 94%;
+    --crit: 349 78% 48%;
+    --crit-soft: 349 80% 96%;
+    --ring: 0 72% 51%;
+    --shadow: 220 40% 20%;
+    --mono: "SF Mono", ui-monospace, "JetBrains Mono", "Cascadia Code", Menlo, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  }
+  /* Tema CLARO é o padrão do produto — dark só via toggle explícito (data-theme="dark"). */
+  :root[data-theme="light"] {
+    --bg: 210 40% 98%; --surface: 0 0% 100%; --surface-2: 210 40% 96.5%;
+    --fg: 222 47% 11%; --muted: 215 16% 47%; --faint: 215 20% 65%; --border: 214 32% 90%;
+    --primary: 0 72% 51%; --primary-soft: 0 72% 96%; --pos: 152 58% 40%; --pos-soft: 152 55% 94%;
+    --warn: 32 90% 44%; --warn-soft: 38 92% 94%; --crit: 349 78% 48%; --crit-soft: 349 80% 96%; --shadow: 220 40% 20%;
+  }
+  :root[data-theme="dark"] {
+    --bg: 222 47% 5%; --surface: 220 40% 7.5%; --surface-2: 218 34% 11%;
+    --fg: 210 40% 96%; --muted: 215 20% 60%; --faint: 215 18% 42%; --border: 215 25% 16%;
+    --primary: 0 72% 58%; --primary-soft: 0 45% 13%; --pos: 152 55% 50%; --pos-soft: 152 40% 12%;
+    --warn: 38 92% 55%; --warn-soft: 36 45% 13%; --crit: 350 85% 62%; --crit-soft: 349 45% 14%; --shadow: 222 60% 2%;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: hsl(var(--bg)); color: hsl(var(--fg));
+    font-family: var(--sans); -webkit-font-smoothing: antialiased;
+    font-size: 14px; line-height: 1.5;
+  }
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .eyebrow { text-transform: uppercase; letter-spacing: 0.08em; font-size: 11px; font-weight: 600; color: hsl(var(--muted)); }
+  .text-crit { color: hsl(var(--crit)); }
+  .text-pos { color: hsl(var(--pos)); }
+  .text-warn { color: hsl(var(--warn)); }
+  .text-muted { color: hsl(var(--muted)); }
+
+  /* ---- App shell ---- */
+  .app { display: grid; grid-template-columns: 60px 1fr; min-height: 100vh; }
+  .rail {
+    background: hsl(var(--surface)); border-right: 1px solid hsl(var(--border));
+    display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 0;
+  }
+  .rail .logo {
+    width: 34px; height: 34px; border-radius: 10px; margin-bottom: 10px;
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(0 72% 40%));
+    display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 15px;
+    box-shadow: 0 4px 14px hsl(var(--primary) / 0.4);
+  }
+  .rail button {
+    width: 40px; height: 40px; border-radius: 11px; border: 0; background: transparent;
+    color: hsl(var(--faint)); cursor: pointer; display: grid; place-items: center; transition: .15s;
+  }
+  .rail button svg { width: 20px; height: 20px; }
+  .rail button:hover { background: hsl(var(--surface-2)); color: hsl(var(--fg)); }
+  .rail button.active { background: hsl(var(--primary-soft)); color: hsl(var(--primary)); }
+  .rail .spacer { flex: 1; }
+
+  .main { min-width: 0; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 26px 32px 60px; }
+
+  /* ---- Header ---- */
+  header.page { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 22px; flex-wrap: wrap; }
+  header.page h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; margin: 4px 0 2px; text-wrap: balance; }
+  header.page .sub { color: hsl(var(--muted)); font-size: 13.5px; }
+  .head-actions { display: flex; align-items: center; gap: 10px; }
+  .period { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border: 1px solid hsl(var(--border));
+    border-radius: 10px; background: hsl(var(--surface)); font-weight: 600; font-size: 13px; }
+  .btn-primary {
+    display: inline-flex; align-items: center; gap: 7px; padding: 9px 15px; border-radius: 10px; border: 0;
+    background: hsl(var(--primary)); color: #fff; font-weight: 600; font-size: 13.5px; cursor: pointer;
+    box-shadow: 0 4px 14px hsl(var(--primary) / 0.35); transition: transform .12s, filter .12s;
+  }
+  .btn-primary:hover { filter: brightness(1.06); transform: translateY(-1px); }
+  .btn-ghost { padding: 8px 11px; border-radius: 10px; border: 1px solid hsl(var(--border)); background: hsl(var(--surface));
+    color: hsl(var(--fg)); cursor: pointer; font-size: 13px; display: inline-flex; gap: 6px; align-items: center; }
+  .btn-ghost:hover { background: hsl(var(--surface-2)); }
+
+  /* ---- Cards ---- */
+  .card { background: hsl(var(--surface)); border: 1px solid hsl(var(--border)); border-radius: 16px;
+    box-shadow: 0 1px 2px hsl(var(--shadow) / 0.06), 0 8px 24px -18px hsl(var(--shadow) / 0.5); }
+
+  /* KPI row */
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 16px; }
+  .kpi { padding: 16px 18px; position: relative; overflow: hidden; }
+  .kpi .lbl { display: flex; align-items: center; gap: 6px; }
+  .kpi .val { font-size: 27px; font-weight: 700; margin-top: 10px; letter-spacing: -0.02em; }
+  .kpi .val small { font-size: 15px; font-weight: 600; color: hsl(var(--muted)); }
+  .kpi .delta { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; font-weight: 600; margin-top: 7px; }
+  .kpi .foot { font-size: 12px; color: hsl(var(--muted)); margin-top: 3px; }
+  .kpi.hero::after { content: ""; position: absolute; inset: 0; background: radial-gradient(120% 90% at 100% 0, hsl(var(--primary) / 0.10), transparent 60%); pointer-events: none; }
+  .spark { margin-top: 10px; height: 34px; width: 100%; display: block; }
+
+  /* Info tooltip (ⓘ) — CSS only, herdado de Visão Geral/Relatórios */
+  .info-ic { position: relative; display: inline-flex; width: 15px; height: 15px; border-radius: 50%;
+    background: hsl(var(--surface-2)); color: hsl(var(--muted)); font-size: 10px; align-items: center; justify-content: center;
+    cursor: help; margin-left: 5px; vertical-align: middle; }
+  .info-ic:hover::after, .info-ic:focus-visible::after {
+    content: attr(data-tip); position: absolute; bottom: 130%; left: 50%; transform: translateX(-50%);
+    width: 226px; background: hsl(var(--fg)); color: hsl(var(--bg)); font-size: 11.5px; font-weight: 500;
+    padding: 9px 11px; border-radius: 9px; line-height: 1.45; z-index: 8; text-transform: none; letter-spacing: normal;
+    box-shadow: 0 10px 26px hsl(var(--shadow) / 0.35); }
+  .info-ic:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+
+  /* Consultor */
+  .consultor { display: flex; gap: 14px; padding: 16px 18px; margin-bottom: 16px; align-items: flex-start;
+    background:
+      linear-gradient(hsl(var(--surface)), hsl(var(--surface))) padding-box,
+      linear-gradient(120deg, hsl(var(--primary) / 0.5), hsl(var(--border) / 0.2)) border-box;
+    border: 1px solid transparent; border-radius: 16px; }
+  .consultor .icon { flex: none; width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center;
+    background: hsl(var(--primary-soft)); color: hsl(var(--primary)); }
+  .consultor .icon svg { width: 20px; height: 20px; }
+  .consultor h3 { margin: 1px 0 5px; font-size: 13px; letter-spacing: -0.01em; }
+  .consultor p { margin: 0; font-size: 13.5px; line-height: 1.6; color: hsl(var(--fg)); }
+  .consultor b { color: hsl(var(--primary)); font-weight: 700; }
+  .consultor .money-bad { color: hsl(var(--crit)); font-weight: 700; }
+  .consultor .money-good { color: hsl(var(--pos)); font-weight: 700; }
+  .consultor .cta { font-size: 13px; font-weight: 700; color: hsl(var(--primary)); background: none; border: 0; cursor: pointer; padding: 0; margin-left: 2px; font-family: inherit; }
+  .consultor .cta:hover { text-decoration: underline; }
+
+  /* 2-col */
+  .grid2 { display: grid; grid-template-columns: 1.15fr 1fr; gap: 16px; margin-bottom: 16px; }
+  .card h2.sec { font-size: 13px; font-weight: 700; letter-spacing: -0.01em; padding: 15px 18px 0; margin: 0; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .card h2.sec .hint { font-weight: 500; font-size: 12px; color: hsl(var(--muted)); }
+
+  /* Índice clicável (bars) — herdado de Assinaturas */
+  .bars { padding: 14px 18px 18px; display: flex; flex-direction: column; gap: 13px; }
+  .track { grid-column: 1 / -1; height: 8px; border-radius: 6px; background: hsl(var(--surface-2)); overflow: hidden; }
+  .fill { height: 100%; border-radius: 6px; }
+  .bars.sel { padding: 12px; gap: 2px; }
+  .bars.scroll { max-height: 322px; overflow-y: auto; }
+  .bars.scroll::-webkit-scrollbar { width: 6px; }
+  .bars.scroll::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 6px; }
+  .bar-click { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; align-items: center; width: 100%;
+    border: 0; background: none; font: inherit; color: inherit; cursor: pointer; text-align: left; padding: 9px 10px; border-radius: 11px; transition: background .12s; }
+  .bar-click:hover { background: hsl(var(--surface-2)); }
+  .bar-click:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+  .bar-click .name { font-weight: 600; font-size: 13px; }
+  .bar-click .amt { font-size: 12.5px; color: hsl(var(--muted)); }
+  .bar-click .pct { font-weight: 700; font-size: 12.5px; }
+
+  /* Stat tiles */
+  .stats { padding: 14px 18px 18px; display: flex; flex-direction: column; gap: 11px; }
+  .stat { padding: 12px 14px; border-radius: 12px; background: hsl(var(--surface-2)); }
+  .stat .k { font-size: 12px; color: hsl(var(--muted)); font-weight: 600; }
+  .stat .v { font-size: 24px; font-weight: 700; margin-top: 4px; letter-spacing: -0.02em; }
+  .stat .v small { font-size: 13px; font-weight: 600; color: hsl(var(--muted)); }
+  .stat .s { font-size: 12px; color: hsl(var(--faint)); margin-top: 2px; }
+
+  /* Gráfico de colunas + linha de média tracejada (degrau) */
+  .chart { padding: 10px 18px 6px; }
+  .chart svg { width: 100%; height: auto; display: block; overflow: visible; }
+  .chart .zero { stroke: hsl(var(--border)); stroke-width: 1; }
+  .chart .mlabel { fill: hsl(var(--muted)); font-size: 9px; font-family: var(--sans); }
+  .chart .avglabel { fill: hsl(var(--muted)); font-size: 9.5px; font-weight: 700; font-family: var(--sans); }
+  .chart .blabel { fill: hsl(var(--crit)); font-size: 10px; font-weight: 700; font-family: var(--mono); }
+  .chart rect { transition: opacity .12s; }
+  .chart rect:hover { opacity: .78; }
+  .legend { display: flex; gap: 16px; padding: 0 18px 16px; font-size: 12px; color: hsl(var(--muted)); }
+  .legend .lg { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+  .legend .ln { width: 14px; height: 0; border-top: 2px dashed hsl(var(--muted)); display: inline-block; }
+
+  /* Table */
+  .tbl-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; min-width: 700px; }
+  thead th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: hsl(var(--muted));
+    font-weight: 600; padding: 12px 16px; border-bottom: 1px solid hsl(var(--border)); }
+  thead th.r, tbody td.r { text-align: right; }
+  tbody td { padding: 13px 16px; border-bottom: 1px solid hsl(var(--border) / 0.6); font-size: 13.5px; }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr:hover { background: hsl(var(--surface-2) / 0.6); }
+  .soft-dot { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
+  .dot { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+  .cli { color: hsl(var(--muted)); font-size: 12.5px; }
+  .val-mono { font-weight: 600; }
+  .chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+  .chip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .chip.ativa { color: hsl(var(--pos)); background: hsl(var(--pos-soft)); }
+  .chip.atencao { color: hsl(var(--warn)); background: hsl(var(--warn-soft)); }
+  .chip.risco { color: hsl(var(--warn)); background: hsl(var(--warn-soft)); }
+  .chip.atraso { color: hsl(var(--crit)); background: hsl(var(--crit-soft)); }
+  .chip.cancel { color: hsl(var(--faint)); background: hsl(var(--surface-2)); }
+  tr.cancelled td:not(.st) { color: hsl(var(--faint)); text-decoration: line-through; text-decoration-color: hsl(var(--faint) / 0.5); }
+
+  /* Tabs do Financeiro + segmented de Recorrentes */
+  .tabs { display: flex; gap: 2px; border-bottom: 1px solid hsl(var(--border)); margin-bottom: 16px; overflow-x: auto; }
+  .tab { padding: 10px 14px; font-size: 13.5px; font-weight: 600; color: hsl(var(--muted)); border: 0; background: none; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; transition: .15s; }
+  .tab:hover { color: hsl(var(--fg)); }
+  .tab.active { color: hsl(var(--primary)); border-bottom-color: hsl(var(--primary)); }
+  .subhead { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+  .seg { display: inline-flex; background: hsl(var(--surface-2)); border: 1px solid hsl(var(--border)); border-radius: 11px; padding: 3px; gap: 2px; }
+  .seg button { padding: 7px 13px; border: 0; background: none; border-radius: 8px; font-size: 13px; font-weight: 600; color: hsl(var(--muted)); cursor: pointer; }
+  .seg button.active { background: hsl(var(--surface)); color: hsl(var(--fg)); box-shadow: 0 1px 3px hsl(var(--shadow) / 0.2); }
+  .ctx-note { font-size: 12px; color: hsl(var(--muted)); display: inline-flex; align-items: center; gap: 6px; transition: opacity .15s; }
+  .ctx-note svg { color: hsl(var(--primary)); flex: none; }
+
+  /* Nota de referência (lente Assinaturas → tela dedicada) */
+  .note-box { font-size: 12.5px; color: hsl(var(--muted)); display: flex; align-items: flex-start; gap: 9px;
+    padding: 13px 16px; border: 1px dashed hsl(var(--border)); border-radius: 14px; line-height: 1.55; }
+  .note-box svg { color: hsl(var(--primary)); flex: none; margin-top: 1px; }
+  .note-box b { color: hsl(var(--fg)); font-weight: 700; }
+
+  /* Análise interativa: overview (índice, clicável) ⇄ drill do item */
+  #cardEsqFixas, #cardDirFixas, #cardEsqAssin, #cardDirAssin { min-height: 236px; }
+  .secleft { display: inline-flex; align-items: center; gap: 8px; }
+  .back { border: 0; background: hsl(var(--surface-2)); color: hsl(var(--fg)); width: 26px; height: 26px; border-radius: 8px;
+    cursor: pointer; font-size: 15px; line-height: 1; display: inline-grid; place-items: center; transition: .12s; }
+  .back:hover { background: hsl(var(--primary-soft)); color: hsl(var(--primary)); }
+  .card.anim > * { animation: cardin .22s ease both; }
+  @keyframes cardin { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: none; } }
+  @media (prefers-reduced-motion: reduce) { .card.anim > * { animation: none; } }
+
+  .theme-toggle { position: fixed; top: 14px; right: 16px; z-index: 10; }
+
+  /* Toast */
+  .toast-wrap { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); z-index: 60; display: flex; flex-direction: column; gap: 8px; align-items: center; }
+  .toast { background: hsl(var(--fg)); color: hsl(var(--bg)); padding: 11px 18px; border-radius: 12px; font-size: 13px; font-weight: 600;
+    box-shadow: 0 12px 30px -10px hsl(var(--shadow) / .6); animation: toastIn .2s ease both, toastOut .25s ease 2.6s forwards; }
+  @keyframes toastIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  @keyframes toastOut { to { opacity: 0; transform: translateY(-6px); } }
+
+  @media (max-width: 860px) {
+    .kpis { grid-template-columns: repeat(2, 1fr); }
+    .grid2 { grid-template-columns: 1fr; }
+    .app { grid-template-columns: 0 1fr; }
+    .rail { display: none; }
+    .wrap { padding: 22px 18px 50px; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<button class="btn-ghost theme-toggle" onclick="(function(){var r=document.documentElement;var d=(r.getAttribute('data-theme')|| (matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'))==='dark';r.setAttribute('data-theme',d?'light':'dark');})()">◐ tema</button>
+
+<div class="app">
+  <nav class="rail" aria-label="Navegação">
+    <div class="logo">S</div>
+    <button title="Início"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10.5 12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1z"/></svg></button>
+    <button class="active" title="Financeiro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg></button>
+    <button title="Vendas / PDV"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2 3h3l2.4 12.5a1 1 0 0 0 1 .8h9.2a1 1 0 0 0 1-.8L21 7H6"/></svg></button>
+    <button title="Estoque"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/></svg></button>
+    <button title="Clientes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M17 5.5a3 3 0 0 1 0 5.6M22 20a6 6 0 0 0-4-5.7"/></svg></button>
+    <div class="spacer"></div>
+    <button title="Ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 2h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12a7 7 0 0 0 .1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 22h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6A7 7 0 0 0 19 12z"/></svg></button>
+  </nav>
+
+  <main class="main">
+    <div class="wrap">
+      <header class="page">
+        <div>
+          <div class="eyebrow">Financeiro · Recorrentes</div>
+          <h1 id="h1Lens">Contas fixas</h1>
+          <div class="sub" id="subLens">O que custa existir todo mês — antes de vender qualquer coisa.</div>
+        </div>
+        <div class="head-actions">
+          <div class="period">Julho 2026 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg></div>
+          <button class="btn-primary" id="btnNovo"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg> <span id="btnNovoLabel">Nova recorrência</span></button>
+        </div>
+      </header>
+
+      <nav class="tabs" aria-label="Seções do Financeiro">
+        <button class="tab">Visão geral</button>
+        <button class="tab">Entradas &amp; saídas</button>
+        <button class="tab active">Recorrentes</button>
+        <button class="tab">Bancário</button>
+        <button class="tab">Fluxo de caixa</button>
+        <button class="tab">Relatórios</button>
+      </nav>
+      <div class="subhead">
+        <div class="seg" id="segControl">
+          <button class="active" data-lens="fixas">Contas fixas <span style="opacity:.6;font-weight:500">· luz, aluguel, salários</span></button>
+          <button data-lens="assinaturas">Assinaturas</button>
+        </div>
+        <div class="ctx-note" id="ctxNote" style="visibility:hidden"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-5M12 8h.01"/></svg> Visível porque este negócio vende serviço recorrente</div>
+      </div>
+
+      <!-- ============ PAINEL: CONTAS FIXAS ============ -->
+      <div id="painelFixas">
+        <section class="kpis" id="kpisFixas"></section>
+        <div class="consultor" id="consultorFixas"></div>
+        <section class="grid2">
+          <div class="card" id="cardEsqFixas"></div>
+          <div class="card" id="cardDirFixas"></div>
+        </section>
+        <div class="card" id="tabelaFixas"></div>
+      </div>
+
+      <!-- ============ PAINEL: ASSINATURAS (resumo — tela completa já aprovada) ============ -->
+      <div id="painelAssinaturas" style="display:none">
+        <section class="kpis">
+          <div class="card kpi hero">
+            <div class="lbl eyebrow">MRR · receita recorrente</div>
+            <div class="val num">R$ 6.077</div>
+            <div class="delta" style="color:hsl(var(--crit))"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 7l10 10M17 7v10H7"/></svg> −R$ 349 (−5,4%) no mês</div>
+            <svg class="spark" viewBox="0 0 260 34" preserveAspectRatio="none" aria-hidden="true">
+              <defs><linearGradient id="gAssin" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="hsl(var(--primary))" stop-opacity="0.28"/><stop offset="1" stop-color="hsl(var(--primary))" stop-opacity="0"/></linearGradient></defs>
+              <path d="M0,20 L52,15 L104,9 L156,12 L208,10 L260,17" fill="none" stroke="hsl(var(--primary))" stroke-width="2" stroke-linecap="round"/>
+              <path d="M0,20 L52,15 L104,9 L156,12 L208,10 L260,17 L260,34 L0,34 Z" fill="url(#gAssin)"/>
+              <circle cx="260" cy="17" r="3" fill="hsl(var(--primary))"/>
+            </svg>
+          </div>
+          <div class="card kpi">
+            <div class="lbl eyebrow">Churn do mês</div>
+            <div class="val num">R$ 1.239</div>
+            <div class="delta text-crit">2 clientes · 16,9% da base</div>
+            <div class="foot">Salão Bella · Mercadinho Luz</div>
+          </div>
+          <div class="card kpi">
+            <div class="lbl eyebrow">Novos + expansão</div>
+            <div class="val num">+R$ 890</div>
+            <div class="delta text-pos"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 17 17 7M7 7h10v10"/></svg> 1 cliente novo</div>
+            <div class="foot">Distribuidora Norte</div>
+          </div>
+          <div class="card kpi">
+            <div class="lbl eyebrow">Valor estimado · ARR</div>
+            <div class="val num">R$ 72.924</div>
+            <div class="delta">8 assinaturas ativas · ticket médio <span class="num">R$ 760</span></div>
+          </div>
+        </section>
+
+        <div class="consultor">
+          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 0 0-4 12.7V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.3A7 7 0 0 0 12 2z"/><path d="M9 21h6"/></svg></div>
+          <div>
+            <h3>Super Consultor</h3>
+            <p><b>Prioridade da semana:</b> sua receita está concentrada demais — a <b>Prefeitura de Ilhota é 41% do MRR</b>. Se ela sair, você perde quase metade. Blinde esse contrato antes de pensar em crescer. (O churn deste mês, R$ 1.239, foi 2 clientes pequenos — dói menos que a dependência de um grande.) <button class="cta" id="ctaAssin">Ver a concentração →</button></p>
+          </div>
+        </div>
+
+        <section class="grid2">
+          <div class="card" id="cardEsqAssin"></div>
+          <div class="card" id="cardDirAssin"></div>
+        </section>
+
+        <div class="note-box">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-5M12 8h.01"/></svg>
+          <span>Isto é o <b>resumo</b> da lente Assinaturas — MRR por serviço, novos × churn e retenção da carteira, com os mesmos números da tela já aprovada. A <b>tabela completa</b> (todas as 10 assinaturas, histórico por cliente, cobrança de atrasados) vive na tela dedicada <b>Financeiro › Recorrentes › Assinaturas</b>, sem mudanças aqui.</span>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script>
+(function () {
+  // ================= Helpers globais =================
+  function toast(msg) {
+    var wrap = document.getElementById('toastWrap');
+    var el = document.createElement('div');
+    el.className = 'toast'; el.textContent = msg;
+    wrap.appendChild(el);
+    setTimeout(function () { el.remove(); }, 3000);
+  }
+  function brl(n) { return 'R$ ' + Math.round(n).toLocaleString('pt-BR'); }
+  function pctSigned(n, d) { d = d == null ? 1 : d; return (n >= 0 ? '+' : '−') + Math.abs(n).toFixed(d).replace('.', ',') + '%'; }
+  function pctPlain(n, d) { d = d == null ? 1 : d; return n.toFixed(d).replace('.', ',') + '%'; }
+
+  // ================= PAINEL: CONTAS FIXAS =================
+  var meses = ['Ago', 'Set', 'Out', 'Nov', 'Dez', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul'];
+
+  var items = [
+    { id: 'folha', nome: 'Folha de pagamento', categoria: 'Pessoal', dia: 30, prox: '30/07', desde: 'jan/2021',
+      hist: [4900, 4900, 4900, 4900, 4900, 4900, 4900, 4900, 4900, 4900, 4900, 4900] },
+    { id: 'aluguel', nome: 'Aluguel do salão', categoria: 'Ocupação', dia: 5, prox: '05/08', desde: 'mar/2021',
+      hist: [1980, 1980, 1980, 1980, 1980, 1980, 2100, 2100, 2100, 2100, 2100, 2100] },
+    { id: 'vt', nome: 'Vale-transporte e benefícios', categoria: 'Pessoal', dia: 30, prox: '30/07', desde: 'jun/2022',
+      hist: [560, 560, 600, 600, 640, 680, 720, 720, 760, 760, 760, 760] },
+    { id: 'contab', nome: 'Contabilidade', categoria: 'Serviços profissionais', dia: 10, prox: '10/08', desde: 'jan/2021',
+      hist: [890, 890, 890, 890, 890, 890, 890, 890, 890, 890, 890, 890] },
+    { id: 'luz', nome: 'Luz (Energisa)', categoria: 'Utilidades', dia: 18, prox: '18/07', desde: 'jan/2021',
+      hist: [470, 500, 485, 505, 525, 480, 510, 495, 520, 540, 497, 618] },
+    { id: 'mkt', nome: 'Marketing recorrente (Ads)', categoria: 'Marketing', dia: 1, prox: '01/08', desde: 'fev/2025',
+      hist: [350, 350, 380, 380, 400, 400, 400, 400, 400, 400, 400, 400] },
+    { id: 'sistema', nome: 'Sistema de gestão (SistemaX)', categoria: 'Tecnologia', dia: 15, prox: '15/08', desde: 'mai/2024',
+      hist: [349, 349, 349, 349, 349, 349, 349, 349, 349, 349, 349, 349] },
+    { id: 'internet', nome: 'Internet + telefonia', categoria: 'Utilidades', dia: 8, prox: '08/08', desde: 'jan/2021',
+      hist: [180, 180, 180, 195, 195, 195, 195, 195, 195, 195, 195, 210] },
+    { id: 'seguranca', nome: 'Segurança / alarme monitorado', categoria: 'Serviços', dia: 20, prox: '20/07', desde: 'set/2023',
+      hist: [480, 480, 480, 480, 480, 480, 480, 480, 480, 480, 480, 480] },
+    { id: 'agua', nome: 'Água', categoria: 'Utilidades', dia: 12, prox: '12/08', desde: 'jan/2021',
+      hist: [175, 180, 175, 185, 190, 180, 185, 190, 185, 195, 188, 190] },
+    { id: 'manut', nome: 'Manutenção de equipamentos', categoria: 'Manutenção', dia: 22, prox: '22/07', desde: 'out/2023',
+      hist: [300, 300, 320, 320, 340, 340, 343, 343, 343, 343, 343, 343] }
+  ];
+
+  items.forEach(function (it) {
+    it.atual = it.hist[11];
+    it.mesPassado = it.hist[10];
+    var trailing6 = it.hist.slice(5, 11); // Jan..Jun — a "média de 6 meses"
+    it.avg6 = trailing6.reduce(function (a, b) { return a + b; }, 0) / 6;
+    it.varPct = it.avg6 > 0 ? (it.atual - it.avg6) / it.avg6 * 100 : 0;
+    it.flag = it.varPct >= 15;
+    it.ytd = it.hist.slice(5, 12).reduce(function (a, b) { return a + b; }, 0); // jan–jul
+  });
+
+  var totalAtual = items.reduce(function (s, i) { return s + i.atual; }, 0);
+  var totalAnterior = items.reduce(function (s, i) { return s + i.mesPassado; }, 0);
+  var totalHa6Meses = items.reduce(function (s, i) { return s + i.hist[5]; }, 0);
+  var deltaAbs = totalAtual - totalAnterior;
+  var deltaPct = deltaAbs / totalAnterior * 100;
+  var cresceuPct = (totalAtual - totalHa6Meses) / totalHa6Meses * 100;
+  var RECEITA_MEDIA = 24300;
+  var pesoReceita = totalAtual / RECEITA_MEDIA * 100;
+  var DIAS_UTEIS = 22;
+  var custoPorDia = totalAtual / DIAS_UTEIS;
+  var projecaoAnual = totalAtual * 12;
+  var pendentesJulho = items.filter(function (i) { return i.prox.slice(3) === '07'; });
+  var maiorPendente = pendentesJulho.reduce(function (a, b) { return b.atual > a.atual ? b : a; }, pendentesJulho[0]);
+  var luz = items.find(function (i) { return i.id === 'luz'; });
+  var deltaAnualLuz = (luz.atual - luz.avg6) * 12;
+
+  var MESES_MAP = { jan: 0, fev: 1, mar: 2, abr: 3, mai: 4, jun: 5, jul: 6, ago: 7, set: 8, out: 9, nov: 10, dez: 11 };
+  function anosDesde(str) {
+    var parts = str.split('/'); var m = parts[0], y = parseInt(parts[1], 10);
+    var start = MESES_MAP[m] + (2000 + y % 100) * 12;
+    var now = MESES_MAP['jul'] + 2026 * 12;
+    var diff = now - start;
+    var anos = Math.floor(diff / 12), rMeses = diff % 12;
+    if (anos <= 0) return rMeses + (rMeses === 1 ? ' mês' : ' meses') + ' de casa';
+    if (rMeses === 0) return anos + (anos === 1 ? ' ano' : ' anos') + ' de casa';
+    return anos + (anos === 1 ? ' ano e ' : ' anos e ') + rMeses + (rMeses === 1 ? ' mês' : ' meses') + ' de casa';
+  }
+
+  function sparklineFixas() {
+    var totals = meses.map(function (_, m) { return items.reduce(function (s, i) { return s + i.hist[m]; }, 0); });
+    var min = Math.min.apply(null, totals), max = Math.max.apply(null, totals);
+    var w = 260, h = 34;
+    var pts = totals.map(function (v, i) {
+      var x = i / (totals.length - 1) * w;
+      var y = h - ((v - min) / ((max - min) || 1)) * (h - 6) - 3;
+      return [x, y];
+    });
+    var path = pts.map(function (p, i) { return (i === 0 ? 'M' : 'L') + p[0].toFixed(1) + ',' + p[1].toFixed(1); }).join(' ');
+    var area = path + ' L' + w + ',' + h + ' L0,' + h + ' Z';
+    var last = pts[pts.length - 1];
+    return '<svg class="spark" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none" aria-hidden="true">' +
+      '<defs><linearGradient id="gFixas" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="hsl(var(--primary))" stop-opacity="0.28"/><stop offset="1" stop-color="hsl(var(--primary))" stop-opacity="0"/></linearGradient></defs>' +
+      '<path d="' + path + '" fill="none" stroke="hsl(var(--primary))" stroke-width="2" stroke-linecap="round"/>' +
+      '<path d="' + area + '" fill="url(#gFixas)"/>' +
+      '<circle cx="' + last[0].toFixed(1) + '" cy="' + last[1].toFixed(1) + '" r="3" fill="hsl(var(--primary))"/>' +
+      '</svg>';
+  }
+
+  function renderKpisFixas() {
+    document.getElementById('kpisFixas').innerHTML =
+      '<div class="card kpi hero">' +
+        '<div class="lbl eyebrow">Custo de existir</div>' +
+        '<div class="val num">' + brl(totalAtual) + '<small>/mês</small></div>' +
+        '<div class="foot">= ' + brl(custoPorDia) + ' por dia útil só pra abrir as portas <span style="opacity:.7">(' + DIAS_UTEIS + ' dias úteis)</span></div>' +
+        sparklineFixas() +
+      '</div>' +
+      '<div class="card kpi">' +
+        '<div class="lbl eyebrow">Vs. mês passado</div>' +
+        '<div class="val num">' + (deltaAbs >= 0 ? '+' : '−') + brl(Math.abs(deltaAbs)) + '</div>' +
+        '<div class="delta" style="color:hsl(var(--crit))"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M7 17 17 7M7 7h10v10"/></svg> ' + pctSigned(deltaPct) + ' desde o mês passado</div>' +
+        '<div class="foot">luz e internet subiram</div>' +
+      '</div>' +
+      '<div class="card kpi">' +
+        '<div class="lbl eyebrow">Peso na receita <span class="info-ic" tabindex="0" data-tip="Custo fixo ÷ receita média dos últimos 3 meses (' + brl(RECEITA_MEDIA) + '). Acima de 60% é sinal de alerta.">ⓘ</span></div>' +
+        '<div class="val num">' + Math.round(pesoReceita) + '<small>%</small></div>' +
+        '<div class="foot">da receita média</div>' +
+      '</div>' +
+      '<div class="card kpi">' +
+        '<div class="lbl eyebrow">Próxima grande</div>' +
+        '<div class="val" style="font-size:19px">' + maiorPendente.nome.split(' ')[0] + ' <span class="num" style="font-size:13px;color:hsl(var(--muted));font-weight:600">· ' + maiorPendente.prox + '</span></div>' +
+        '<div class="foot num" style="font-weight:700;color:hsl(var(--fg));font-size:14px">' + brl(maiorPendente.atual) + '</div>' +
+      '</div>';
+  }
+
+  function renderConsultorFixas() {
+    document.getElementById('consultorFixas').innerHTML =
+      '<div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 0 0-4 12.7V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.3A7 7 0 0 0 12 2z"/><path d="M9 21h6"/></svg></div>' +
+      '<div><h3>Super Consultor</h3><p><b>Prioridade da semana:</b> a conta de <b>luz vence dia 18</b> (daqui a 2 dias) e veio <span class="money-bad">' + Math.round(luz.varPct) + '% acima</span> da sua média de 6 meses — <b class="num">' + brl(luz.atual) + '</b> vs <b class="num">' + brl(luz.avg6) + '</b>. Se virou o novo normal, seu custo fixo sobe <span class="money-bad">' + brl(deltaAnualLuz) + '</span> por ano. <button class="cta" id="ctaLuz">Ver a conta →</button></p></div>';
+    document.getElementById('ctaLuz').addEventListener('click', function () {
+      goFixas('luz');
+      document.getElementById('cardEsqFixas').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  }
+
+  // ---- grid2: índice clicável ⇄ drill (colunas 12m + média tracejada) ----
+  var cardEsqFixas = document.getElementById('cardEsqFixas');
+  var cardDirFixas = document.getElementById('cardDirFixas');
+
+  function svgColunas(it) {
+    var w = 400, h = 158, x0 = 20, x1 = 388, baseY = 122, topPad = 16;
+    var maxV = Math.max.apply(null, it.hist.concat([it.avg6])) * 1.1;
+    var slot = (x1 - x0) / 12, bw = Math.min(15, slot * 0.55);
+    function scaleY(v) { return (baseY - topPad) * (v / maxV); }
+    var bars = '';
+    it.hist.forEach(function (v, i) {
+      var hgt = scaleY(v);
+      var cx = x0 + slot * i + slot / 2;
+      var isCur = i === 11;
+      var flagged = isCur && it.flag;
+      var fill = flagged ? 'hsl(var(--crit))' : (isCur ? 'hsl(var(--fg) / 0.55)' : 'hsl(var(--fg) / 0.22)');
+      bars += '<rect x="' + (cx - bw / 2).toFixed(1) + '" y="' + (baseY - hgt).toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + hgt.toFixed(1) + '" rx="3" fill="' + fill + '"><title>' + meses[i] + ' · ' + brl(v) + '</title></rect>';
+      bars += '<text class="mlabel" x="' + cx.toFixed(1) + '" y="' + (baseY + 14) + '" text-anchor="middle">' + meses[i] + '</text>';
+      if (flagged) { bars += '<text x="' + cx.toFixed(1) + '" y="' + (baseY - hgt - 7).toFixed(1) + '" text-anchor="middle" class="blabel">+' + Math.round(it.varPct) + '%</text>'; }
+    });
+    var avgY = baseY - scaleY(it.avg6);
+    var avgLine = '<line x1="' + x0 + '" y1="' + avgY.toFixed(1) + '" x2="' + x1 + '" y2="' + avgY.toFixed(1) + '" stroke="hsl(var(--muted))" stroke-width="1.4" stroke-dasharray="4 3"/>' +
+      '<text x="' + x0 + '" y="' + (avgY - 6).toFixed(1) + '" class="avglabel">média 6m · ' + brl(it.avg6) + '</text>';
+    return '<svg viewBox="0 0 ' + w + ' ' + h + '" role="img" aria-label="Histórico de valor — ' + it.nome + '"><line class="zero" x1="' + x0 + '" y1="' + baseY + '" x2="' + x1 + '" y2="' + baseY + '"/>' + avgLine + bars + '</svg>';
+  }
+
+  function overviewFixas() {
+    var sorted = items.slice().sort(function (a, b) { return b.atual - a.atual; });
+    var rows = sorted.map(function (it) {
+      var pct = it.atual / totalAtual * 100;
+      var flagTxt = it.flag ? ' <span style="color:hsl(var(--warn));font-weight:700">⚠ +' + Math.round(it.varPct) + '%</span>' : '';
+      return '<button class="bar-click" data-id="' + it.id + '">' +
+        '<span class="name">' + it.nome + flagTxt + '</span><span class="amt num">' + brl(it.atual) + '</span>' +
+        '<div class="track"><div class="fill" style="width:' + pct.toFixed(1) + '%;background:' + (it.flag ? 'hsl(var(--warn))' : 'hsl(var(--fg) / 0.4)') + '"></div></div>' +
+        '<span class="pct num">' + pctPlain(pct) + '</span></button>';
+    }).join('');
+    cardEsqFixas.innerHTML = '<h2 class="sec">Seus compromissos fixos <span class="hint">clique numa recorrência p/ ver histórico e degraus →</span></h2><div class="bars sel scroll">' + rows + '</div>';
+    cardDirFixas.innerHTML = '<h2 class="sec">Retrato do fixo</h2><div class="stats">' +
+      '<div class="stat"><div class="k">Projeção anual</div><div class="v num">' + brl(projecaoAnual) + '</div><div class="s">se tudo continuar igual a julho</div></div>' +
+      '<div class="stat"><div class="k">Variação em 6 meses</div><div class="v num">' + pctSigned(cresceuPct) + '</div><div class="s">de ' + brl(totalHa6Meses) + ' pra ' + brl(totalAtual) + '</div></div>' +
+      '<div class="stat"><div class="k">Compromissos ativos</div><div class="v num">' + items.length + '</div><div class="s">nenhum cancelado este ano</div></div>' +
+      '</div>';
+  }
+
+  function drillFixas(it) {
+    cardEsqFixas.innerHTML = '<h2 class="sec"><span class="secleft"><button class="back" aria-label="Voltar para os compromissos">←</button> ' + it.nome + '</span><span class="hint">12 meses · degraus saltam à vista</span></h2>' +
+      '<div class="chart">' + svgColunas(it) + '</div>' +
+      '<div class="legend"><span class="lg"><span class="ln"></span>média (6 meses)</span>' + (it.flag ? '<span class="lg"><i style="background:hsl(var(--crit))"></i>mês atual, acima da média</span>' : '<span class="lg"><i style="background:hsl(var(--fg) / 0.55)"></i>mês atual</span>') + '</div>';
+    cardDirFixas.innerHTML = '<h2 class="sec">' + it.nome + ' <span class="hint">' + it.categoria + '</span></h2><div class="stats">' +
+      '<div class="stat"><div class="k">Média (6 meses)</div><div class="v num">' + brl(it.avg6) + '</div><div class="s">base de comparação</div></div>' +
+      '<div class="stat"><div class="k">Ativa desde</div><div class="v">' + it.desde + '</div><div class="s">' + anosDesde(it.desde) + '</div></div>' +
+      '<div class="stat"><div class="k">Total pago no ano</div><div class="v num">' + brl(it.ytd) + '</div><div class="s">janeiro a julho/2026</div></div>' +
+      '</div>';
+  }
+
+  function animFixas() { [cardEsqFixas, cardDirFixas].forEach(function (c) { c.classList.remove('anim'); void c.offsetWidth; c.classList.add('anim'); }); }
+  function bindFixas() {
+    cardEsqFixas.querySelectorAll('.bar-click').forEach(function (b) { b.addEventListener('click', function () { goFixas(b.dataset.id); }); });
+    var back = cardEsqFixas.querySelector('.back'); if (back) back.addEventListener('click', function () { goFixas(null); });
+  }
+  function goFixas(id) { if (id) drillFixas(items.find(function (i) { return i.id === id; })); else overviewFixas(); animFixas(); bindFixas(); }
+
+  function renderTabelaFixas() {
+    var sorted = items.slice().sort(function (a, b) { return b.atual - a.atual; });
+    var rows = sorted.map(function (it) {
+      var varClass = it.flag ? 'text-warn' : 'text-muted';
+      var chip = it.flag ? '<span class="chip atencao">Atenção</span>' : '<span class="chip ativa">Estável</span>';
+      return '<tr>' +
+        '<td><span class="soft-dot"><span class="dot" style="background:' + (it.flag ? 'hsl(var(--warn))' : 'hsl(var(--fg) / 0.4)') + '"></span>' + it.nome + '</span></td>' +
+        '<td class="cli">' + it.categoria + '</td>' +
+        '<td class="r num val-mono">' + brl(it.atual) + '</td>' +
+        '<td class="num">dia ' + it.dia + '</td>' +
+        '<td class="num">' + it.prox + '</td>' +
+        '<td class="r num ' + varClass + '" style="font-weight:700">' + pctSigned(it.varPct) + '</td>' +
+        '<td class="st">' + chip + '</td>' +
+        '</tr>';
+    }).join('');
+    document.getElementById('tabelaFixas').innerHTML =
+      '<h2 class="sec">Todas as recorrências <span class="hint">' + items.length + ' ativas · custo total ' + brl(totalAtual) + '/mês</span></h2>' +
+      '<div class="tbl-wrap"><table><thead><tr><th>Nome</th><th>Categoria</th><th class="r">Valor/mês</th><th>Dia venc.</th><th>Próxima</th><th class="r">Variação vs média</th><th>Status</th></tr></thead><tbody>' + rows + '</tbody></table></div>';
+  }
+
+  function initFixas() {
+    renderKpisFixas();
+    renderConsultorFixas();
+    overviewFixas(); animFixas(); bindFixas();
+    renderTabelaFixas();
+  }
+
+  // ================= PAINEL: ASSINATURAS (grid2 reaproveitado da tela aprovada) =================
+  (function () {
+    var mesesA = ['Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul'];
+    var carteira = { tempoMedio: '14', ltv: 'R$ 10.640', retencao: '82' };
+    var projetos = [
+      { id: 'tensorroot', nome: 'TensorRoot Gov', mrr: 'R$ 2.500', pct: 41.1, cor: 'var(--primary)', clientes: 1, churnMes: 0, tempoMedio: '5', ltv: 'R$ 12.500', retencao: '100', novos: [0, 0, 0, 2500, 0, 0], churn: [0, 0, 0, 0, 0, 0] },
+      { id: 'gestao', nome: 'Gestão Raiz Fiscal', mrr: 'R$ 2.090', pct: 34.4, cor: 'var(--fg) / 0.55', clientes: 2, churnMes: 1, tempoMedio: '9', ltv: 'R$ 9.400', retencao: '75', novos: [0, 0, 0, 1200, 0, 890], churn: [0, 0, 0, 0, 0, 890] },
+      { id: 'servicepro', nome: 'ServicePro', mrr: 'R$ 1.047', pct: 17.2, cor: 'var(--fg) / 0.4', clientes: 3, churnMes: 1, tempoMedio: '12', ltv: 'R$ 8.200', retencao: '80', novos: [349, 0, 349, 349, 0, 0], churn: [0, 0, 0, 0, 0, 349] },
+      { id: 'brain', nome: 'Brain', mrr: 'R$ 440', pct: 7.2, cor: 'var(--fg) / 0.25', clientes: 2, churnMes: 0, tempoMedio: '7', ltv: 'R$ 3.080', retencao: '90', novos: [0, 220, 0, 0, 220, 0], churn: [0, 0, 0, 0, 0, 0] }
+    ];
+    var cardEsqAssin = document.getElementById('cardEsqAssin');
+    var cardDirAssin = document.getElementById('cardDirAssin');
+
+    function svgDivergente(novos, churn) {
+      var zeroY = 58, x0 = 16, x1 = 330, bw = 18;
+      var max = Math.max.apply(null, [1].concat(novos, churn));
+      var f = Math.min(44, 46) / max, slot = (x1 - x0) / 6;
+      var r = '';
+      novos.forEach(function (v, i) { if (v <= 0) return; var h = v * f, cx = x0 + slot * i + slot / 2; r += '<rect x="' + (cx - bw / 2).toFixed(0) + '" y="' + (zeroY - h).toFixed(0) + '" width="' + bw + '" height="' + h.toFixed(0) + '" rx="3" fill="hsl(var(--pos))"><title>' + mesesA[i] + ' · novos ' + brl(v) + '</title></rect>'; });
+      churn.forEach(function (v, i) { if (v <= 0) return; var h = v * f, cx = x0 + slot * i + slot / 2; r += '<rect x="' + (cx - bw / 2).toFixed(0) + '" y="' + zeroY + '" width="' + bw + '" height="' + h.toFixed(0) + '" rx="3" fill="hsl(var(--crit))"><title>' + mesesA[i] + ' · churn ' + brl(v) + '</title></rect>'; });
+      mesesA.forEach(function (m, i) { var cx = x0 + slot * i + slot / 2; r += '<text class="mlabel" x="' + cx.toFixed(0) + '" y="136" text-anchor="middle">' + m + '</text>'; });
+      return '<svg viewBox="0 0 340 145" role="img" aria-label="Novos e churn por mês"><line class="zero" x1="' + x0 + '" y1="' + zeroY + '" x2="' + x1 + '" y2="' + zeroY + '"/>' + r + '</svg>';
+    }
+    function tiles(o) {
+      return '<div class="stats">' +
+        '<div class="stat"><div class="k">Tempo médio de casa</div><div class="v num">' + o.tempoMedio + ' <small>meses</small></div><div class="s">antes de cancelar</div></div>' +
+        '<div class="stat"><div class="k">LTV médio estimado</div><div class="v num">' + o.ltv + '</div><div class="s">ticket × tempo de vida</div></div>' +
+        '<div class="stat"><div class="k">Retenção em 12 meses</div><div class="v num">' + o.retencao + '<small>%</small></div><div class="s">seguem ativos após 1 ano</div></div>' +
+        '</div>';
+    }
+    function overviewA() {
+      var rows = projetos.map(function (p) {
+        return '<button class="bar-click" data-id="' + p.id + '"><span class="name"><span class="dot" style="background:hsl(' + p.cor + ')"></span>' + p.nome + '</span><span class="amt num">' + p.mrr + '</span>' +
+          '<div class="track"><div class="fill" style="width:' + p.pct + '%;background:hsl(' + p.cor + ')"></div></div><span class="pct num">' + String(p.pct).replace('.', ',') + '%</span></button>';
+      }).join('');
+      cardEsqAssin.innerHTML = '<h2 class="sec">MRR por serviço <span class="hint">clique num serviço p/ churn e retenção →</span></h2><div class="bars sel">' + rows + '</div>';
+      cardDirAssin.innerHTML = '<h2 class="sec">Retenção da carteira <span class="hint">quanto tempo o cliente fica</span></h2>' + tiles(carteira);
+    }
+    function projetoA(p) {
+      cardEsqAssin.innerHTML = '<h2 class="sec"><span class="secleft"><button class="back" aria-label="Voltar para a carteira">←</button> ' + p.nome + '</span> <span class="hint">Novos × Churn, 6 meses</span></h2>' +
+        '<div class="chart">' + svgDivergente(p.novos, p.churn) + '</div>' +
+        '<div class="legend"><span class="lg"><i style="background:hsl(var(--pos))"></i>Novos</span><span class="lg"><i style="background:hsl(var(--crit))"></i>Churn</span></div>';
+      cardDirAssin.innerHTML = '<h2 class="sec">' + p.nome + ' · retenção <span class="hint">' + p.clientes + ' cliente' + (p.clientes > 1 ? 's' : '') + ' · ' + p.churnMes + ' churn no mês</span></h2>' + tiles(p);
+    }
+    function animA() { [cardEsqAssin, cardDirAssin].forEach(function (c) { c.classList.remove('anim'); void c.offsetWidth; c.classList.add('anim'); }); }
+    function goA(id) { if (id) projetoA(projetos.find(function (p) { return p.id === id; })); else overviewA(); animA(); bindA(); }
+    function bindA() {
+      cardEsqAssin.querySelectorAll('.bar-click').forEach(function (b) { b.addEventListener('click', function () { goA(b.dataset.id); }); });
+      var back = cardEsqAssin.querySelector('.back'); if (back) back.addEventListener('click', function () { goA(null); });
+    }
+    goA(null);
+
+    document.getElementById('ctaAssin').addEventListener('click', function () {
+      goA('tensorroot');
+      cardEsqAssin.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  })();
+
+  // ================= Segmented control (Contas fixas ⇄ Assinaturas) =================
+  var painelFixas = document.getElementById('painelFixas');
+  var painelAssinaturas = document.getElementById('painelAssinaturas');
+  var ctxNote = document.getElementById('ctxNote');
+  var h1Lens = document.getElementById('h1Lens');
+  var subLens = document.getElementById('subLens');
+  var btnNovoLabel = document.getElementById('btnNovoLabel');
+
+  function selectLens(lens) {
+    document.querySelectorAll('#segControl button').forEach(function (b) { b.classList.toggle('active', b.dataset.lens === lens); });
+    var isFixas = lens === 'fixas';
+    painelFixas.style.display = isFixas ? '' : 'none';
+    painelAssinaturas.style.display = isFixas ? 'none' : '';
+    ctxNote.style.visibility = isFixas ? 'hidden' : 'visible';
+    h1Lens.textContent = isFixas ? 'Contas fixas' : 'Assinaturas';
+    subLens.textContent = isFixas
+      ? 'O que custa existir todo mês — antes de vender qualquer coisa.'
+      : 'Seus softwares, os clientes que pagam por eles, e o que isso vale de verdade.';
+    btnNovoLabel.textContent = isFixas ? 'Nova recorrência' : 'Nova assinatura';
+  }
+  document.querySelectorAll('#segControl button').forEach(function (b) { b.addEventListener('click', function () { selectLens(b.dataset.lens); }); });
+  document.getElementById('btnNovo').addEventListener('click', function () {
+    toast(btnNovoLabel.textContent === 'Nova recorrência' ? 'Cadastro de nova recorrência — formulário aberto.' : 'Cadastro de nova assinatura — formulário aberto.');
+  });
+
+  // ================= Boot =================
+  initFixas();
+  selectLens('fixas');
+})();
+</script>

@@ -148,6 +148,18 @@ public sealed class FinanceiroInfrastructureModule : IModule
             services.AddModuleSchemaMigration<FinanceiroSchemaMigrationV32>();
             services.AddModuleSchemaMigration<FinanceiroSchemaMigrationV33>();
             services.AddModuleSchemaMigration<FinanceiroSchemaMigrationV34>();
+
+            // Análise por Projeto — Parte B (P3 ativo de capital GERAL + P4 apontamento de tempo).
+            services.AddScoped<IAtivoDeCapitalRepository, SqliteAtivoDeCapitalRepository>();
+            services.AddModuleSchemaMigration<FinanceiroSchemaMigrationV35>();
+
+            services.AddScoped<IApontamentoDeTempoRepository, SqliteApontamentoDeTempoRepository>();
+            services.AddModuleSchemaMigration<FinanceiroSchemaMigrationV36>();
+
+            // P5 — projeto entra na CHAVE das fact tables (espelho byte-a-byte de V19/V20): rebuild
+            // + replay via reset do cursor de projeção.
+            services.AddModuleSchemaMigration<FinanceiroSchemaMigrationV37>();
+            services.AddModuleSchemaMigration<FinanceiroSchemaMigrationV38>();
         }
         else
         {
@@ -173,6 +185,8 @@ public sealed class FinanceiroInfrastructureModule : IModule
             services.AddSingleton<IMovimentoMrrRepository, InMemoryMovimentoMrrRepository>();
             services.AddSingleton<IProjetoRepository, InMemoryProjetoRepository>();
             services.AddSingleton<IConfiguracaoFinanceiraTenantRepository, InMemoryConfiguracaoFinanceiraTenantRepository>();
+            services.AddSingleton<IAtivoDeCapitalRepository, InMemoryAtivoDeCapitalRepository>();
+            services.AddSingleton<IApontamentoDeTempoRepository, InMemoryApontamentoDeTempoRepository>();
         }
 
         // Projeções (IProjection) — Scoped em ambos os modos: o repo por trás pode ser Scoped

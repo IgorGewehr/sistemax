@@ -18,4 +18,9 @@ namespace SistemaX.Modules.Financeiro.Application.Analitico;
 /// as linhas retornadas por <c>ListarAsync</c> sem precisar saber desta dimensão — o total é
 /// sempre a soma das correntes.
 /// </summary>
-public sealed record FatoReceitaDiaria(string TenantId, DateOnly Dia, CorrenteDeReceita Corrente, long ReceitaCentavos, DateTimeOffset AtualizadoEmUtc);
+/// <param name="ProjetoId">Análise por Projeto, fatia P5 (docs/financeiro/design-analise-por-projeto.md
+/// §3.2/§11) — 4ª dimensão da CHAVE, sentinela <c>""</c> = "sem projeto" (nunca <c>null</c> — SQLite
+/// permite NULL em PK por quirk histórico, a sentinela explícita evita depender disso). Só
+/// <c>CobrancaDeAssinaturaGerada</c> folda um valor real hoje — os demais eventos gravam <c>""</c>
+/// até a Fatia 3 da auditoria estender <c>VendaConcluida</c>/<c>OsFaturada</c> (§6.2).</param>
+public sealed record FatoReceitaDiaria(string TenantId, DateOnly Dia, CorrenteDeReceita Corrente, string ProjetoId, long ReceitaCentavos, DateTimeOffset AtualizadoEmUtc);

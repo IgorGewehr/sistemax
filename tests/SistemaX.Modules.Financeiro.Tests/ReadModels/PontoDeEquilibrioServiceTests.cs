@@ -39,7 +39,7 @@ public sealed class PontoDeEquilibrioServiceTests
         var recorrencias = new InMemoryRecorrenciaRepository();
         var relogio = new FakeRelogio(hoje);
 
-        var dre = new DreGerencialService(contasAReceber, contasAPagar, fatoCustoDiario, fatoRecebiveis);
+        var dre = new DreGerencialService(contasAReceber, contasAPagar, fatoCustoDiario, fatoRecebiveis, new InMemoryAtivoDeCapitalRepository());
         var servico = new PontoDeEquilibrioService(recorrencias, fatoReceitaDiaria, dre, relogio);
 
         return new Ambiente(servico, contasAReceber, contasAPagar, fatoCustoDiario, fatoReceitaDiaria, recorrencias, relogio);

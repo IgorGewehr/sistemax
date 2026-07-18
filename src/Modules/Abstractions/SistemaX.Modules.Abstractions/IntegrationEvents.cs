@@ -437,9 +437,26 @@ public sealed record CustoBaixadoPorOs(
 /// RBT12 real (e portanto a faixa/alíquota efetiva) de qualquer tenant com assinaturas ativas.
 /// </summary>
 public sealed record CobrancaDeAssinaturaGerada(
-    string AssinaturaId, string TenantId, long ValorCentavos, DateTimeOffset OcorridoEm) : IIntegrationEvent
+    string AssinaturaId, string TenantId, long ValorCentavos, DateTimeOffset OcorridoEm, string? ProjetoId = null) : IIntegrationEvent
 {
     public string ChaveIdempotencia => $"assinatura.cobranca:{AssinaturaId}:{OcorridoEm:yyyyMM}";
+}
+
+/// <summary>
+/// Análise por Projeto — Ativo de Capital (docs/financeiro/design-analise-por-projeto.md §4.5/§6.2,
+/// docs/financeiro/design-imobilizado-roi.md §5): amortização/depreciação de competência RECONHECIDA
+/// (nunca a compra em si) publicada por <c>ReconhecerAmortizacoesUseCase</c> logo após gravar o
+/// <c>LancamentoContabil</c> do mês — mesma condição de idempotência dupla de
+/// <see cref="CobrancaDeAssinaturaGerada"/> (só quando a competência é NOVA: cursor no domínio +
+/// <c>BuscarPorOrigemAsync</c> antes de publicar). É o insumo, na fase tardia (P5), dos fatos do
+/// Consultor "payback projetado"/"custo de ociosidade" por projeto. Nenhum fold em
+/// <c>fato_custo_diario</c> reage a este evento por decisão explícita (design §11, P5): a fact table
+/// de CMV continua PURA, sem amortização, pra não contaminar o insumo do breakeven.
+/// </summary>
+public sealed record CustoAmortizadoReconhecido(
+    string AtivoId, string TenantId, string? ProjetoId, string Competencia, long ValorCentavos, DateTimeOffset OcorridoEm) : IIntegrationEvent
+{
+    public string ChaveIdempotencia => $"amortizacao:{AtivoId}:{Competencia}";
 }
 
 /// <summary>

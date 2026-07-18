@@ -3,6 +3,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using SistemaX.Modules.Abstractions.Runtime;
+using SistemaX.Modules.Financeiro.Application.Ativos;
 using SistemaX.Modules.Financeiro.Application.CasosDeUso;
 using SistemaX.Modules.Financeiro.Application.Ports;
 
@@ -80,6 +81,13 @@ public sealed class FaturarAssinaturasBackgroundService(
                 // relógio de graça nunca fica sem ser reavaliado por mais que o intervalo do cron.
                 var dunningUseCase = escopo.ServiceProvider.GetRequiredService<AvaliarDunningAssinaturasUseCase>();
                 await dunningUseCase.ExecutarAsync(businessId, relogio.Agora(), options.Value.DiasGracaInadimplenciaAssinatura, ct).ConfigureAwait(false);
+
+                // Análise por Projeto/Imobilizado — Parte B (P3, docs/financeiro/
+                // design-analise-por-projeto.md §4.5): reconhecimento mensal idempotente de
+                // depreciação/amortização de AtivoDeCapital. Mesmo racional dos três de cima: um
+                // BackgroundService a menos, mesmo escopo por rodada, mesmo fail-open.
+                var amortizacaoUseCase = escopo.ServiceProvider.GetRequiredService<ReconhecerAmortizacoesUseCase>();
+                await amortizacaoUseCase.ExecutarAsync(businessId, relogio.Agora(), ct).ConfigureAwait(false);
             }
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)

@@ -1,8 +1,10 @@
 using System.Globalization;
 using SistemaX.Modules.Abstractions.Consultor;
 using SistemaX.Modules.Financeiro.Application.Ports;
+using SistemaX.Modules.Financeiro.Application.Projetos;
 using SistemaX.Modules.Financeiro.Application.Quant;
 using SistemaX.Modules.Financeiro.Application.ReadModels;
+using SistemaX.Modules.Financeiro.Application.Tempo;
 using SistemaX.Modules.Financeiro.Domain.Comum;
 using SistemaX.Modules.Financeiro.Domain.ContasAPagarReceber;
 using SistemaX.SharedKernel;
@@ -35,6 +37,10 @@ public sealed class FinanceiroConsultorFactProvider(
     IContaAPagarRepository contasAPagar,
     IContaAReceberRepository contasAReceber,
     IMovimentoFinanceiroRepository movimentos,
+    IConfiguracaoFinanceiraTenantRepository configuracoes,
+    IProjetoRepository projetos,
+    PainelDoProjetoService painelDoProjeto,
+    ResumoDeTempoService resumoDeTempo,
     IRelogio relogio) : IConsultorFactProvider
 {
     private const string Modulo = "financeiro";
@@ -76,6 +82,12 @@ public sealed class FinanceiroConsultorFactProvider(
         {
             fatos.Add(sinal);
         }
+
+        // Análise por Projeto (P5, docs/financeiro/design-analise-por-projeto.md §10/§11) — fatos
+        // NOVOS fail-quiet: só emite quando o toggle está ligado E há dado real (Lei 2 — "só
+        // narra/observa", nunca inventa). Toggle desligado (o caso comum, sem análise por projeto
+        // configurada) ⇒ nenhum fato emitido, exatamente como antes desta fatia.
+        fatos.AddRange(await ColetarFatosDeProjetoAsync(businessId, ct).ConfigureAwait(false));
 
         return fatos;
     }
@@ -373,6 +385,118 @@ public sealed class FinanceiroConsultorFactProvider(
             }
         }
         return resultado;
+    }
+
+    /// <summary>
+    /// Análise por Projeto (P5) — três fatos novos, um por PROJETO ativo com dado suficiente:
+    /// payback projetado, custo de ociosidade das licenças e (uma vez, cross-projeto) o cliente
+    /// com maior consumo de tempo. FAIL-QUIET em cada camada: toggle desligado → lista vazia sem
+    /// tocar em nenhum repositório de projeto; projeto sem payback/ociosidade/tempo mensurável →
+    /// simplesmente não gera aquele fato (nunca um <c>null</c> formatado ou um crash).
+    /// </summary>
+    private async Task<IReadOnlyList<ConsultorFato>> ColetarFatosDeProjetoAsync(string businessId, CancellationToken ct)
+    {
+        var configuracao = await configuracoes.ObterAsync(businessId, ct).ConfigureAwait(false);
+        if (configuracao is not { AnalisePorProjetoAtiva: true }) return [];
+
+        var listaDeProjetos = await projetos.ListarAsync(businessId, incluirArquivados: false, ct).ConfigureAwait(false);
+        if (listaDeProjetos.Count == 0) return [];
+
+        var fatos = new List<ConsultorFato>();
+        foreach (var projeto in listaDeProjetos)
+        {
+            var painel = await painelDoProjeto.CalcularAsync(businessId, projeto.Id, ct).ConfigureAwait(false);
+            if (painel.Falha) continue; // fail-quiet — não deveria acontecer (acabamos de listar o projeto), mas nunca crasha o Consultor
+
+            var valor = painel.Valor;
+
+            if (valor.Payback.PaybackProjetadoMeses is { } meses)
+            {
+                fatos.Add(ColetarPaybackProjetado(projeto.Nome, meses, valor.Payback.InvestimentoTotalCentavos));
+            }
+
+            if (valor.Capacidade.UnidadesTotais > 0 && valor.Capacidade.CustoOciosidadeMesCentavos > 0)
+            {
+                fatos.Add(ColetarCustoDeOciosidade(projeto.Nome, valor.Capacidade));
+            }
+        }
+
+        var gargalo = await ColetarGargaloDeTempoAsync(businessId, ct).ConfigureAwait(false);
+        if (gargalo is not null) fatos.Add(gargalo);
+
+        return fatos;
+    }
+
+    private ConsultorFato ColetarPaybackProjetado(string nomeProjeto, int meses, long investimentoTotalCentavos)
+    {
+        const string ruleId = "fin.projeto.payback";
+        const string tela = "projetos";
+
+        var score = Clamp0a10000(10_000 - meses * 60L);
+        var investimento = new Money(investimentoTotalCentavos).Formatado();
+
+        return new ConsultorFato(
+            Modulo, ruleId, tela, score,
+            Facts: new Dictionary<string, string>
+            {
+                ["projeto"] = nomeProjeto,
+                ["paybackProjetadoMeses"] = meses.ToString(CultureInfo.InvariantCulture),
+                ["investimentoTotal"] = investimento,
+            },
+            TemplateFallback: $"No ritmo atual, o projeto \"{nomeProjeto}\" recupera o investimento de {investimento} em cerca de {meses} meses (projeção determinística).",
+            Drill: new DrillTarget(tela));
+    }
+
+    private static ConsultorFato ColetarCustoDeOciosidade(string nomeProjeto, PainelCapacidadeProjeto capacidade)
+    {
+        const string ruleId = "fin.projeto.ociosidade";
+        const string tela = "projetos";
+
+        var custo = new Money(capacidade.CustoOciosidadeMesCentavos).Formatado();
+        var score = Clamp0a10000(capacidade.CustoOciosidadeMesCentavos / 1_000);
+
+        return new ConsultorFato(
+            Modulo, ruleId, tela, score,
+            Facts: new Dictionary<string, string>
+            {
+                ["projeto"] = nomeProjeto,
+                ["utilizacaoPercent"] = capacidade.UtilizacaoPercent.ToString("0.0", CultureInfo.InvariantCulture),
+                ["custoOciosidadeMes"] = custo,
+            },
+            TemplateFallback: $"O projeto \"{nomeProjeto}\" está usando {capacidade.UtilizacaoPercent:0.0}% da capacidade contratada — a ociosidade custa {custo}/mês (a amortização corre sobre o total, independente do uso).",
+            Drill: new DrillTarget(tela));
+    }
+
+    /// <summary>Índice de gargalo cross-projeto (design §9.7) — SIMPLIFICADO nesta fatia: sem
+    /// custo/hora resolvido (P4, decisão do dono), o "índice" é a própria ordenação por minutos
+    /// desc (o cliente que mais consome tempo de atendimento). Fail-quiet: sem apontamentos no
+    /// período, nenhum fato.</summary>
+    private async Task<ConsultorFato?> ColetarGargaloDeTempoAsync(string businessId, CancellationToken ct)
+    {
+        var agora = relogio.Agora();
+        var inicioMes = new DateTimeOffset(agora.Year, agora.Month, 1, 0, 0, 0, agora.Offset);
+        var resumo = await resumoDeTempo.CalcularAsync(businessId, inicioMes, agora, ct).ConfigureAwait(false);
+
+        var maiorConsumo = resumo.PorCliente.FirstOrDefault();
+        if (maiorConsumo is null || maiorConsumo.Minutos <= 0) return null;
+
+        const string ruleId = "fin.tempo.gargalo-cliente";
+        const string tela = "projetos";
+
+        var horas = Math.Round(maiorConsumo.Minutos / 60m, 1);
+        var nomeCliente = maiorConsumo.ClienteNome ?? maiorConsumo.ClienteId;
+        var score = Clamp0a10000(maiorConsumo.Minutos * 5L);
+
+        return new ConsultorFato(
+            Modulo, ruleId, tela, score,
+            Facts: new Dictionary<string, string>
+            {
+                ["cliente"] = nomeCliente,
+                ["minutosNoMes"] = maiorConsumo.Minutos.ToString(CultureInfo.InvariantCulture),
+                ["horasNoMes"] = horas.ToString(CultureInfo.InvariantCulture),
+            },
+            TemplateFallback: $"O cliente \"{nomeCliente}\" consumiu {horas:0.0}h de atendimento este mês — o maior volume de tempo entre seus clientes tageados.",
+            Drill: new DrillTarget(tela));
     }
 
     private static int Clamp0a10000(long valor) => (int)Math.Clamp(valor, 0, 10_000);

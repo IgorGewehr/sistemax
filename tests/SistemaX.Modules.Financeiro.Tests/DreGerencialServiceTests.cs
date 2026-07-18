@@ -37,7 +37,7 @@ public class DreGerencialServiceTests
             CategoriaFinanceiraPadrao.CustoMercadoriaVendida, dataCompra, Money.DeReais(10_000), parcelasCompra).Valor;
         await contasAPagar.SalvarAsync(compra);
 
-        var service = new DreGerencialService(contasAReceber, contasAPagar, fatoCustoDiario, fatoRecebiveis);
+        var service = new DreGerencialService(contasAReceber, contasAPagar, fatoCustoDiario, fatoRecebiveis, new InMemoryAtivoDeCapitalRepository());
         var resultado = await service.CalcularAsync("business-1", Inicio, Fim);
 
         Assert.Equal(Money.Zero, resultado.CustoDireto);
@@ -71,7 +71,7 @@ public class DreGerencialServiceTests
             dataAssinatura, Money.DeReais(150), ContaFinanceiraBase.ParcelaUnica(Money.DeReais(150), dataAssinatura)).Valor;
         await contasAReceber.SalvarAsync(assinatura);
 
-        var service = new DreGerencialService(contasAReceber, contasAPagar, fatoCustoDiario, fatoRecebiveis);
+        var service = new DreGerencialService(contasAReceber, contasAPagar, fatoCustoDiario, fatoRecebiveis, new InMemoryAtivoDeCapitalRepository());
         var resultado = await service.CalcularAsync("business-1", Inicio, Fim);
 
         Assert.Equal(Money.DeReais(650), resultado.ReceitaBruta);
@@ -107,7 +107,7 @@ public class DreGerencialServiceTests
             CategoriaFinanceiraPadrao.CustoMercadoriaVendida, dataCompra, Money.DeReais(50_000), parcelasCompra).Valor;
         await contasAPagar.SalvarAsync(compra);
 
-        var service = new DreGerencialService(contasAReceber, contasAPagar, fatoCustoDiario, fatoRecebiveis);
+        var service = new DreGerencialService(contasAReceber, contasAPagar, fatoCustoDiario, fatoRecebiveis, new InMemoryAtivoDeCapitalRepository());
         var resultado = await service.CalcularAsync("business-1", Inicio, Fim);
 
         Assert.Equal(Money.DeReais(500), resultado.ReceitaBruta);
@@ -130,7 +130,7 @@ public class DreGerencialServiceTests
             CategoriaFinanceiraPadrao.Comissoes, data, Money.DeReais(80), parcelas).Valor;
         await contasAPagar.SalvarAsync(comissao);
 
-        var service = new DreGerencialService(contasAReceber, contasAPagar, fatoCustoDiario, fatoRecebiveis);
+        var service = new DreGerencialService(contasAReceber, contasAPagar, fatoCustoDiario, fatoRecebiveis, new InMemoryAtivoDeCapitalRepository());
         var resultado = await service.CalcularAsync("business-1", Inicio, Fim);
 
         Assert.Equal(Money.DeReais(80), resultado.CustoDireto);
@@ -152,7 +152,7 @@ public class DreGerencialServiceTests
             CategoriaFinanceiraPadrao.DespesaComPessoal, data, Money.DeReais(120), parcelas).Valor;
         await contasAPagar.SalvarAsync(aluguel);
 
-        var service = new DreGerencialService(contasAReceber, contasAPagar, fatoCustoDiario, fatoRecebiveis);
+        var service = new DreGerencialService(contasAReceber, contasAPagar, fatoCustoDiario, fatoRecebiveis, new InMemoryAtivoDeCapitalRepository());
         var resultado = await service.CalcularAsync("business-1", Inicio, Fim);
 
         Assert.Equal(Money.Zero, resultado.CustoDireto);
@@ -205,7 +205,7 @@ public class DreGerencialServiceTests
         await contasAReceber.SalvarAsync(venda);
         await fatoCustoDiario.AcumularAsync("business-1", new DateOnly(2026, 8, 15), CorrenteDeReceita.Comercio, Money.DeReais(300).Centavos);
 
-        var service = new DreGerencialService(contasAReceber, contasAPagar, fatoCustoDiario, fatoRecebiveis);
+        var service = new DreGerencialService(contasAReceber, contasAPagar, fatoCustoDiario, fatoRecebiveis, new InMemoryAtivoDeCapitalRepository());
         var resultado = await service.CalcularAsync("business-1", Inicio, Fim);
 
         Assert.Equal(3, resultado.PorCorrente.Count);
@@ -258,7 +258,7 @@ public class DreGerencialServiceTests
             "business-1", "sale:venda-cartao-1", diaVenda, diaVenda.AddDays(30), "cartao_credito", 0.0349m,
             100_000, 96_510, DateTimeOffset.UtcNow));
 
-        var service = new DreGerencialService(contasAReceber, contasAPagar, fatoCustoDiario, fatoRecebiveis);
+        var service = new DreGerencialService(contasAReceber, contasAPagar, fatoCustoDiario, fatoRecebiveis, new InMemoryAtivoDeCapitalRepository());
         var resultado = await service.CalcularAsync("business-1", Inicio, Fim);
 
         Assert.Equal(Money.DeReais(1_000), resultado.ReceitaBruta);
@@ -285,7 +285,7 @@ public class DreGerencialServiceTests
         await fatoRecebiveis.AdicionarAsync(new FatoRecebivel(
             "business-1", "sale:venda-dinheiro-1", diaVenda, diaVenda, "dinheiro", 0m, 50_000, 50_000, DateTimeOffset.UtcNow));
 
-        var service = new DreGerencialService(contasAReceber, contasAPagar, fatoCustoDiario, fatoRecebiveis);
+        var service = new DreGerencialService(contasAReceber, contasAPagar, fatoCustoDiario, fatoRecebiveis, new InMemoryAtivoDeCapitalRepository());
         var resultado = await service.CalcularAsync("business-1", Inicio, Fim);
 
         Assert.Equal(Money.Zero, resultado.DespesaFinanceira);
@@ -319,7 +319,7 @@ public class DreGerencialServiceTests
         Assert.Equal(Money.DeReais(1_200), cobranca.ValorTotal);
         Assert.Equal(dataCobranca, cobranca.DataCompetencia);
 
-        var service = new DreGerencialService(contasAReceber, contasAPagar, fatoCustoDiario, fatoRecebiveis);
+        var service = new DreGerencialService(contasAReceber, contasAPagar, fatoCustoDiario, fatoRecebiveis, new InMemoryAtivoDeCapitalRepository());
 
         long totalReconhecido = 0;
         for (var i = 0; i < 12; i++)
@@ -341,5 +341,122 @@ public class DreGerencialServiceTests
         var mesFora = new DateTimeOffset(2027, 8, 1, 0, 0, 0, TimeSpan.FromHours(-3));
         var resultadoFora = await service.CalcularAsync("business-1", mesFora, mesFora.AddMonths(1).AddSeconds(-1));
         Assert.Equal(Money.Zero, resultadoFora.ReceitaBruta);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────────────────
+    // P3 — Ativo de Capital: docs/financeiro/design-analise-por-projeto.md §4.7,
+    // docs/financeiro/design-imobilizado-roi.md §4.7. Invariante de caracterização: tenant SEM
+    // nenhum AtivoDeCapital → DreResultado byte-idêntico ao de antes desta fatia.
+    // ─────────────────────────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task CalcularAsync_SemNenhumAtivoDeCapital_DepreciacaoEAmortizacaoEhZero_DreByteIdentico()
+    {
+        var contasAReceber = new InMemoryContaAReceberRepository();
+        var contasAPagar = new InMemoryContaAPagarRepository();
+        var fatoCustoDiario = new InMemoryFatoCustoDiarioRepository();
+        var fatoRecebiveis = new InMemoryFatoRecebiveisRepository();
+        var ativosDeCapital = new InMemoryAtivoDeCapitalRepository(); // vazio — nenhum ativo cadastrado
+
+        var dataVenda = new DateTimeOffset(2026, 8, 15, 12, 0, 0, TimeSpan.FromHours(-3));
+        var venda = ContaAReceber.Criar(
+            "business-1", new SourceRef("teste", "venda-1"), "Venda", CategoriaFinanceiraPadrao.Servicos,
+            dataVenda, Money.DeReais(500), ContaFinanceiraBase.ParcelaUnica(Money.DeReais(500), dataVenda)).Valor;
+        await contasAReceber.SalvarAsync(venda);
+
+        var despesa = ContaAPagar.Criar(
+            "business-1", new SourceRef("teste", "despesa-1"), "Aluguel", "aluguel",
+            dataVenda, Money.DeReais(200), ContaFinanceiraBase.ParcelaUnica(Money.DeReais(200), dataVenda)).Valor;
+        await contasAPagar.SalvarAsync(despesa);
+
+        var service = new DreGerencialService(contasAReceber, contasAPagar, fatoCustoDiario, fatoRecebiveis, ativosDeCapital);
+        var resultado = await service.CalcularAsync("business-1", Inicio, Fim);
+
+        Assert.Equal(Money.Zero, resultado.DepreciacaoEAmortizacao);
+        Assert.Equal(Money.DeReais(500), resultado.ReceitaBruta);
+        Assert.Equal(Money.DeReais(200), resultado.DespesaOperacional);
+        Assert.Equal(Money.DeReais(300), resultado.ResultadoOperacional); // 500 - 200 - 0 (amortização) - 0 (MDR)
+    }
+
+    [Fact]
+    public async Task CalcularAsync_ComAtivoDeCapitalDigiSat_SubtraiAmortizacaoDoMesEExcluiCompraDaDespesaOperacional()
+    {
+        var contasAReceber = new InMemoryContaAReceberRepository();
+        var contasAPagar = new InMemoryContaAPagarRepository();
+        var fatoCustoDiario = new InMemoryFatoCustoDiarioRepository();
+        var fatoRecebiveis = new InMemoryFatoRecebiveisRepository();
+        var ativosDeCapital = new InMemoryAtivoDeCapitalRepository();
+
+        // A COMPRA (R$6.895) nasce como ContaAPagar categoria ativo-de-capital — nunca deve entrar
+        // como despesa operacional do mês (é balanço, não resultado — §4.4/§4.7).
+        var dataCompra = new DateTimeOffset(2026, 7, 5, 12, 0, 0, TimeSpan.FromHours(-3));
+        var compra = ContaAPagar.Criar(
+            "business-1", new SourceRef("teste", "compra-digisat"), "Investimento — Licenças DigiSat",
+            CategoriaFinanceiraPadrao.AtivoDeCapital, dataCompra, Money.DeReais(6_895),
+            ContaFinanceiraBase.ParcelaUnica(Money.DeReais(6_895), dataCompra.AddDays(30))).Valor;
+        await contasAPagar.SalvarAsync(compra);
+
+        var ativo = Domain.Ativos.AtivoDeCapital.Criar(
+            "business-1", "Licenças DigiSat 5×36m", Domain.Ativos.NaturezaAtivo.Intangivel, Domain.Ativos.CategoriaAtivo.LicencaSoftware,
+            Money.DeReais(6_895), Money.Zero, new DateOnly(2026, 7, 1), new DateOnly(2026, 7, 1), 36, dataCompra, quantidadeUnidades: 5).Valor;
+        await ativosDeCapital.SalvarAsync(ativo);
+
+        var service = new DreGerencialService(contasAReceber, contasAPagar, fatoCustoDiario, fatoRecebiveis, ativosDeCapital);
+        var inicioJulho = new DateTimeOffset(2026, 7, 1, 0, 0, 0, TimeSpan.FromHours(-3));
+        var fimJulho = inicioJulho.AddMonths(1).AddSeconds(-1);
+        var resultado = await service.CalcularAsync("business-1", inicioJulho, fimJulho);
+
+        // R$191,53/mês (design §4.3) — a ÚNICA mudança no demonstrativo.
+        Assert.Equal(19_153, resultado.DepreciacaoEAmortizacao.Centavos);
+        // A compra em si NÃO aparece como despesa operacional (é balanço).
+        Assert.Equal(Money.Zero, resultado.DespesaOperacional);
+        Assert.Equal(Money.Zero, resultado.CustoDireto);
+        Assert.Equal(-19_153, resultado.ResultadoOperacional.Centavos); // sem receita no mês, só a amortização
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────────────────
+    // P4 — Tempo NÃO entra no DRE (decisão travada do dono): ApontamentoDeTempo não é insumo de
+    // nenhum cálculo aqui — DreGerencialService nem referencia IApontamentoDeTempoRepository.
+    // ─────────────────────────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task CalcularAsync_ApontamentosDeTempoNaoAlteramNenhumCampoDoDre()
+    {
+        var contasAReceber = new InMemoryContaAReceberRepository();
+        var contasAPagar = new InMemoryContaAPagarRepository();
+        var fatoCustoDiario = new InMemoryFatoCustoDiarioRepository();
+        var fatoRecebiveis = new InMemoryFatoRecebiveisRepository();
+        var ativosDeCapital = new InMemoryAtivoDeCapitalRepository();
+        var apontamentos = new InMemoryApontamentoDeTempoRepository();
+
+        var dataVenda = new DateTimeOffset(2026, 8, 15, 12, 0, 0, TimeSpan.FromHours(-3));
+        var venda = ContaAReceber.Criar(
+            "business-1", new SourceRef("teste", "venda-1"), "Venda", CategoriaFinanceiraPadrao.Servicos,
+            dataVenda, Money.DeReais(500), ContaFinanceiraBase.ParcelaUnica(Money.DeReais(500), dataVenda)).Valor;
+        await contasAReceber.SalvarAsync(venda);
+
+        var service = new DreGerencialService(contasAReceber, contasAPagar, fatoCustoDiario, fatoRecebiveis, ativosDeCapital);
+        var antes = await service.CalcularAsync("business-1", Inicio, Fim);
+
+        // 8 horas de atendimento registradas no período — ativo consumo de tempo real, mas o gesto
+        // de apontar NUNCA toca LancamentoContabil/DRE (R1 desta fatia — evita dobrar com folha).
+        var apontamento = Domain.Tempo.ApontamentoDeTempo.Criar(
+            "business-1", 480, dataVenda, "op-1", "Igor", dataVenda, clienteId: "cliente-1").Valor;
+        await apontamentos.SalvarAsync(apontamento);
+
+        var depois = await service.CalcularAsync("business-1", Inicio, Fim);
+
+        // Campo a campo (PorCorrente é lista — comparação estrutural própria) em vez de igualdade
+        // de record inteiro: List<T> não sobrescreve Equals, então duas listas com o MESMO
+        // conteúdo em instâncias diferentes falhariam numa comparação ingênua do record.
+        Assert.Equal(antes.ReceitaBruta, depois.ReceitaBruta);
+        Assert.Equal(antes.CustoDireto, depois.CustoDireto);
+        Assert.Equal(antes.DespesaOperacional, depois.DespesaOperacional);
+        Assert.Equal(antes.DespesaFinanceira, depois.DespesaFinanceira);
+        Assert.Equal(antes.DepreciacaoEAmortizacao, depois.DepreciacaoEAmortizacao);
+        Assert.Equal(antes.ResultadoOperacional, depois.ResultadoOperacional);
+        Assert.Equal(antes.ReceitaRecorrente, depois.ReceitaRecorrente);
+        Assert.Equal(antes.ReceitaOperacional, depois.ReceitaOperacional);
+        Assert.Equal(antes.PorCorrente, depois.PorCorrente);
     }
 }

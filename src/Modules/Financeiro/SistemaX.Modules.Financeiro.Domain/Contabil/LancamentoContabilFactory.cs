@@ -20,6 +20,17 @@ namespace SistemaX.Modules.Financeiro.Domain.Contabil;
 /// </summary>
 public static class LancamentoContabilFactory
 {
+    /// <summary>
+    /// Análise por Projeto/Imobilizado (docs/financeiro/design-analise-por-projeto.md §4.4,
+    /// docs/financeiro/design-imobilizado-roi.md §4.4) — slug da categoria que desvia
+    /// <see cref="DeContaAPagar"/> para debitar <see cref="PlanoDeContasPadrao.AtivosDeCapital"/> em
+    /// vez de <see cref="PlanoDeContasPadrao.CustoDespesa"/>. Vive AQUI (não em
+    /// <c>Application.Categorias.CategoriaFinanceiraPadrao</c>, que o reexporta) porque este é o
+    /// ÚNICO lar do mapeamento fato→partidas — Domain não pode depender de Application para ler a
+    /// constante de volta.
+    /// </summary>
+    public const string CategoriaAtivoDeCapital = "ativo-de-capital";
+
     public static Result<LancamentoContabil> DeContaAReceber(ContaAReceber conta)
     {
         var origem = new OrigemLancamento("financeiro", "conta-a-receber", conta.Id);
@@ -33,13 +44,41 @@ public static class LancamentoContabilFactory
 
     public static Result<LancamentoContabil> DeContaAPagar(ContaAPagar conta)
     {
+        // Análise por Projeto/Imobilizado — comprar um AtivoDeCapital é troca de ativo (a conta
+        // credora vira 1.3 Ativos de Capital), nunca despesa direta (4.1): a despesa só nasce com o
+        // cronograma de reconhecimento mensal (ver ReconhecerAmortizacoesUseCase), espelho exato do
+        // desvio já feito para CMV (compra de mercadoria não é custo — o custo nasce na venda).
+        var contaDebito = conta.CategoriaId == CategoriaAtivoDeCapital
+            ? PlanoDeContasPadrao.AtivosDeCapital
+            : PlanoDeContasPadrao.CustoDespesa;
+
         var origem = new OrigemLancamento("financeiro", "conta-a-pagar", conta.Id);
         PartidaContabil[] partidas =
         [
-            PartidaContabil.Debito(PlanoDeContasPadrao.CustoDespesa.Id, conta.ValorTotal),
+            PartidaContabil.Debito(contaDebito.Id, conta.ValorTotal),
             PartidaContabil.Credito(PlanoDeContasPadrao.ContasAPagar.Id, conta.ValorTotal)
         ];
         return LancamentoContabil.Criar(conta.BusinessId, conta.DataCompetencia, $"Custo/despesa a pagar — {conta.Descricao}", origem, partidas);
+    }
+
+    /// <summary>
+    /// Reconhecimento mensal (cron, idempotente) de depreciação/amortização de um
+    /// <c>AtivoDeCapital</c> — débito 4.1 Custo/Despesa, crédito 1.3 Ativos de Capital (§4.4 dos
+    /// dois designs). <paramref name="origemId"/> é <c>{ativoId}:{yyyyMM}</c> (ou <c>{ativoId}</c> na
+    /// baixa antecipada, com <paramref name="origemTipo"/> <c>"amortizacao-baixa"</c>) — a mesma
+    /// dupla (tipo, id) que compõe a chave de idempotência do evento de integração
+    /// <c>CustoAmortizadoReconhecido</c>.
+    /// </summary>
+    public static Result<LancamentoContabil> DeReconhecimentoDeAtivoDeCapital(
+        string businessId, DateTimeOffset competencia, string descricao, string origemTipo, string origemId, Money valor)
+    {
+        var origem = new OrigemLancamento("financeiro", origemTipo, origemId);
+        PartidaContabil[] partidas =
+        [
+            PartidaContabil.Debito(PlanoDeContasPadrao.CustoDespesa.Id, valor),
+            PartidaContabil.Credito(PlanoDeContasPadrao.AtivosDeCapital.Id, valor)
+        ];
+        return LancamentoContabil.Criar(businessId, competencia, descricao, origem, partidas);
     }
 
     /// <summary>Dinheiro ENTRA (recebimento de parcela): débito Caixa/Bancos, crédito Contas a Receber.</summary>

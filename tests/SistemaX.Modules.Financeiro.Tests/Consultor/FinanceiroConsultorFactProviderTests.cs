@@ -2,8 +2,10 @@ using System.Globalization;
 using SistemaX.Modules.Abstractions.Consultor;
 using SistemaX.Modules.Financeiro.Application.Consultor;
 using SistemaX.Modules.Financeiro.Application.Ports;
+using SistemaX.Modules.Financeiro.Application.Projetos;
 using SistemaX.Modules.Financeiro.Application.Quant;
 using SistemaX.Modules.Financeiro.Application.ReadModels;
+using SistemaX.Modules.Financeiro.Application.Tempo;
 using SistemaX.Modules.Financeiro.Domain.Caixa;
 using SistemaX.Modules.Financeiro.Domain.Comum;
 using SistemaX.Modules.Financeiro.Domain.ContasAPagarReceber;
@@ -38,6 +40,10 @@ public class FinanceiroConsultorFactProviderTests
         InMemoryRecorrenciaRepository Recorrencias,
         InMemoryFatoCustoDiarioRepository FatoCustoDiario,
         InMemoryFatoReceitaDiariaRepository FatoReceitaDiaria,
+        InMemoryConfiguracaoFinanceiraTenantRepository Configuracoes,
+        InMemoryProjetoRepository Projetos,
+        InMemoryAssinaturaRepository Assinaturas,
+        InMemoryAtivoDeCapitalRepository AtivosDeCapital,
         FakeRelogio Relogio);
 
     private static Ambiente NovoAmbiente(DateTimeOffset agora)
@@ -51,20 +57,28 @@ public class FinanceiroConsultorFactProviderTests
         var fatoCustoDiario = new InMemoryFatoCustoDiarioRepository();
         var fatoReceitaDiaria = new InMemoryFatoReceitaDiariaRepository();
         var fatoRecebiveis = new InMemoryFatoRecebiveisRepository();
+        var configuracoes = new InMemoryConfiguracaoFinanceiraTenantRepository();
+        var projetosRepo = new InMemoryProjetoRepository();
+        var assinaturas = new InMemoryAssinaturaRepository();
+        var ativosDeCapital = new InMemoryAtivoDeCapitalRepository();
+        var apontamentos = new InMemoryApontamentoDeTempoRepository();
 
         var previsaoDeCaixa = new PrevisaoDeCaixaService(fatoCaixaDiario, contasAReceber, contasAPagar, movimentos, new InMemoryFormaDePagamentoRepository(), relogio);
-        var dreGerencial = new DreGerencialService(contasAReceber, contasAPagar, fatoCustoDiario, fatoRecebiveis);
+        var dreGerencial = new DreGerencialService(contasAReceber, contasAPagar, fatoCustoDiario, fatoRecebiveis, ativosDeCapital);
         var pontoDeEquilibrio = new PontoDeEquilibrioService(recorrencias, fatoReceitaDiaria, dreGerencial, relogio);
         var inadimplencia = new InadimplenciaService(contasAReceber, relogio);
         var radarDoSimples = new RadarDoSimplesService(fatoReceitaDiaria, contasAPagar, new InMemoryConfiguracaoRadarSimplesRepository(), relogio);
+        var painelDoProjeto = new PainelDoProjetoService(
+            projetosRepo, assinaturas, contasAReceber, contasAPagar, ativosDeCapital, movimentos, apontamentos, relogio);
+        var resumoDeTempo = new ResumoDeTempoService(apontamentos, projetosRepo);
 
         var provider = new FinanceiroConsultorFactProvider(
             previsaoDeCaixa, pontoDeEquilibrio, inadimplencia, radarDoSimples,
-            contasAPagar, contasAReceber, movimentos, relogio);
+            contasAPagar, contasAReceber, movimentos, configuracoes, projetosRepo, painelDoProjeto, resumoDeTempo, relogio);
 
         return new Ambiente(
             provider, fatoCaixaDiario, contasAPagar, contasAReceber, movimentos,
-            recorrencias, fatoCustoDiario, fatoReceitaDiaria, relogio);
+            recorrencias, fatoCustoDiario, fatoReceitaDiaria, configuracoes, projetosRepo, assinaturas, ativosDeCapital, relogio);
     }
 
     private static PeriodoRef Periodo(DateTimeOffset hoje) => new(BusinessId, DateOnly.FromDateTime(hoje.UtcDateTime));
@@ -326,6 +340,62 @@ public class FinanceiroConsultorFactProviderTests
         var fatos = await ambiente.Provider.ColetarAsync(Periodo(hoje));
 
         Assert.DoesNotContain(fatos, f => f.RuleId == "fin.conta-grande-antes-de-receber");
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────────────────
+    // Análise por Projeto (P5) — fatos NOVOS fail-quiet: só falam com o toggle ligado (Lei 2 —
+    // "só narra/observa"). Toggle off (o default, sem seed nenhum) → nenhum fato "fin.projeto.*"
+    // ou "fin.tempo.*", mesmo com projeto/ativo cadastrados.
+    // ─────────────────────────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task ColetarAsync_ComToggleDesligado_NuncaEmiteFatosDeProjeto_MesmoComAtivoCadastrado()
+    {
+        var hoje = new DateTimeOffset(2026, 7, 17, 12, 0, 0, TimeSpan.Zero);
+        var ambiente = NovoAmbiente(hoje);
+
+        // Projeto + assinatura + ativo cadastrados, mas SEM ligar o toggle.
+        var projeto = SistemaX.Modules.Financeiro.Domain.Projetos.Projeto.Criar(BusinessId, "DigiSat", null, hoje.AddMonths(-6)).Valor;
+        await ambiente.Projetos.SalvarAsync(projeto);
+
+        var fatos = await ambiente.Provider.ColetarAsync(Periodo(hoje));
+
+        Assert.DoesNotContain(fatos, f => f.RuleId.StartsWith("fin.projeto.", StringComparison.Ordinal));
+        Assert.DoesNotContain(fatos, f => f.RuleId.StartsWith("fin.tempo.", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task ColetarAsync_ComToggleLigadoEDigiSat_EmitePaybackProjetadoECustoDeOciosidade()
+    {
+        var hoje = new DateTimeOffset(2026, 7, 17, 12, 0, 0, TimeSpan.Zero);
+        var ambiente = NovoAmbiente(hoje);
+
+        await ambiente.Configuracoes.SalvarAsync(
+            SistemaX.Modules.Financeiro.Domain.Configuracao.ConfiguracaoFinanceiraTenant.Criar(BusinessId, analisePorProjetoAtiva: true).Valor);
+
+        var projeto = SistemaX.Modules.Financeiro.Domain.Projetos.Projeto.Criar(BusinessId, "DigiSat", null, hoje.AddMonths(-6)).Valor;
+        await ambiente.Projetos.SalvarAsync(projeto);
+
+        var assinatura = SistemaX.Modules.Financeiro.Domain.Assinaturas.Assinatura.Criar(
+            BusinessId, "cliente-1", "Empresa X", "servico-digisat", "Licença DigiSat", Money.DeReais(280),
+            SistemaX.Modules.Financeiro.Domain.Recorrencia.FrequenciaRecorrencia.Mensal, diaCobranca: 5,
+            dataInicio: hoje.AddMonths(-6), projetoId: projeto.Id).Valor;
+        await ambiente.Assinaturas.SalvarAsync(assinatura);
+
+        var ativo = SistemaX.Modules.Financeiro.Domain.Ativos.AtivoDeCapital.Criar(
+            BusinessId, "Licenças DigiSat 5×36m", SistemaX.Modules.Financeiro.Domain.Ativos.NaturezaAtivo.Intangivel,
+            SistemaX.Modules.Financeiro.Domain.Ativos.CategoriaAtivo.LicencaSoftware, Money.DeReais(6_895), Money.Zero,
+            new DateOnly(2026, 1, 1), new DateOnly(2026, 1, 1), 36, hoje.AddMonths(-6), quantidadeUnidades: 5, projetoId: projeto.Id).Valor;
+        await ambiente.AtivosDeCapital.SalvarAsync(ativo);
+
+        var fatos = await ambiente.Provider.ColetarAsync(Periodo(hoje));
+
+        var ociosidade = Assert.Single(fatos, f => f.RuleId == "fin.projeto.ociosidade");
+        Assert.Equal("DigiSat", ociosidade.Facts["projeto"]);
+        Assert.Contains("ociosidade", ociosidade.TemplateFallback, StringComparison.OrdinalIgnoreCase);
+
+        var payback = Assert.Single(fatos, f => f.RuleId == "fin.projeto.payback");
+        Assert.Equal("DigiSat", payback.Facts["projeto"]);
     }
 
     [Fact]

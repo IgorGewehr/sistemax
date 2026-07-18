@@ -40,7 +40,7 @@ public sealed class FatoCustoDiarioProjection(IFatoCustoDiarioRepository reposit
     {
         var e = JsonSerializer.Deserialize<CustoBaixadoPorVenda>(evento.PayloadJson)!;
         // Corrente: CMV de venda é sempre Comercio (P0-1).
-        return repositorio.AcumularAsync(e.TenantId, BucketingTemporalDoTenant.DiaLocal(e.OcorridoEm), CorrenteDeReceita.Comercio, e.CustoTotalCentavos, ct);
+        return repositorio.AcumularAsync(e.TenantId, BucketingTemporalDoTenant.DiaLocal(e.OcorridoEm), CorrenteDeReceita.Comercio, e.CustoTotalCentavos, ct: ct);
     }
 
     private Task AplicarCustoBaixadoPorOsAsync(IntegrationEventLedgerEntry evento, CancellationToken ct)
@@ -48,6 +48,6 @@ public sealed class FatoCustoDiarioProjection(IFatoCustoDiarioRepository reposit
         var e = JsonSerializer.Deserialize<CustoBaixadoPorOs>(evento.PayloadJson)!;
         // Corrente: CMV de peça aplicada em OS é sempre Servico (P0-1); o sinal (positivo na
         // baixa, negativo no estorno) já vem embutido em CustoTotalCentavos.
-        return repositorio.AcumularAsync(e.TenantId, BucketingTemporalDoTenant.DiaLocal(e.OcorridoEm), CorrenteDeReceita.Servico, e.CustoTotalCentavos, ct);
+        return repositorio.AcumularAsync(e.TenantId, BucketingTemporalDoTenant.DiaLocal(e.OcorridoEm), CorrenteDeReceita.Servico, e.CustoTotalCentavos, ct: ct);
     }
 }

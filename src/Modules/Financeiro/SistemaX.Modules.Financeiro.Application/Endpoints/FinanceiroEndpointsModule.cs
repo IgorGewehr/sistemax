@@ -5,12 +5,15 @@ using Microsoft.Extensions.DependencyInjection;
 using SistemaX.Modules.Abstractions;
 using SistemaX.Modules.Abstractions.Autorizacao;
 using SistemaX.Modules.Abstractions.Consultor;
+using SistemaX.Modules.Financeiro.Application.Ativos;
 using SistemaX.Modules.Financeiro.Application.Caixa;
 using SistemaX.Modules.Financeiro.Application.CasosDeUso;
 using SistemaX.Modules.Financeiro.Application.Ports;
 using SistemaX.Modules.Financeiro.Application.Projetos;
 using SistemaX.Modules.Financeiro.Application.Quant;
 using SistemaX.Modules.Financeiro.Application.ReadModels;
+using SistemaX.Modules.Financeiro.Application.Tempo;
+using SistemaX.Modules.Financeiro.Domain.Ativos;
 using SistemaX.Modules.Financeiro.Domain.Caixa;
 using SistemaX.Modules.Financeiro.Domain.Configuracao;
 using SistemaX.SharedKernel;
@@ -83,6 +86,25 @@ public sealed record CriarProjetoRequest(string Nome, string? Descricao = null);
 public sealed record EditarProjetoRequest(string? Nome = null, bool AtualizarDescricao = false, string? Descricao = null);
 
 public sealed record VincularProjetoAssinaturaRequest(string? ProjetoId);
+
+/// <summary>Requests de fio de <c>AtivoDeCapital</c> (design-pai §8.3) — <c>Natureza</c>/<c>Categoria</c>
+/// chegam como STRING (nome do enum, ex. "Intangivel"/"LicencaSoftware") e são resolvidos aqui —
+/// nunca o int cru na API pública.</summary>
+public sealed record ParcelaInvestimentoRequest(DateTimeOffset Vencimento, long ValorCentavos);
+
+public sealed record CriarAtivoDeCapitalRequest(
+    string Nome, string Natureza, string Categoria, long CustoAquisicaoCentavos, DateOnly DataAquisicao, int VidaUtilMeses,
+    long ValorResidualCentavos = 0, DateOnly? InicioDepreciacao = null, int QuantidadeUnidades = 1,
+    string? ProjetoId = null, IReadOnlyCollection<ParcelaInvestimentoRequest>? Parcelas = null, string? ContaAPagarId = null);
+
+public sealed record BaixarAtivoDeCapitalRequest(string Motivo, DateOnly Competencia);
+
+/// <summary>Request de fio de <c>ApontamentoDeTempo</c> (design §8.4) — <c>custoCentavos</c> nunca
+/// vem do cliente (sempre derivado/resolvido no servidor — nesta fatia, sempre <c>null</c>).</summary>
+public sealed record RegistrarApontamentoRequest(
+    int Minutos, DateTimeOffset Data, string OperadorId, string OperadorNome,
+    string? ProjetoId = null, string? ClienteId = null, string? ClienteNome = null, string? AssinaturaId = null,
+    string? OrdemServicoId = null, string? Descricao = null);
 
 /// <summary>
 /// Terceiro <see cref="IModule"/> do Financeiro — existe só para implementar
@@ -827,6 +849,113 @@ public sealed class FinanceiroEndpointsModule : IModule, IModuleEndpoints
                 ? Results.Ok(new { id = resultado.Valor.Id, projetoId = resultado.Valor.ProjetoId })
                 : resultado.Erro.ParaRespostaHttp();
         }).RequerPermissao(Modulo.Financeiro, Acao.Editar);
+
+        // ANÁLISE POR PROJETO — PARTE B (P3): ATIVO DE CAPITAL (design-pai §8.3, generalizado por
+        // docs/financeiro/design-imobilizado-roi.md). Mesmo gating da Parte A — toggle desligado ⇒ 422.
+
+        api.MapGet("/financeiro/ativos", async (
+            HttpContext http,
+            IAtivoDeCapitalRepository repositorio,
+            CancellationToken ct,
+            string? projetoId = null) =>
+        {
+            var businessId = http.ObterBusinessId();
+            var ativos = await repositorio.ListarAsync(businessId, projetoId, ct).ConfigureAwait(false);
+            return Results.Ok(ativos.Select(AtivoDeCapitalDto.DeDominio));
+        }).RequerPermissao(Modulo.Financeiro, Acao.Ver);
+
+        api.MapPost("/financeiro/ativos", async (
+            HttpContext http,
+            CriarAtivoDeCapitalRequest corpo,
+            CriarAtivoDeCapitalUseCase useCase,
+            CancellationToken ct) =>
+        {
+            var businessId = http.ObterBusinessId();
+
+            if (!Enum.TryParse<NaturezaAtivo>(corpo.Natureza, ignoreCase: true, out var natureza))
+                return Results.ValidationProblem(new Dictionary<string, string[]> { ["natureza"] = [$"Natureza '{corpo.Natureza}' inválida."] });
+            if (!Enum.TryParse<CategoriaAtivo>(corpo.Categoria, ignoreCase: true, out var categoria))
+                return Results.ValidationProblem(new Dictionary<string, string[]> { ["categoria"] = [$"Categoria '{corpo.Categoria}' inválida."] });
+
+            var parcelas = corpo.Parcelas?.Select(p => new ParcelaInvestimento(p.Vencimento, p.ValorCentavos)).ToList();
+            var comando = new CriarAtivoDeCapitalComando(
+                businessId, corpo.Nome, natureza, categoria, corpo.CustoAquisicaoCentavos, corpo.DataAquisicao, corpo.VidaUtilMeses,
+                corpo.ValorResidualCentavos, corpo.InicioDepreciacao, corpo.QuantidadeUnidades, corpo.ProjetoId, parcelas, corpo.ContaAPagarId);
+
+            var resultado = await useCase.ExecutarAsync(comando, ct).ConfigureAwait(false);
+            return resultado.Sucesso ? Results.Ok(AtivoDeCapitalDto.DeDominio(resultado.Valor)) : resultado.Erro.ParaRespostaHttp();
+        }).RequerPermissao(Modulo.Financeiro, Acao.Editar);
+
+        api.MapPost("/financeiro/ativos/{id}/baixar", async (
+            HttpContext http,
+            string id,
+            BaixarAtivoDeCapitalRequest corpo,
+            BaixarAtivoDeCapitalUseCase useCase,
+            CancellationToken ct) =>
+        {
+            var businessId = http.ObterBusinessId();
+            var resultado = await useCase.ExecutarAsync(new BaixarAtivoDeCapitalComando(businessId, id, corpo.Motivo, corpo.Competencia), ct).ConfigureAwait(false);
+            return resultado.Sucesso ? Results.Ok(AtivoDeCapitalDto.DeDominio(resultado.Valor)) : resultado.Erro.ParaRespostaHttp();
+        }).RequerPermissao(Modulo.Financeiro, Acao.Editar);
+
+        // ANÁLISE POR PROJETO — PARTE B (P4): APONTAMENTO DE TEMPO (design §8.4) — só minutos
+        // (decisão do dono). Mesmo gating.
+
+        api.MapPost("/financeiro/apontamentos", async (
+            HttpContext http,
+            RegistrarApontamentoRequest corpo,
+            RegistrarApontamentoUseCase useCase,
+            CancellationToken ct) =>
+        {
+            var businessId = http.ObterBusinessId();
+            var comando = new RegistrarApontamentoComando(
+                businessId, corpo.Minutos, corpo.Data, corpo.OperadorId, corpo.OperadorNome,
+                corpo.ProjetoId, corpo.ClienteId, corpo.ClienteNome, corpo.AssinaturaId, corpo.OrdemServicoId, corpo.Descricao);
+            var resultado = await useCase.ExecutarAsync(comando, ct).ConfigureAwait(false);
+            return resultado.Sucesso ? Results.Ok(ApontamentoDeTempoDto.DeDominio(resultado.Valor)) : resultado.Erro.ParaRespostaHttp();
+        }).RequerPermissao(Modulo.Financeiro, Acao.Editar);
+
+        api.MapGet("/financeiro/apontamentos", async (
+            HttpContext http,
+            IApontamentoDeTempoRepository repositorio,
+            CancellationToken ct,
+            DateOnly? de = null,
+            DateOnly? ate = null,
+            string? projetoId = null,
+            string? clienteId = null) =>
+        {
+            var businessId = http.ObterBusinessId();
+            var (desde, ateQuando) = ResolverPeriodo(de, ate);
+            var lista = await repositorio
+                .ListarAsync(businessId, desde.InicioDoDia(), ateQuando.FimDoDia(), projetoId, clienteId, ct)
+                .ConfigureAwait(false);
+            return Results.Ok(lista.Select(ApontamentoDeTempoDto.DeDominio));
+        }).RequerPermissao(Modulo.Financeiro, Acao.Ver);
+
+        api.MapDelete("/financeiro/apontamentos/{id}", async (
+            HttpContext http,
+            string id,
+            ExcluirApontamentoUseCase useCase,
+            CancellationToken ct) =>
+        {
+            var businessId = http.ObterBusinessId();
+            var excluido = await useCase.ExecutarAsync(businessId, id, ct).ConfigureAwait(false);
+            return excluido ? Results.NoContent() : Results.NotFound();
+        }).RequerPermissao(Modulo.Financeiro, Acao.Editar);
+
+        // "Onde vai meu tempo" (design §9.7) — cross-projeto/cliente, ordenado por minutos desc.
+        api.MapGet("/financeiro/tempo/resumo", async (
+            HttpContext http,
+            ResumoDeTempoService servico,
+            CancellationToken ct,
+            DateOnly? de = null,
+            DateOnly? ate = null) =>
+        {
+            var businessId = http.ObterBusinessId();
+            var (desde, ateQuando) = ResolverPeriodo(de, ate);
+            var resultado = await servico.CalcularAsync(businessId, desde.InicioDoDia(), ateQuando.FimDoDia(), ct).ConfigureAwait(false);
+            return Results.Ok(resultado);
+        }).RequerPermissao(Modulo.Financeiro, Acao.Ver);
     }
 
     /// <summary>Default de 30 dias terminando hoje (UTC) quando <paramref name="de"/>/

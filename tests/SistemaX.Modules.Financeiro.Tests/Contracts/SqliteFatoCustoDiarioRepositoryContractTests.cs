@@ -21,6 +21,7 @@ public sealed class SqliteFatoCustoDiarioRepositoryContractTests : FatoCustoDiar
         using var transaction = connection.BeginTransaction();
         new FinanceiroSchemaMigrationV9().AplicarAsync(connection, transaction, CancellationToken.None).GetAwaiter().GetResult();
         new FinanceiroSchemaMigrationV20().AplicarAsync(connection, transaction, CancellationToken.None).GetAwaiter().GetResult();
+        new FinanceiroSchemaMigrationV38().AplicarAsync(connection, transaction, CancellationToken.None).GetAwaiter().GetResult();
         transaction.Commit();
     }
 

@@ -10,48 +10,51 @@ namespace SistemaX.Modules.Financeiro.Infrastructure.Sqlite;
 
 /// <summary>
 /// Persistência REAL (SQLite) de <c>fato_receita_diaria</c> — schema em
-/// <see cref="FinanceiroSchemaMigrationV8"/>, com a coluna <c>corrente</c> entrando na chave
-/// primária a partir de <see cref="FinanceiroSchemaMigrationV19"/> (P0-1,
-/// docs/financeiro/revisao-domain-fit-cnpj.md). <see cref="AcumularAsync"/> é um UPSERT que SOMA
-/// (não sobrescreve) sobre o valor já gravado do dia+corrente, atômico via
-/// <c>ON CONFLICT DO UPDATE</c> — o fold aplica um evento de cada vez, nunca o total acumulado
-/// inteiro.
+/// <see cref="FinanceiroSchemaMigrationV8"/>, com <c>corrente</c> na chave desde
+/// <see cref="FinanceiroSchemaMigrationV19"/> (P0-1) e <c>projeto_id</c> na chave desde
+/// <see cref="FinanceiroSchemaMigrationV37"/> (P5, docs/financeiro/design-analise-por-projeto.md
+/// §11). <see cref="AcumularAsync"/> é um UPSERT que SOMA (não sobrescreve) sobre o valor já
+/// gravado do dia+corrente+projeto, atômico via <c>ON CONFLICT DO UPDATE</c> — o fold aplica um
+/// evento de cada vez, nunca o total acumulado inteiro.
 /// </summary>
 public sealed class SqliteFatoReceitaDiariaRepository(ILocalSqliteConnectionFactory connectionFactory, ILocalSessao sessao)
     : IFatoReceitaDiariaRepository
 {
-    public Task AcumularAsync(string tenantId, DateOnly dia, CorrenteDeReceita corrente, long deltaCentavos, CancellationToken ct = default)
+    public Task AcumularAsync(string tenantId, DateOnly dia, CorrenteDeReceita corrente, long deltaCentavos, string projetoId = "", CancellationToken ct = default)
         => ExecutarAsync(async (connection, transaction) =>
         {
             await using var cmd = connection.CreateCommand();
             cmd.Transaction = transaction;
             cmd.CommandText =
                 """
-                INSERT INTO fato_receita_diaria (tenant_id, dia, corrente, receita_centavos, atualizado_em_utc)
-                VALUES ($tenantId, $dia, $corrente, $delta, $agora)
-                ON CONFLICT(tenant_id, dia, corrente) DO UPDATE SET
+                INSERT INTO fato_receita_diaria (tenant_id, dia, corrente, projeto_id, receita_centavos, atualizado_em_utc)
+                VALUES ($tenantId, $dia, $corrente, $projeto, $delta, $agora)
+                ON CONFLICT(tenant_id, dia, corrente, projeto_id) DO UPDATE SET
                     receita_centavos  = receita_centavos + excluded.receita_centavos,
                     atualizado_em_utc = excluded.atualizado_em_utc;
                 """;
             cmd.Parameters.AddWithValue("$tenantId", tenantId);
             cmd.Parameters.AddWithValue("$dia", Iso(dia));
             cmd.Parameters.AddWithValue("$corrente", (int)corrente);
+            cmd.Parameters.AddWithValue("$projeto", projetoId);
             cmd.Parameters.AddWithValue("$delta", deltaCentavos);
             cmd.Parameters.AddWithValue("$agora", DateTimeOffset.UtcNow.ToUnixTimeMilliseconds());
 
             await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
         }, ct);
 
-    public Task<FatoReceitaDiaria?> ObterAsync(string tenantId, DateOnly dia, CorrenteDeReceita corrente, CancellationToken ct = default)
+    public Task<FatoReceitaDiaria?> ObterAsync(string tenantId, DateOnly dia, CorrenteDeReceita corrente, string projetoId = "", CancellationToken ct = default)
         => ConsultarAsync(async (connection, transaction) =>
         {
             await using var cmd = connection.CreateCommand();
             cmd.Transaction = transaction;
             cmd.CommandText =
-                "SELECT tenant_id, dia, corrente, receita_centavos, atualizado_em_utc FROM fato_receita_diaria WHERE tenant_id = $tenantId AND dia = $dia AND corrente = $corrente;";
+                "SELECT tenant_id, dia, corrente, projeto_id, receita_centavos, atualizado_em_utc FROM fato_receita_diaria " +
+                "WHERE tenant_id = $tenantId AND dia = $dia AND corrente = $corrente AND projeto_id = $projeto;";
             cmd.Parameters.AddWithValue("$tenantId", tenantId);
             cmd.Parameters.AddWithValue("$dia", Iso(dia));
             cmd.Parameters.AddWithValue("$corrente", (int)corrente);
+            cmd.Parameters.AddWithValue("$projeto", projetoId);
 
             await using var reader = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
             if (!await reader.ReadAsync(ct).ConfigureAwait(false))
@@ -68,10 +71,10 @@ public sealed class SqliteFatoReceitaDiariaRepository(ILocalSqliteConnectionFact
             cmd.Transaction = transaction;
             cmd.CommandText =
                 """
-                SELECT tenant_id, dia, corrente, receita_centavos, atualizado_em_utc
+                SELECT tenant_id, dia, corrente, projeto_id, receita_centavos, atualizado_em_utc
                 FROM fato_receita_diaria
                 WHERE tenant_id = $tenantId AND dia >= $de AND dia <= $ate
-                ORDER BY dia ASC, corrente ASC;
+                ORDER BY dia ASC, corrente ASC, projeto_id ASC;
                 """;
             cmd.Parameters.AddWithValue("$tenantId", tenantId);
             cmd.Parameters.AddWithValue("$de", Iso(de));
@@ -100,8 +103,9 @@ public sealed class SqliteFatoReceitaDiariaRepository(ILocalSqliteConnectionFact
             TenantId: reader.GetString(0),
             Dia: DateOnly.Parse(reader.GetString(1), CultureInfo.InvariantCulture),
             Corrente: (CorrenteDeReceita)reader.GetInt32(2),
-            ReceitaCentavos: reader.GetInt64(3),
-            AtualizadoEmUtc: DateTimeOffset.FromUnixTimeMilliseconds(reader.GetInt64(4)));
+            ProjetoId: reader.GetString(3),
+            ReceitaCentavos: reader.GetInt64(4),
+            AtualizadoEmUtc: DateTimeOffset.FromUnixTimeMilliseconds(reader.GetInt64(5)));
 
     private static string Iso(DateOnly d) => d.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
 

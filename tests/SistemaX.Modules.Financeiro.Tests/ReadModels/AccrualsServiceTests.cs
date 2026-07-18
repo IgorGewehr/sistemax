@@ -31,7 +31,7 @@ public sealed class AccrualsServiceTests
         var fatoRecebiveis = new InMemoryFatoRecebiveisRepository();
         var fatoCaixaDiario = new InMemoryFatoCaixaDiarioRepository();
 
-        var dre = new DreGerencialService(contasAReceber, contasAPagar, fatoCustoDiario, fatoRecebiveis);
+        var dre = new DreGerencialService(contasAReceber, contasAPagar, fatoCustoDiario, fatoRecebiveis, new InMemoryAtivoDeCapitalRepository());
         var servico = new AccrualsService(dre, fatoCaixaDiario);
 
         return new Ambiente(servico, contasAReceber, fatoCaixaDiario);

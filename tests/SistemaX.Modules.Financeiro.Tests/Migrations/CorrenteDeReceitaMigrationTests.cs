@@ -173,6 +173,7 @@ public sealed class CorrenteDeReceitaMigrationTests : IDisposable
         using (var transaction = connection.BeginTransaction())
         {
             new FinanceiroSchemaMigrationV19().AplicarAsync(connection, transaction, CancellationToken.None).GetAwaiter().GetResult();
+            new FinanceiroSchemaMigrationV37().AplicarAsync(connection, transaction, CancellationToken.None).GetAwaiter().GetResult();
             transaction.Commit();
         }
 

@@ -127,7 +127,7 @@ public sealed class GerarCobrancasAssinaturasUseCase(
                     if (lancamento.Sucesso) await lancamentos.SalvarAsync(lancamento.Valor, ct);
 
                     await barramentoDeEventos.PublishAsync(
-                        new CobrancaDeAssinaturaGerada(assinatura.Id, businessId, conta.Valor.ValorTotal.Centavos, conta.Valor.DataCompetencia), ct);
+                        new CobrancaDeAssinaturaGerada(assinatura.Id, businessId, conta.Valor.ValorTotal.Centavos, conta.Valor.DataCompetencia, assinatura.ProjetoId), ct);
 
                     geradas++;
                 }

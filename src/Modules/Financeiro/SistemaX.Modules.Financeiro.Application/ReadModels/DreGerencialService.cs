@@ -1,3 +1,4 @@
+using SistemaX.Modules.Financeiro.Application.Ativos;
 using SistemaX.Modules.Financeiro.Application.Categorias;
 using SistemaX.Modules.Financeiro.Application.Comum;
 using SistemaX.Modules.Financeiro.Application.Ports;
@@ -55,9 +56,16 @@ namespace SistemaX.Modules.Financeiro.Application.ReadModels;
 /// (o reconhecimento). Despesas (<c>ContaAPagar</c>) não são afetadas — nenhuma tem reconhecimento
 /// diferido hoje.
 /// </summary>
+/// <param name="DepreciacaoEAmortizacao">Análise por Projeto/Imobilizado (docs/financeiro/
+/// design-analise-por-projeto.md §4.7, docs/financeiro/design-imobilizado-roi.md §4.7) — a ÚNICA
+/// linha nova do demonstrativo: Σ <c>Application.Ativos.AtivoDeCapitalQuant.SomaNaJanela</c> de
+/// TODOS os <c>AtivoDeCapital</c> do tenant (com E sem projeto/vida útil já encerrada — a função é
+/// pura sobre o calendário, nunca depende do cron ter rodado). <c>Money.Zero</c> para tenant sem
+/// nenhum ativo — invariante de caracterização: <see cref="DreResultado"/> byte-idêntico ao de antes
+/// desta fatia quando não há nenhum <c>AtivoDeCapital</c> cadastrado.</param>
 public sealed record DreResultado(
     Money ReceitaBruta, Money CustoDireto, Money DespesaOperacional, Money DespesaFinanceira, Money ResultadoOperacional,
-    Money ReceitaRecorrente, Money ReceitaOperacional,
+    Money ReceitaRecorrente, Money ReceitaOperacional, Money DepreciacaoEAmortizacao,
     IReadOnlyList<DrePorCorrente> PorCorrente);
 
 /// <summary>
@@ -72,7 +80,8 @@ public sealed record DrePorCorrente(CorrenteDeReceita Corrente, Money ReceitaBru
 
 public sealed class DreGerencialService(
     IContaAReceberRepository contasAReceber, IContaAPagarRepository contasAPagar,
-    IFatoCustoDiarioRepository fatoCustoDiario, IFatoRecebiveisRepository fatoRecebiveis)
+    IFatoCustoDiarioRepository fatoCustoDiario, IFatoRecebiveisRepository fatoRecebiveis,
+    IAtivoDeCapitalRepository ativosDeCapital)
 {
     private static readonly CorrenteDeReceita[] TodasAsCorrentes =
         [CorrenteDeReceita.Recorrente, CorrenteDeReceita.Servico, CorrenteDeReceita.Comercio];
@@ -102,15 +111,36 @@ public sealed class DreGerencialService(
         var despesaOperacional = Somar(despesas.Where(c =>
             c.Status != StatusFinanceiro.Cancelado &&
             c.CategoriaId != CategoriaFinanceiraPadrao.CustoMercadoriaVendida &&
-            c.CategoriaId != CategoriaFinanceiraPadrao.Comissoes));
+            c.CategoriaId != CategoriaFinanceiraPadrao.Comissoes &&
+            c.CategoriaId != CategoriaFinanceiraPadrao.AtivoDeCapital));
 
-        var resultadoOperacional = receitaBruta - custoDireto - despesaOperacional - despesaFinanceira;
+        var depreciacaoEAmortizacao = await CalcularDepreciacaoEAmortizacaoAsync(businessId, inicio, fim, ct).ConfigureAwait(false);
+
+        var resultadoOperacional = receitaBruta - custoDireto - despesaOperacional - despesaFinanceira - depreciacaoEAmortizacao;
 
         var porCorrente = CalcularPorCorrente(receitasReconhecidas, despesas, fatosCusto, inicio, fim);
 
         return new DreResultado(
             receitaBruta, custoDireto, despesaOperacional, despesaFinanceira, resultadoOperacional,
-            receitaRecorrente, receitaOperacional, porCorrente);
+            receitaRecorrente, receitaOperacional, depreciacaoEAmortizacao, porCorrente);
+    }
+
+    /// <summary>
+    /// Análise por Projeto/Imobilizado (docs/financeiro/design-analise-por-projeto.md §4.7,
+    /// docs/financeiro/design-imobilizado-roi.md §4.7) — Σ <c>AtivoDeCapitalQuant.SomaNaJanela</c>
+    /// de TODOS os ativos do tenant na janela [inicio, fim]. Função PURA sobre o calendário: não
+    /// depende do cron ter rodado (§4.5 — "cron atrasado nunca produz um número errado no DRE").
+    /// Tenant sem nenhum <c>AtivoDeCapital</c> → <c>Money.Zero</c> (invariante de caracterização).
+    /// </summary>
+    private async Task<Money> CalcularDepreciacaoEAmortizacaoAsync(string businessId, DateTimeOffset inicio, DateTimeOffset fim, CancellationToken ct)
+    {
+        var ativos = await ativosDeCapital.ListarAsync(businessId, ct: ct).ConfigureAwait(false);
+        if (ativos.Count == 0) return Money.Zero;
+
+        var de = DateOnly.FromDateTime(inicio.Date);
+        var ate = DateOnly.FromDateTime(fim.Date);
+        var totalCentavos = ativos.Sum(a => AtivoDeCapitalQuant.SomaNaJanela(a, de, ate));
+        return new Money(totalCentavos);
     }
 
     /// <summary>

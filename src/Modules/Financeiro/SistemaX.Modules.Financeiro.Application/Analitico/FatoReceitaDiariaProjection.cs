@@ -42,7 +42,7 @@ public sealed class FatoReceitaDiariaProjection(IFatoReceitaDiariaRepository rep
     private Task AplicarVendaConcluidaAsync(IntegrationEventLedgerEntry evento, CancellationToken ct)
     {
         var e = JsonSerializer.Deserialize<VendaConcluida>(evento.PayloadJson)!;
-        return repositorio.AcumularAsync(e.TenantId, BucketingTemporalDoTenant.DiaLocal(e.OcorridoEm), CorrenteDeReceita.Comercio, e.TotalCentavos, ct);
+        return repositorio.AcumularAsync(e.TenantId, BucketingTemporalDoTenant.DiaLocal(e.OcorridoEm), CorrenteDeReceita.Comercio, e.TotalCentavos, ct: ct);
     }
 
     private Task AplicarVendaEstornadaAsync(IntegrationEventLedgerEntry evento, CancellationToken ct)
@@ -51,14 +51,14 @@ public sealed class FatoReceitaDiariaProjection(IFatoReceitaDiariaRepository rep
         // Reduz a receita no dia do ESTORNO (não retroage ao dia original — o fold é incremental,
         // nunca reabre um dia já fechado; mesmo racional de LancamentoContabil.GerarEstorno).
         // Corrente: venda é sempre Comercio (P0-1) — o estorno reverte na mesma corrente.
-        return repositorio.AcumularAsync(e.TenantId, BucketingTemporalDoTenant.DiaLocal(e.OcorridoEm), CorrenteDeReceita.Comercio, -e.TotalCentavos, ct);
+        return repositorio.AcumularAsync(e.TenantId, BucketingTemporalDoTenant.DiaLocal(e.OcorridoEm), CorrenteDeReceita.Comercio, -e.TotalCentavos, ct: ct);
     }
 
     private Task AplicarPedidoPagoAsync(IntegrationEventLedgerEntry evento, CancellationToken ct)
     {
         var e = JsonSerializer.Deserialize<PedidoPago>(evento.PayloadJson)!;
         // Corrente: pedido (delivery/balcão) é venda de produto — Comercio (P0-1).
-        return repositorio.AcumularAsync(e.TenantId, BucketingTemporalDoTenant.DiaLocal(e.OcorridoEm), CorrenteDeReceita.Comercio, e.TotalCentavos, ct);
+        return repositorio.AcumularAsync(e.TenantId, BucketingTemporalDoTenant.DiaLocal(e.OcorridoEm), CorrenteDeReceita.Comercio, e.TotalCentavos, ct: ct);
     }
 
     private Task AplicarOsFaturadaAsync(IntegrationEventLedgerEntry evento, CancellationToken ct)
@@ -68,7 +68,7 @@ public sealed class FatoReceitaDiariaProjection(IFatoReceitaDiariaRepository rep
         // Corrente: OS é sempre Servico (P0-1) — mão de obra + peças ainda somadas num único
         // número aqui (a repartição interna é P0-2/Fatia 3, quando o evento ganhar os dois campos
         // separados no fold — hoje só o handler de ContaAReceber já separa os valores na origem).
-        return repositorio.AcumularAsync(e.TenantId, BucketingTemporalDoTenant.DiaLocal(e.OcorridoEm), CorrenteDeReceita.Servico, total, ct);
+        return repositorio.AcumularAsync(e.TenantId, BucketingTemporalDoTenant.DiaLocal(e.OcorridoEm), CorrenteDeReceita.Servico, total, ct: ct);
     }
 
     private Task AplicarCobrancaDeAssinaturaGeradaAsync(IntegrationEventLedgerEntry evento, CancellationToken ct)
@@ -76,6 +76,9 @@ public sealed class FatoReceitaDiariaProjection(IFatoReceitaDiariaRepository rep
         var e = JsonSerializer.Deserialize<CobrancaDeAssinaturaGerada>(evento.PayloadJson)!;
         // Corrente: cobrança de assinatura é sempre Recorrente (P0-1/P0-4) — fecha o gap "RBT12 não
         // inclui assinaturas" (docs/financeiro/revisao-domain-fit-cnpj.md P0-4).
-        return repositorio.AcumularAsync(e.TenantId, BucketingTemporalDoTenant.DiaLocal(e.OcorridoEm), CorrenteDeReceita.Recorrente, e.ValorCentavos, ct);
+        // ProjetoId (P5, docs/financeiro/design-analise-por-projeto.md §11) — a ÚNICA fonte que já
+        // carrega a dimensão real hoje; sentinela "" quando a assinatura não está tageada.
+        return repositorio.AcumularAsync(
+            e.TenantId, BucketingTemporalDoTenant.DiaLocal(e.OcorridoEm), CorrenteDeReceita.Recorrente, e.ValorCentavos, e.ProjetoId ?? "", ct);
     }
 }

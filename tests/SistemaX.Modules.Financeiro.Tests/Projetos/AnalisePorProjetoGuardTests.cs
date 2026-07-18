@@ -144,7 +144,7 @@ public sealed class AnalisePorProjetoGuardTests
                 corrente: CorrenteDeReceita.Servico, projetoId: projetoId).Valor;
             await contasAPagar.SalvarAsync(despesa);
 
-            var service = new DreGerencialService(contasAReceber, contasAPagar, fatoCustoDiario, fatoRecebiveis);
+            var service = new DreGerencialService(contasAReceber, contasAPagar, fatoCustoDiario, fatoRecebiveis, new InMemoryAtivoDeCapitalRepository());
             return await service.CalcularAsync(Biz, inicio, fim);
         }
 

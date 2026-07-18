@@ -1,3 +1,5 @@
+using SistemaX.Modules.Financeiro.Domain.Contabil;
+
 namespace SistemaX.Modules.Financeiro.Application.Categorias;
 
 /// <summary>
@@ -37,4 +39,15 @@ public static class CategoriaFinanceiraPadrao
     /// em paralelo), então esta constante só nomeia a linha para a UI/relatórios.
     /// </summary>
     public const string TaxasDeCartao = "taxas-de-cartao";
+
+    /// <summary>
+    /// Análise por Projeto/Imobilizado (docs/financeiro/design-analise-por-projeto.md §3.3/§4.4,
+    /// docs/financeiro/design-imobilizado-roi.md §3.1/§4.4) — categoria da <c>ContaAPagar</c> nascida
+    /// junto de um <c>AtivoDeCapital</c> (a compra parcelada). Espelha o tratamento de
+    /// <see cref="CustoMercadoriaVendida"/>: excluída da <c>DespesaOperacional</c> do
+    /// <see cref="ReadModels.DreGerencialService"/> (é balanço — conta 1.3 — não resultado) e
+    /// direcionada para <c>PlanoDeContasPadrao.AtivosDeCapital</c> em vez de <c>CustoDespesa</c> por
+    /// <c>LancamentoContabilFactory.DeContaAPagar</c>.
+    /// </summary>
+    public const string AtivoDeCapital = LancamentoContabilFactory.CategoriaAtivoDeCapital;
 }

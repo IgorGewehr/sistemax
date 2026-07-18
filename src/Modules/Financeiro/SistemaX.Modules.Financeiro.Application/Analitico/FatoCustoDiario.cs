@@ -25,4 +25,7 @@ namespace SistemaX.Modules.Financeiro.Application.Analitico;
 /// (<c>CustoBaixadoPorOs</c>) existir, essa projeção também gravará linhas
 /// <see cref="CorrenteDeReceita.Servico"/>.
 /// </summary>
-public sealed record FatoCustoDiario(string TenantId, DateOnly Dia, CorrenteDeReceita Corrente, long CustoCentavos, DateTimeOffset AtualizadoEmUtc);
+/// <param name="ProjetoId">P5 (docs/financeiro/design-analise-por-projeto.md §11) — 4ª dimensão da
+/// CHAVE, sentinela <c>""</c> = sem projeto. Nenhum fold escreve valor real aqui ainda (ver a nota
+/// da migração V38 — CMV continua puro, sem amortização, nesta fatia).</param>
+public sealed record FatoCustoDiario(string TenantId, DateOnly Dia, CorrenteDeReceita Corrente, string ProjetoId, long CustoCentavos, DateTimeOffset AtualizadoEmUtc);

@@ -46,6 +46,8 @@ public sealed class ProjectionRunnerReprocessabilityTests : IDisposable
             new FinanceiroSchemaMigrationV9().AplicarAsync(connection, transaction, CancellationToken.None).GetAwaiter().GetResult();
             new FinanceiroSchemaMigrationV19().AplicarAsync(connection, transaction, CancellationToken.None).GetAwaiter().GetResult();
             new FinanceiroSchemaMigrationV20().AplicarAsync(connection, transaction, CancellationToken.None).GetAwaiter().GetResult();
+            new FinanceiroSchemaMigrationV37().AplicarAsync(connection, transaction, CancellationToken.None).GetAwaiter().GetResult();
+            new FinanceiroSchemaMigrationV38().AplicarAsync(connection, transaction, CancellationToken.None).GetAwaiter().GetResult();
             transaction.Commit();
         }
 
@@ -133,6 +135,68 @@ public sealed class ProjectionRunnerReprocessabilityTests : IDisposable
         await _runner.ReconstruirAsync(receitaProjecao);
         var recorrenteReconstruido = await _receitaRepo.ObterAsync(tenantId, dia, CorrenteDeReceita.Recorrente);
         Assert.Equal(recorrente.ReceitaCentavos, recorrenteReconstruido!.ReceitaCentavos);
+    }
+
+    /// <summary>
+    /// P5 (docs/financeiro/design-analise-por-projeto.md §11) — <c>projeto_id</c> entra na CHAVE de
+    /// <c>fato_receita_diaria</c> (espelho de V19/V20): duas cobranças de assinaturas de PROJETOS
+    /// diferentes, no MESMO dia/corrente, viram DUAS linhas (não uma soma cega) — e uma venda comum
+    /// (sem ProjetoId, ainda não estendida) cai na sentinela <c>""</c>. Replay reconstrói a chave
+    /// nova IDÊNTICA — o critério de pronto de sempre, agora com a dimensão extra.
+    /// </summary>
+    [Fact]
+    public async Task ProjetoId_entra_na_chave_de_fato_receita_diaria_e_replay_reconstroi_igual()
+    {
+        var tenantId = "tenant-projeto";
+        var ocorridoEm = new DateTimeOffset(2026, 7, 15, 10, 0, 0, TimeSpan.FromHours(-3));
+
+        await PersistirAsync(
+            new CobrancaDeAssinaturaGerada("assinatura-digisat", tenantId, 28_000, ocorridoEm, "projeto-digisat"),
+            "assinatura.cobranca:assinatura-digisat:202607");
+        await PersistirAsync(
+            new CobrancaDeAssinaturaGerada("assinatura-aevo", tenantId, 50_000, ocorridoEm, "projeto-aevo"),
+            "assinatura.cobranca:assinatura-aevo:202607");
+        // Assinatura SEM projeto — cai na sentinela "".
+        await PersistirAsync(
+            new CobrancaDeAssinaturaGerada("assinatura-generica", tenantId, 10_000, ocorridoEm),
+            "assinatura.cobranca:assinatura-generica:202607");
+        // Venda comum (evento ainda não estendido com ProjetoId — §6.2) — também sentinela "".
+        await PersistirAsync(new VendaConcluida("v1", tenantId, 5_000, "pix", ocorridoEm), "venda.concluida:v1");
+
+        var receitaProjecao = new FatoReceitaDiariaProjection(_receitaRepo);
+        await _runner.ExecutarUmaAsync(receitaProjecao);
+
+        var dia = BucketingTemporalDoTenant.DiaLocal(ocorridoEm);
+
+        var digisat = await _receitaRepo.ObterAsync(tenantId, dia, CorrenteDeReceita.Recorrente, "projeto-digisat");
+        var aevo = await _receitaRepo.ObterAsync(tenantId, dia, CorrenteDeReceita.Recorrente, "projeto-aevo");
+        var semProjetoRecorrente = await _receitaRepo.ObterAsync(tenantId, dia, CorrenteDeReceita.Recorrente); // sentinela "" default
+        var semProjetoComercio = await _receitaRepo.ObterAsync(tenantId, dia, CorrenteDeReceita.Comercio); // venda, sentinela ""
+
+        Assert.Equal(28_000, digisat!.ReceitaCentavos);
+        Assert.Equal("projeto-digisat", digisat.ProjetoId);
+        Assert.Equal(50_000, aevo!.ReceitaCentavos);
+        Assert.Equal(10_000, semProjetoRecorrente!.ReceitaCentavos); // NÃO soma com digisat/aevo — chave diferente
+        Assert.Equal("", semProjetoRecorrente.ProjetoId);
+        Assert.Equal(5_000, semProjetoComercio!.ReceitaCentavos);
+
+        // O TOTAL do dia (quem soma todas as linhas, ex. Radar do Simples) continua correto —
+        // a granularidade extra nunca perde nem duplica centavo.
+        var todasAsLinhasDoDia = await _receitaRepo.ListarAsync(tenantId, dia, dia);
+        Assert.Equal(4, todasAsLinhasDoDia.Count);
+        Assert.Equal(93_000, todasAsLinhasDoDia.Sum(l => l.ReceitaCentavos)); // 28k+50k+10k+5k
+
+        // REPROCESSABILIDADE: DROP + replay reconstrói a MESMA chave com os MESMOS valores.
+        await _runner.ReconstruirAsync(receitaProjecao);
+
+        var digisatReconstruido = await _receitaRepo.ObterAsync(tenantId, dia, CorrenteDeReceita.Recorrente, "projeto-digisat");
+        var aevoReconstruido = await _receitaRepo.ObterAsync(tenantId, dia, CorrenteDeReceita.Recorrente, "projeto-aevo");
+        var todasAsLinhasReconstruidas = await _receitaRepo.ListarAsync(tenantId, dia, dia);
+
+        Assert.Equal(digisat.ReceitaCentavos, digisatReconstruido!.ReceitaCentavos);
+        Assert.Equal(aevo.ReceitaCentavos, aevoReconstruido!.ReceitaCentavos);
+        Assert.Equal(4, todasAsLinhasReconstruidas.Count);
+        Assert.Equal(93_000, todasAsLinhasReconstruidas.Sum(l => l.ReceitaCentavos));
     }
 
     [Fact]

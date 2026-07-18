@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using SistemaX.Modules.Abstractions;
 using SistemaX.Modules.Abstractions.Consultor;
+using SistemaX.Modules.Financeiro.Application.Ativos;
 using SistemaX.Modules.Financeiro.Application.Caixa;
 using SistemaX.Modules.Financeiro.Application.CasosDeUso;
 using SistemaX.Modules.Financeiro.Application.Consultor;
@@ -8,6 +9,7 @@ using SistemaX.Modules.Financeiro.Application.EventosDeIntegracao.Handlers;
 using SistemaX.Modules.Financeiro.Application.Mrr;
 using SistemaX.Modules.Financeiro.Application.Projetos;
 using SistemaX.Modules.Financeiro.Application.ReadModels;
+using SistemaX.Modules.Financeiro.Application.Tempo;
 
 namespace SistemaX.Modules.Financeiro.Application;
 
@@ -76,6 +78,16 @@ public sealed class FinanceiroModule : IModule
         services.AddScoped<EditarProjetoUseCase>();
         services.AddScoped<ArquivarReativarProjetoUseCase>();
         services.AddScoped<PainelDoProjetoService>();
+
+        // Análise por Projeto — Parte B: P3 (ativo de capital amortizável/depreciável GERAL,
+        // docs/financeiro/design-analise-por-projeto.md §3.3, docs/financeiro/design-imobilizado-roi.md
+        // §3.1) + P4 (apontamento de tempo, só minutos por decisão do dono — §3.4).
+        services.AddScoped<CriarAtivoDeCapitalUseCase>();
+        services.AddScoped<BaixarAtivoDeCapitalUseCase>();
+        services.AddScoped<ReconhecerAmortizacoesUseCase>();
+        services.AddScoped<RegistrarApontamentoUseCase>();
+        services.AddScoped<ExcluirApontamentoUseCase>();
+        services.AddScoped<ResumoDeTempoService>();
 
         // Motor de recorrência (geração de contas/cobranças)
         services.AddScoped<GerarContasRecorrentesUseCase>();

@@ -10,9 +10,11 @@ namespace SistemaX.Modules.Financeiro.Application.Ports;
 /// (tenant, dia, corrente) — P0-1.</summary>
 public interface IFatoCustoDiarioRepository
 {
-    Task AcumularAsync(string tenantId, DateOnly dia, CorrenteDeReceita corrente, long deltaCentavos, CancellationToken ct = default);
+    /// <summary><paramref name="projetoId"/> — P5: sentinela <c>""</c> (default) = sem projeto,
+    /// nunca <c>null</c> (parte da chave — ver <see cref="FatoCustoDiario"/>).</summary>
+    Task AcumularAsync(string tenantId, DateOnly dia, CorrenteDeReceita corrente, long deltaCentavos, string projetoId = "", CancellationToken ct = default);
 
-    Task<FatoCustoDiario?> ObterAsync(string tenantId, DateOnly dia, CorrenteDeReceita corrente, CancellationToken ct = default);
+    Task<FatoCustoDiario?> ObterAsync(string tenantId, DateOnly dia, CorrenteDeReceita corrente, string projetoId = "", CancellationToken ct = default);
 
     Task<IReadOnlyList<FatoCustoDiario>> ListarAsync(string tenantId, DateOnly de, DateOnly ate, CancellationToken ct = default);
 

@@ -73,6 +73,7 @@ public sealed class BearerSessionMiddleware(RequestDelegate next, SessionStore s
 
         context.Items[SessaoHttpContextExtensions.BusinessIdItemKey] = sessao.BusinessId;
         context.Items[SessaoHttpContextExtensions.PapelItemKey] = usuario.Papel.ToString();
+        context.Items[SessaoHttpContextExtensions.UsuarioIdItemKey] = usuario.Id;
 
         await next(context).ConfigureAwait(false);
     }

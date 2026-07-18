@@ -21,5 +21,6 @@ public sealed class IdentidadeModule : IModule
         services.AddScoped<AutenticarPorPinUseCase>();
         services.AddScoped<CriarUsuarioUseCase>();
         services.AddScoped<AlterarUsuarioUseCase>();
+        services.AddScoped<TrocarPinUseCase>();
     }
 }

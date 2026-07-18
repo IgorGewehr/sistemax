@@ -35,6 +35,36 @@ public abstract class UsuarioRepositoryContractTests
         Assert.Equal(usuario.PinHash, lido.PinHash);
         Assert.Equal(usuario.PinSalt, lido.PinSalt);
         Assert.True(lido.VerificarPin("1234"));
+        Assert.False(lido.PinProvisorio);
+    }
+
+    [Fact]
+    public async Task Salvar_e_buscar_por_id_persiste_pin_provisorio_true()
+    {
+        var repo = CriarRepositorio();
+        var usuario = Usuario.Criar(
+            TenantA, "Founder Semeado", "founder-semeado@loja.com", "1234", Papel.Founder, pinProvisorio: true).Valor;
+
+        await repo.SalvarAsync(usuario);
+        var lido = await repo.ObterPorIdAsync(usuario.Id);
+
+        Assert.True(lido!.PinProvisorio);
+    }
+
+    [Fact]
+    public async Task Redefinir_pin_zera_pin_provisorio_apos_persistir()
+    {
+        var repo = CriarRepositorio();
+        var usuario = Usuario.Criar(
+            TenantA, "Founder Semeado", "founder-semeado2@loja.com", "1234", Papel.Founder, pinProvisorio: true).Valor;
+        await repo.SalvarAsync(usuario);
+
+        usuario.RedefinirPin("5678");
+        await repo.SalvarAsync(usuario);
+
+        var lido = await repo.ObterPorIdAsync(usuario.Id);
+        Assert.False(lido!.PinProvisorio);
+        Assert.True(lido.VerificarPin("5678"));
     }
 
     [Fact]

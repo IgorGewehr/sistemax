@@ -24,7 +24,7 @@ public sealed class SqliteUsuarioRepository(ILocalSqliteConnectionFactory connec
             cmd.Transaction = transaction;
             cmd.CommandText =
                 """
-                SELECT id, business_id, nome, email, papel, status, pin_hash, pin_salt, criado_em, ultimo_acesso_em
+                SELECT id, business_id, nome, email, papel, status, pin_hash, pin_salt, criado_em, ultimo_acesso_em, pin_provisorio
                 FROM usuarios WHERE id = $id;
                 """;
             cmd.Parameters.AddWithValue("$id", id);
@@ -39,11 +39,11 @@ public sealed class SqliteUsuarioRepository(ILocalSqliteConnectionFactory connec
             cmd.Transaction = transaction;
             cmd.CommandText = incluirInativos
                 ? """
-                  SELECT id, business_id, nome, email, papel, status, pin_hash, pin_salt, criado_em, ultimo_acesso_em
+                  SELECT id, business_id, nome, email, papel, status, pin_hash, pin_salt, criado_em, ultimo_acesso_em, pin_provisorio
                   FROM usuarios WHERE business_id = $businessId;
                   """
                 : """
-                  SELECT id, business_id, nome, email, papel, status, pin_hash, pin_salt, criado_em, ultimo_acesso_em
+                  SELECT id, business_id, nome, email, papel, status, pin_hash, pin_salt, criado_em, ultimo_acesso_em, pin_provisorio
                   FROM usuarios WHERE business_id = $businessId AND status = $status;
                   """;
             cmd.Parameters.AddWithValue("$businessId", businessId);
@@ -70,9 +70,9 @@ public sealed class SqliteUsuarioRepository(ILocalSqliteConnectionFactory connec
             cmd.CommandText =
                 """
                 INSERT INTO usuarios
-                    (id, business_id, nome, email, papel, status, pin_hash, pin_salt, criado_em, ultimo_acesso_em)
+                    (id, business_id, nome, email, papel, status, pin_hash, pin_salt, criado_em, ultimo_acesso_em, pin_provisorio)
                 VALUES
-                    ($id, $businessId, $nome, $email, $papel, $status, $pinHash, $pinSalt, $criadoEm, $ultimoAcessoEm)
+                    ($id, $businessId, $nome, $email, $papel, $status, $pinHash, $pinSalt, $criadoEm, $ultimoAcessoEm, $pinProvisorio)
                 ON CONFLICT(id) DO UPDATE SET
                     nome             = excluded.nome,
                     email            = excluded.email,
@@ -80,7 +80,8 @@ public sealed class SqliteUsuarioRepository(ILocalSqliteConnectionFactory connec
                     status           = excluded.status,
                     pin_hash         = excluded.pin_hash,
                     pin_salt         = excluded.pin_salt,
-                    ultimo_acesso_em = excluded.ultimo_acesso_em;
+                    ultimo_acesso_em = excluded.ultimo_acesso_em,
+                    pin_provisorio   = excluded.pin_provisorio;
                 """;
             cmd.Parameters.AddWithValue("$id", usuario.Id);
             cmd.Parameters.AddWithValue("$businessId", usuario.BusinessId);
@@ -92,6 +93,7 @@ public sealed class SqliteUsuarioRepository(ILocalSqliteConnectionFactory connec
             cmd.Parameters.AddWithValue("$pinSalt", usuario.PinSalt);
             cmd.Parameters.AddWithValue("$criadoEm", usuario.CriadoEm.ToString("O"));
             cmd.Parameters.AddWithValue("$ultimoAcessoEm", (object?)usuario.UltimoAcessoEm?.ToString("O") ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("$pinProvisorio", usuario.PinProvisorio ? 1 : 0);
 
             await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
         }, ct);
@@ -118,7 +120,8 @@ public sealed class SqliteUsuarioRepository(ILocalSqliteConnectionFactory connec
             pinHash: reader.GetString(6),
             pinSalt: reader.GetString(7),
             criadoEm: DateTimeOffset.Parse(reader.GetString(8)),
-            ultimoAcessoEm: reader.IsDBNull(9) ? null : DateTimeOffset.Parse(reader.GetString(9)));
+            ultimoAcessoEm: reader.IsDBNull(9) ? null : DateTimeOffset.Parse(reader.GetString(9)),
+            pinProvisorio: reader.GetBoolean(10));
 
     /// <summary>Escreve dentro da sessão ambiente, se houver uma ativa; senão abre conexão
     /// própria e curta — mesmo molde de <c>SqliteFornecedorRepository</c>.</summary>

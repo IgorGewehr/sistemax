@@ -27,12 +27,20 @@ public sealed class Usuario : AggregateRoot<string>
     public DateTimeOffset CriadoEm { get; private set; }
     public DateTimeOffset? UltimoAcessoEm { get; private set; }
 
+    /// <summary>Marca que este PIN foi atribuído pelo sistema (seed do founder, <c>PIN "1234"</c>
+    /// de <c>IdentidadeBootstrapSeeder</c>) e ainda não foi escolhido pelo dono da instalação —
+    /// o wizard de 1º-boot lê isto via <c>deveTrocarPin</c> no <c>POST /api/auth/login</c> para
+    /// forçar a troca. Zerado por <see cref="RedefinirPin"/> — qualquer troca de PIN, própria
+    /// (<c>POST /api/auth/trocar-pin</c>) ou administrativa (<c>PATCH /usuarios/{id}</c>), é
+    /// considerada uma escolha real e encerra o estado provisório.</summary>
+    public bool PinProvisorio { get; private set; }
+
     private Usuario()
     {
     }
 
     public static Result<Usuario> Criar(
-        string businessId, string nome, string email, string pin, Papel papel)
+        string businessId, string nome, string email, string pin, Papel papel, bool pinProvisorio = false)
     {
         if (string.IsNullOrWhiteSpace(businessId))
             return Result.Falhar<Usuario>(new Error("identidade.usuario.business_id_invalido", "BusinessId é obrigatório."));
@@ -60,6 +68,7 @@ public sealed class Usuario : AggregateRoot<string>
             PinSalt = salt,
             CriadoEm = DateTimeOffset.UtcNow,
             UltimoAcessoEm = null,
+            PinProvisorio = pinProvisorio,
         });
     }
 
@@ -70,7 +79,8 @@ public sealed class Usuario : AggregateRoot<string>
     /// </summary>
     public static Usuario Reconstituir(
         string id, string businessId, string nome, string email, Papel papel, StatusUsuario status,
-        string pinHash, string pinSalt, DateTimeOffset criadoEm, DateTimeOffset? ultimoAcessoEm)
+        string pinHash, string pinSalt, DateTimeOffset criadoEm, DateTimeOffset? ultimoAcessoEm,
+        bool pinProvisorio)
         => new()
         {
             Id = id,
@@ -83,6 +93,7 @@ public sealed class Usuario : AggregateRoot<string>
             PinSalt = pinSalt,
             CriadoEm = criadoEm,
             UltimoAcessoEm = ultimoAcessoEm,
+            PinProvisorio = pinProvisorio,
         };
 
     /// <summary>Verifica o PIN em texto puro contra o hash guardado (tempo constante, ver
@@ -104,6 +115,10 @@ public sealed class Usuario : AggregateRoot<string>
         if (validacao.Falha) return validacao;
 
         (PinHash, PinSalt) = PinHasher.Hash(novoPin);
+
+        // Qualquer troca de PIN — própria ou administrativa — encerra o estado provisório do
+        // seed (ver PinProvisorio). Não há caminho de "troca de PIN que não conta".
+        PinProvisorio = false;
         return Result.Ok();
     }
 

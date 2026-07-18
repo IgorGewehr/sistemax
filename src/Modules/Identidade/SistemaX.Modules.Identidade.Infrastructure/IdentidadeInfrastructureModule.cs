@@ -27,6 +27,7 @@ public sealed class IdentidadeInfrastructureModule : IModule
             // Scoped: acompanha a mesma sessão (ILocalSessao) do caso de uso que a resolveu.
             services.AddScoped<IUsuarioRepository, SqliteUsuarioRepository>();
             services.AddModuleSchemaMigration<IdentidadeSchemaMigrationV1>();
+            services.AddModuleSchemaMigration<IdentidadeSchemaMigrationV2>();
         }
         else
         {

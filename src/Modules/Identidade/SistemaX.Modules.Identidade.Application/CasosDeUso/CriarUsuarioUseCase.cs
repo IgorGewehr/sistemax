@@ -13,7 +13,8 @@ namespace SistemaX.Modules.Identidade.Application.CasosDeUso;
 public sealed class CriarUsuarioUseCase(IUsuarioRepository usuarios)
 {
     public async Task<Result<Usuario>> ExecutarAsync(
-        string businessId, string nome, string email, string pin, Papel papel, CancellationToken ct = default)
+        string businessId, string nome, string email, string pin, Papel papel, CancellationToken ct = default,
+        bool pinProvisorio = false)
     {
         var ativos = await usuarios.ListarAsync(businessId, incluirInativos: false, ct).ConfigureAwait(false);
 
@@ -23,7 +24,7 @@ public sealed class CriarUsuarioUseCase(IUsuarioRepository usuarios)
                 "usuario.pin_duplicado", "Este PIN já está em uso por outro usuário ativo desta instalação."));
         }
 
-        var resultado = Usuario.Criar(businessId, nome, email, pin, papel);
+        var resultado = Usuario.Criar(businessId, nome, email, pin, papel, pinProvisorio);
         if (resultado.Falha) return resultado;
 
         await usuarios.SalvarAsync(resultado.Valor, ct).ConfigureAwait(false);

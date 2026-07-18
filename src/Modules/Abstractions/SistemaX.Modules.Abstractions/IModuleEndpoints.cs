@@ -44,6 +44,13 @@ public static class SessaoHttpContextExtensions
     /// uma permissão lê o papel DAQUI, nunca de query/corpo.</summary>
     public const string PapelItemKey = "sistemax.session.papel";
 
+    /// <summary>Chave interna do <see cref="HttpContext.Items"/> onde o middleware de sessão do
+    /// Host grava o <c>Usuario.Id</c> (não o token) da sessão validada — usada por endpoints de
+    /// autoatendimento (ex.: <c>POST /api/auth/trocar-pin</c>) que agem sobre "o usuário logado",
+    /// nunca sobre um id vindo do corpo do request (que o cliente poderia forjar para mexer no PIN
+    /// de outra pessoa sem ser admin).</summary>
+    public const string UsuarioIdItemKey = "sistemax.session.usuario_id";
+
     /// <summary>
     /// O <c>businessId</c> da sessão autenticada do request atual. Lança se chamado num endpoint
     /// que não passou pelo middleware de sessão — sinal de rota mal-registrada (fora do grupo
@@ -53,5 +60,13 @@ public static class SessaoHttpContextExtensions
         => http.Items[BusinessIdItemKey] as string
            ?? throw new InvalidOperationException(
                "BusinessId não encontrado em HttpContext.Items — este endpoint está fora do " +
+               "middleware de sessão Bearer, ou foi chamado antes dele rodar.");
+
+    /// <summary>O <c>Usuario.Id</c> da sessão autenticada do request atual — mesma regra de
+    /// <see cref="ObterBusinessId"/> (lança se fora do middleware de sessão).</summary>
+    public static string ObterUsuarioId(this HttpContext http)
+        => http.Items[UsuarioIdItemKey] as string
+           ?? throw new InvalidOperationException(
+               "UsuarioId não encontrado em HttpContext.Items — este endpoint está fora do " +
                "middleware de sessão Bearer, ou foi chamado antes dele rodar.");
 }

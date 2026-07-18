@@ -108,6 +108,91 @@ public sealed class BridgeAuthEndToEndTests
         Assert.Equal(HttpStatusCode.Unauthorized, resposta.StatusCode);
     }
 
+    [Fact]
+    public async Task Login_do_founder_recem_semeado_com_pin_provisorio_retorna_deve_trocar_pin_true()
+    {
+        await using var ambiente = await SubirServidorAsync(founderComPinProvisorio: true);
+
+        var (status, corpo) = await LoginEDecodificarAsync(ambiente.Client, PinFounder);
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.True(corpo.GetProperty("deveTrocarPin").GetBoolean());
+    }
+
+    [Fact]
+    public async Task Login_de_usuario_sem_pin_provisorio_retorna_deve_trocar_pin_false()
+    {
+        await using var ambiente = await SubirServidorAsync();
+
+        var (status, corpo) = await LoginEDecodificarAsync(ambiente.Client, PinFounder);
+
+        Assert.Equal(HttpStatusCode.OK, status);
+        Assert.False(corpo.GetProperty("deveTrocarPin").GetBoolean());
+    }
+
+    [Fact]
+    public async Task Trocar_o_proprio_pin_zera_pin_provisorio_e_o_proximo_login_ja_nao_pede_troca()
+    {
+        await using var ambiente = await SubirServidorAsync(founderComPinProvisorio: true);
+
+        var (_, corpoLogin) = await LoginEDecodificarAsync(ambiente.Client, PinFounder);
+        Assert.True(corpoLogin.GetProperty("deveTrocarPin").GetBoolean());
+        var token = corpoLogin.GetProperty("token").GetString();
+
+        using var trocaRequest = new HttpRequestMessage(HttpMethod.Post, "/api/auth/trocar-pin")
+        {
+            Content = JsonContent.Create(new { pinAtual = PinFounder, pinNovo = "5678" })
+        };
+        trocaRequest.Headers.Add("Authorization", $"Bearer {token}");
+        var respostaTroca = await ambiente.Client.SendAsync(trocaRequest);
+        Assert.Equal(HttpStatusCode.OK, respostaTroca.StatusCode);
+
+        var (statusNovoLogin, corpoNovoLogin) = await LoginEDecodificarAsync(ambiente.Client, "5678");
+        Assert.Equal(HttpStatusCode.OK, statusNovoLogin);
+        Assert.False(corpoNovoLogin.GetProperty("deveTrocarPin").GetBoolean());
+
+        // O PIN antigo (1234) não bate mais — RedefinirPin invalida o hash anterior.
+        var respostaComPinAntigo = await LoginAsync(ambiente.Client, PinFounder);
+        Assert.Equal(HttpStatusCode.Unauthorized, respostaComPinAntigo.StatusCode);
+    }
+
+    [Fact]
+    public async Task Trocar_o_proprio_pin_com_pin_atual_errado_falha_com_401_e_nao_altera_o_pin()
+    {
+        await using var ambiente = await SubirServidorAsync(founderComPinProvisorio: true);
+
+        var (_, corpoLogin) = await LoginEDecodificarAsync(ambiente.Client, PinFounder);
+        var token = corpoLogin.GetProperty("token").GetString();
+
+        using var trocaRequest = new HttpRequestMessage(HttpMethod.Post, "/api/auth/trocar-pin")
+        {
+            Content = JsonContent.Create(new { pinAtual = "0000", pinNovo = "5678" })
+        };
+        trocaRequest.Headers.Add("Authorization", $"Bearer {token}");
+        var respostaTroca = await ambiente.Client.SendAsync(trocaRequest);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, respostaTroca.StatusCode);
+
+        // PIN original ainda funciona e a instalação ainda pede troca.
+        var (statusLoginAntigo, corpoLoginAntigo) = await LoginEDecodificarAsync(ambiente.Client, PinFounder);
+        Assert.Equal(HttpStatusCode.OK, statusLoginAntigo);
+        Assert.True(corpoLoginAntigo.GetProperty("deveTrocarPin").GetBoolean());
+    }
+
+    [Fact]
+    public async Task Trocar_pin_sem_sessao_falha_com_401()
+    {
+        await using var ambiente = await SubirServidorAsync(founderComPinProvisorio: true);
+
+        using var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/trocar-pin")
+        {
+            Content = JsonContent.Create(new { pinAtual = PinFounder, pinNovo = "5678" })
+        };
+        var resposta = await ambiente.Client.SendAsync(request);
+
+        Assert.Equal(HttpStatusCode.Unauthorized, resposta.StatusCode);
+    }
+
     private static async Task<HttpResponseMessage> LoginAsync(HttpClient client, string pin)
     {
         using var request = new HttpRequestMessage(HttpMethod.Post, "/api/auth/login")
@@ -125,7 +210,7 @@ public sealed class BridgeAuthEndToEndTests
         return (resposta.StatusCode, JsonDocument.Parse(texto).RootElement.Clone());
     }
 
-    private static async Task<AmbienteDeTeste> SubirServidorAsync()
+    private static async Task<AmbienteDeTeste> SubirServidorAsync(bool founderComPinProvisorio = false)
     {
         var repositorio = new InMemoryUsuarioRepository();
 
@@ -139,6 +224,7 @@ public sealed class BridgeAuthEndToEndTests
                     services.AddSingleton<SessionStore>();
                     services.AddSingleton<IUsuarioRepository>(repositorio);
                     services.AddScoped<AutenticarPorPinUseCase>();
+                    services.AddScoped<TrocarPinUseCase>();
                 });
                 webBuilder.Configure(app =>
                 {
@@ -176,7 +262,9 @@ public sealed class BridgeAuthEndToEndTests
             })
             .StartAsync();
 
-        var founder = Usuario.Criar(BusinessId, "Founder", "founder@teste.com", PinFounder, Papel.Founder).Valor;
+        var founder = Usuario.Criar(
+            BusinessId, "Founder", "founder@teste.com", PinFounder, Papel.Founder,
+            pinProvisorio: founderComPinProvisorio).Valor;
         var manager = Usuario.Criar(BusinessId, "Gerente", "gerente@teste.com", PinManager, Papel.Manager).Valor;
         var viewer = Usuario.Criar(BusinessId, "Visualizador", "viewer@teste.com", PinViewer, Papel.Viewer).Valor;
         await repositorio.SalvarAsync(founder);

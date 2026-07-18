@@ -26,6 +26,7 @@ public sealed class SqliteUsuarioRepositoryContractTests : UsuarioRepositoryCont
         using var connection = _connectionFactory.OpenConnection();
         using var transaction = connection.BeginTransaction();
         new IdentidadeSchemaMigrationV1().AplicarAsync(connection, transaction, CancellationToken.None).GetAwaiter().GetResult();
+        new IdentidadeSchemaMigrationV2().AplicarAsync(connection, transaction, CancellationToken.None).GetAwaiter().GetResult();
         transaction.Commit();
     }
 

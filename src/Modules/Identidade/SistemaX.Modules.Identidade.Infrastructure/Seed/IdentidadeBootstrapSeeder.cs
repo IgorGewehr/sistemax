@@ -14,8 +14,10 @@ namespace SistemaX.Modules.Identidade.Infrastructure.Seed;
 ///
 /// PIN "1234" é o mesmo default de dev já usado por <c>HostConfigLoader</c> — não é um segredo
 /// (é impresso/conhecido publicamente neste código); trocar o PIN do founder é a primeira coisa
-/// que uma instalação real deveria fazer (<c>PATCH /usuarios/{id}</c> ou, futuramente, o wizard
-/// de primeiro-boot da UI).
+/// que uma instalação real deveria fazer. O founder nasce com <c>Usuario.PinProvisorio = true</c>
+/// — <c>POST /api/auth/login</c> devolve <c>deveTrocarPin</c> a partir disso, é o gatilho que o
+/// wizard de 1º-boot da UI usa pra forçar a troca antes de liberar o resto do app; a troca em si
+/// (<c>PATCH /usuarios/{id}</c> ou <c>POST /api/auth/trocar-pin</c>) zera a flag.
 /// </summary>
 public static class IdentidadeBootstrapSeeder
 {
@@ -40,6 +42,7 @@ public static class IdentidadeBootstrapSeeder
             email: "admin@sistemax.local",
             pin: PinFounderPadrao,
             papel: Papel.Founder,
-            ct: ct).ConfigureAwait(false);
+            ct: ct,
+            pinProvisorio: true).ConfigureAwait(false);
     }
 }

@@ -15,7 +15,7 @@ export function KpiRow({ kpis }: KpiRowProps) {
   const faturadoUp = faturado.deltaCentavos >= 0;
 
   return (
-    <section className="mb-4 grid grid-cols-2 gap-3.5 lg:grid-cols-4">
+    <section className="grid grid-cols-2 gap-3.5 lg:grid-cols-4">
       <KpiCard
         hero
         label="Na bancada"

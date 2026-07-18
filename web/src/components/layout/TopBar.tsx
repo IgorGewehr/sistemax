@@ -3,7 +3,6 @@ import { LogOut, Menu, Moon, Search, Sun } from 'lucide-react';
 
 import { useAuth } from '@/lib/auth';
 import { useTheme } from '@/lib/theme';
-import { cn } from '@/lib/utils';
 
 interface TopBarProps {
   onMobileMenuToggle: () => void;
@@ -33,27 +32,6 @@ function ThemeToggle() {
   );
 }
 
-function DensityToggle() {
-  const { density, setDensity } = useTheme();
-  return (
-    <div className="hidden items-center gap-1 rounded-full bg-secondary p-1 md:flex">
-      {(['simples', 'avancado'] as const).map((d) => (
-        <button
-          key={d}
-          type="button"
-          onClick={() => setDensity(d)}
-          className={cn(
-            'rounded-full px-3 py-1 text-2xs font-semibold capitalize transition-colors',
-            density === d ? 'bg-card text-foreground shadow-xs' : 'text-muted-foreground hover:text-foreground',
-          )}
-        >
-          {d === 'simples' ? 'Modo simples' : 'Modo avançado'}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 export function TopBar({ onMobileMenuToggle }: TopBarProps) {
   const { logout } = useAuth();
 
@@ -77,7 +55,6 @@ export function TopBar({ onMobileMenuToggle }: TopBarProps) {
       </div>
 
       <div className="ml-auto flex items-center gap-2">
-        <DensityToggle />
         <ThemeToggle />
         <button
           type="button"

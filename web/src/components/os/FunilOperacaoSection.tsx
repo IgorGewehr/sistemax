@@ -29,7 +29,7 @@ export function FunilOperacaoSection({
   onIrParaDetalhe,
 }: FunilOperacaoSectionProps) {
   return (
-    <section className="mb-4 grid grid-cols-1 gap-4 lg:grid-cols-[1.15fr_1fr]">
+    <section className="grid grid-cols-1 gap-4 lg:grid-cols-[1.15fr_1fr]">
       {bucketSelecionado ? (
         <BucketDrill bucket={bucketSelecionado} onVoltar={() => onSelecionarEtapa(null)} onIrParaDetalhe={onIrParaDetalhe} />
       ) : (

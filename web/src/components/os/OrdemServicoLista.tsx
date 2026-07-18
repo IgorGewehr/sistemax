@@ -19,7 +19,7 @@ interface OrdemServicoListaProps {
  */
 export function OrdemServicoLista({ vm }: OrdemServicoListaProps) {
   return (
-    <div>
+    <div className="flex flex-col gap-4">
       <PageHeader
         subtitle="A bancada, o que espera o cliente, e o que isso vale."
         actions={

@@ -44,6 +44,14 @@ public sealed class Assinatura : AggregateRoot<string>
     /// assinatura é cancelada — dunning vira churn.</summary>
     public DateTimeOffset? InadimplenteDesde { get; private set; }
 
+    /// <summary>Dimensão "Projeto" (docs/financeiro/design-analise-por-projeto.md §3.2) — mesma
+    /// semântica nullable/aditiva de <c>ContaFinanceiraBase.Corrente</c>. Diferente de
+    /// <c>Corrente</c> (imutável), o tagging de projeto é RE-TAG PERMITIDO via
+    /// <see cref="VincularProjeto"/> — tagging é classificação gerencial, não fato contábil.
+    /// <see cref="GerarCobranca"/> copia este valor para a <c>ContaAReceber</c> gerada — cobrança
+    /// de assinatura de projeto P é, por definição, receita do projeto P.</summary>
+    public string? ProjetoId { get; private set; }
+
     /// <summary>MRR desta assinatura — <see cref="ValorPorCiclo"/> normalizado para mensal.</summary>
     public Money Mrr => NormalizarParaMensal(ValorPorCiclo, Ciclo);
 
@@ -66,7 +74,7 @@ public sealed class Assinatura : AggregateRoot<string>
 
     public static Result<Assinatura> Criar(
         string businessId, string clienteId, string clienteNome, string servicoId, string servicoNome,
-        Money valorPorCiclo, FrequenciaRecorrencia ciclo, int diaCobranca, DateTimeOffset dataInicio)
+        Money valorPorCiclo, FrequenciaRecorrencia ciclo, int diaCobranca, DateTimeOffset dataInicio, string? projetoId = null)
     {
         if (!valorPorCiclo.EhPositivo)
             return Result.Falhar<Assinatura>(new Error("financeiro.assinatura.valor_invalido", "Valor por ciclo deve ser positivo."));
@@ -76,7 +84,10 @@ public sealed class Assinatura : AggregateRoot<string>
             return Result.Falhar<Assinatura>(new Error("financeiro.assinatura.vinculo_invalido", "Assinatura exige cliente e serviço."));
 
         var assinatura = new Assinatura(
-            IdGenerator.NovoId(), businessId, clienteId, clienteNome, servicoId, servicoNome, valorPorCiclo, ciclo, diaCobranca, dataInicio);
+            IdGenerator.NovoId(), businessId, clienteId, clienteNome, servicoId, servicoNome, valorPorCiclo, ciclo, diaCobranca, dataInicio)
+        {
+            ProjetoId = projetoId
+        };
         assinatura.Raise(new AssinaturaCriada(assinatura.Id, businessId, servicoId, assinatura.Mrr.Centavos, dataInicio));
         return Result.Ok(assinatura);
     }
@@ -89,7 +100,7 @@ public sealed class Assinatura : AggregateRoot<string>
         string id, string businessId, string clienteId, string clienteNome, string servicoId, string servicoNome,
         Money valorPorCiclo, FrequenciaRecorrencia ciclo, int diaCobranca, StatusAssinatura status,
         DateTimeOffset dataInicio, DateTimeOffset? canceladaEm, string? motivoCancelamento, DateTimeOffset? ultimaCobrancaGeradaEm,
-        DateTimeOffset? inadimplenteDesde = null)
+        DateTimeOffset? inadimplenteDesde = null, string? projetoId = null)
     {
         var a = new Assinatura(id, businessId, clienteId, clienteNome, servicoId, servicoNome, valorPorCiclo, ciclo, diaCobranca, dataInicio);
         a.Status = status;
@@ -97,7 +108,25 @@ public sealed class Assinatura : AggregateRoot<string>
         a.MotivoCancelamento = motivoCancelamento;
         a.UltimaCobrancaGeradaEm = ultimaCobrancaGeradaEm;
         a.InadimplenteDesde = inadimplenteDesde;
+        a.ProjetoId = projetoId;
         return a;
+    }
+
+    /// <summary>
+    /// Tagging/re-tagging de projeto (docs/financeiro/design-analise-por-projeto.md §3.2) —
+    /// classificação GERENCIAL, não fato contábil: permitida em qualquer status, inclusive
+    /// cancelada (corrigir a classificação histórica de uma assinatura já encerrada é legítimo).
+    /// <c>null</c> desvincula. A Application (<c>Application.Projetos.AnalisePorProjetoGuard</c>)
+    /// é quem barra (422) chamar isto com <paramref name="projetoId"/> não-nulo enquanto o toggle
+    /// do tenant estiver desligado — o domínio aqui não conhece o toggle.
+    /// </summary>
+    public Result VincularProjeto(string? projetoId, DateTimeOffset quando)
+    {
+        if (ProjetoId == projetoId) return Result.Ok(); // no-op — mesmo projeto (ou já desvinculada)
+
+        ProjetoId = projetoId;
+        Raise(new AssinaturaVinculadaAProjeto(Id, BusinessId, projetoId, quando));
+        return Result.Ok();
     }
 
     /// <summary>
@@ -253,7 +282,8 @@ public sealed class Assinatura : AggregateRoot<string>
         // O RECEBÍVEL abaixo continua íntegro no valor cheio — só a leitura do DRE é diferida.
         var conta = ContaAReceber.Criar(
             BusinessId, origem, $"{ServicoNome} — {ClienteNome}", categoriaId, competencia, ValorPorCiclo, parcelas,
-            null, ClienteId, CorrenteDeReceita.Recorrente, mesesDeReconhecimento: MesesDeReconhecimentoParaCiclo(Ciclo));
+            null, ClienteId, CorrenteDeReceita.Recorrente, mesesDeReconhecimento: MesesDeReconhecimentoParaCiclo(Ciclo),
+            projetoId: ProjetoId);
         if (conta.Sucesso)
             UltimaCobrancaGeradaEm = competencia;
         return conta;

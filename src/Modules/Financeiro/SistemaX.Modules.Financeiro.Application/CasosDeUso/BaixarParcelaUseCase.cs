@@ -84,9 +84,13 @@ public sealed class BaixarParcelaUseCase(
         // (MovimentoFinanceiro E o evento ParcelaBaixada) é o valor calculado abaixo, UMA vez.
         var valorCaixa = await ResolverValorCaixaAsync(conta.BusinessId, tipo, comando, ct).ConfigureAwait(false);
 
+        // A conta tageada carrega TANTO a corrente quanto o projeto — o movimento de caixa
+        // resultante da baixa herda os dois (docs/financeiro/design-analise-por-projeto.md §3.2,
+        // tabela §10: "BaixarParcelaUseCase propaga conta.ProjetoId e conta.Corrente"). Sem tag na
+        // conta, os dois nascem null aqui, como sempre.
         var movimentoResultado = MovimentoFinanceiro.Registrar(
             conta.BusinessId, comando.ContaBancariaCaixaId, comando.FormaPagamentoId, comando.ParcelaId,
-            conta.Id, tipo, valorCaixa, comando.DataPagamento, origemMovimento);
+            conta.Id, tipo, valorCaixa, comando.DataPagamento, origemMovimento, conta.Corrente, conta.ProjetoId);
         if (movimentoResultado.Falha) return movimentoResultado;
 
         await movimentos.SalvarAsync(movimentoResultado.Valor, ct);

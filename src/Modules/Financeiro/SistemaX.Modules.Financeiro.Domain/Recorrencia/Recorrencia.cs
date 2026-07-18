@@ -39,9 +39,17 @@ public sealed class Recorrencia : AggregateRoot<string>
     public bool Ativa { get; private set; }
     public DateTimeOffset? UltimaGeracaoEm { get; private set; }
 
+    /// <summary>Dimensão "Projeto" (docs/financeiro/design-analise-por-projeto.md §3.2) — o lar do
+    /// custo recorrente do caso Aevo: template a pagar mensal tagueado UMA vez, o custo cai no
+    /// projeto todo mês sozinho via <c>GerarContasRecorrentesUseCase</c> (que copia este valor para
+    /// cada <c>ContaAPagar</c>/<c>ContaAReceber</c> materializada — mesmo ponto onde já copia
+    /// <c>corrente</c>). NULLABLE/aditivo, mesma semântica das demais entidades.</summary>
+    public string? ProjetoId { get; }
+
     private Recorrencia(
         string id, string businessId, string descricao, TipoContaRecorrente tipo, Money valorPrevisto,
-        string categoriaId, int? diaFixo, FrequenciaRecorrencia frequencia, DateTimeOffset dataInicio, DateTimeOffset? dataFim)
+        string categoriaId, int? diaFixo, FrequenciaRecorrencia frequencia, DateTimeOffset dataInicio, DateTimeOffset? dataFim,
+        string? projetoId = null)
     {
         Id = id;
         BusinessId = businessId;
@@ -54,12 +62,13 @@ public sealed class Recorrencia : AggregateRoot<string>
         DataInicio = dataInicio;
         DataFim = dataFim;
         Ativa = true;
+        ProjetoId = projetoId;
     }
 
     public static Result<Recorrencia> Criar(
         string businessId, string descricao, TipoContaRecorrente tipo, Money valorPrevisto,
         string categoriaId, FrequenciaRecorrencia frequencia, DateTimeOffset dataInicio,
-        int? diaFixo = null, DateTimeOffset? dataFim = null)
+        int? diaFixo = null, DateTimeOffset? dataFim = null, string? projetoId = null)
     {
         if (!valorPrevisto.EhPositivo)
             return Result.Falhar<Recorrencia>(new Error("financeiro.recorrencia.valor_invalido", "Valor previsto da recorrência deve ser positivo."));
@@ -70,16 +79,16 @@ public sealed class Recorrencia : AggregateRoot<string>
         if (dataFim is { } fim && fim <= dataInicio)
             return Result.Falhar<Recorrencia>(new Error("financeiro.recorrencia.data_fim_invalida", "Data fim deve ser posterior à data de início."));
 
-        return Result.Ok(new Recorrencia(IdGenerator.NovoId(), businessId, descricao, tipo, valorPrevisto, categoriaId, diaFixo, frequencia, dataInicio, dataFim));
+        return Result.Ok(new Recorrencia(IdGenerator.NovoId(), businessId, descricao, tipo, valorPrevisto, categoriaId, diaFixo, frequencia, dataInicio, dataFim, projetoId));
     }
 
     /// <summary>REIDRATAÇÃO a partir do banco — não valida, não levanta evento.</summary>
     public static Recorrencia Reconstituir(
         string id, string businessId, string descricao, TipoContaRecorrente tipo, Money valorPrevisto,
         string categoriaId, int? diaFixo, FrequenciaRecorrencia frequencia, DateTimeOffset dataInicio,
-        DateTimeOffset? dataFim, bool ativa, DateTimeOffset? ultimaGeracaoEm)
+        DateTimeOffset? dataFim, bool ativa, DateTimeOffset? ultimaGeracaoEm, string? projetoId = null)
     {
-        var recorrencia = new Recorrencia(id, businessId, descricao, tipo, valorPrevisto, categoriaId, diaFixo, frequencia, dataInicio, dataFim);
+        var recorrencia = new Recorrencia(id, businessId, descricao, tipo, valorPrevisto, categoriaId, diaFixo, frequencia, dataInicio, dataFim, projetoId);
         recorrencia.Ativa = ativa;
         recorrencia.UltimaGeracaoEm = ultimaGeracaoEm;
         return recorrencia;

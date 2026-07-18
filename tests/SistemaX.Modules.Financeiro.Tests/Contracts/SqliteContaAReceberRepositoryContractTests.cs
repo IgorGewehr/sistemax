@@ -27,6 +27,7 @@ public sealed class SqliteContaAReceberRepositoryContractTests : ContaAReceberRe
         new FinanceiroSchemaMigrationV16().AplicarAsync(connection, transaction, CancellationToken.None).GetAwaiter().GetResult();
         new FinanceiroSchemaMigrationV21().AplicarAsync(connection, transaction, CancellationToken.None).GetAwaiter().GetResult();
         new FinanceiroSchemaMigrationV23().AplicarAsync(connection, transaction, CancellationToken.None).GetAwaiter().GetResult();
+        new FinanceiroSchemaMigrationV30().AplicarAsync(connection, transaction, CancellationToken.None).GetAwaiter().GetResult();
         transaction.Commit();
     }
 

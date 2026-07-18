@@ -46,7 +46,7 @@ public sealed class GerarContasRecorrentesUseCase(
                 {
                     if (await contasAPagar.BuscarPorOrigemAsync(businessId, origem.Chave, ct) is null)
                     {
-                        var conta = ContaAPagar.Criar(businessId, origem, rec.Descricao, rec.CategoriaId, vencimento, rec.ValorPrevisto, parcelas, null, null, corrente);
+                        var conta = ContaAPagar.Criar(businessId, origem, rec.Descricao, rec.CategoriaId, vencimento, rec.ValorPrevisto, parcelas, null, null, corrente, rec.ProjetoId);
                         if (conta.Sucesso)
                         {
                             await contasAPagar.SalvarAsync(conta.Valor, ct);
@@ -60,7 +60,9 @@ public sealed class GerarContasRecorrentesUseCase(
                 {
                     if (await contasAReceber.BuscarPorOrigemAsync(businessId, origem.Chave, ct) is null)
                     {
-                        var conta = ContaAReceber.Criar(businessId, origem, rec.Descricao, rec.CategoriaId, vencimento, rec.ValorPrevisto, parcelas, null, null, corrente);
+                        var conta = ContaAReceber.Criar(
+                            businessId, origem, rec.Descricao, rec.CategoriaId, vencimento, rec.ValorPrevisto, parcelas, null, null, corrente,
+                            projetoId: rec.ProjetoId);
                         if (conta.Sucesso)
                         {
                             await contasAReceber.SalvarAsync(conta.Valor, ct);

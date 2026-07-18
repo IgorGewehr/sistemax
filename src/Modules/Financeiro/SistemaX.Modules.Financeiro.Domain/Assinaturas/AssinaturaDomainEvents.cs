@@ -34,3 +34,8 @@ public sealed record AssinaturaMarcadaInadimplente(string AssinaturaId, string B
 /// <summary>P1-4 — dunning: cobrança em atraso liquidada antes da graça expirar, assinatura volta
 /// a <see cref="StatusAssinatura.Ativa"/>. NÃO é um MRR movement (nunca saiu da soma corrente).</summary>
 public sealed record AssinaturaRegularizada(string AssinaturaId, string BusinessId, DateTimeOffset Quando) : DomainEvent;
+
+/// <summary>Análise por Projeto (docs/financeiro/design-analise-por-projeto.md §6.1) — a assinatura
+/// foi tagueada/re-tagueada/desvinculada de um projeto (<see cref="Assinatura.VincularProjeto"/>).
+/// NÃO é um MRR movement — classificação gerencial não move dinheiro.</summary>
+public sealed record AssinaturaVinculadaAProjeto(string AssinaturaId, string BusinessId, string? ProjetoId, DateTimeOffset Quando) : DomainEvent;

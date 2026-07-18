@@ -29,7 +29,7 @@ public sealed class SqliteAssinaturaRepository(ILocalSqliteConnectionFactory con
         """
         id, business_id, cliente_id, cliente_nome, servico_id, servico_nome, valor_centavos, moeda,
         ciclo, dia_cobranca, status, data_inicio, cancelada_em, motivo_cancelamento, ultima_cobranca_em,
-        inadimplente_desde
+        inadimplente_desde, projeto_id
         """;
 
     public Task<IReadOnlyList<Assinatura>> ListarAsync(string businessId, CancellationToken ct = default)
@@ -54,14 +54,15 @@ public sealed class SqliteAssinaturaRepository(ILocalSqliteConnectionFactory con
                 INSERT INTO assinaturas
                     (id, business_id, cliente_id, cliente_nome, servico_id, servico_nome, valor_centavos, moeda,
                      ciclo, dia_cobranca, status, data_inicio, cancelada_em, motivo_cancelamento, ultima_cobranca_em,
-                     inadimplente_desde)
+                     inadimplente_desde, projeto_id)
                 VALUES
                     ($id, $biz, $cliId, $cliNome, $srvId, $srvNome, $valor, $moeda,
-                     $ciclo, $dia, $status, $inicio, $cancel, $motivo, $ultima, $inadimplenteDesde)
+                     $ciclo, $dia, $status, $inicio, $cancel, $motivo, $ultima, $inadimplenteDesde, $projetoId)
                 ON CONFLICT(id) DO UPDATE SET
                     valor_centavos = excluded.valor_centavos, status = excluded.status,
                     cancelada_em = excluded.cancelada_em, motivo_cancelamento = excluded.motivo_cancelamento,
-                    ultima_cobranca_em = excluded.ultima_cobranca_em, inadimplente_desde = excluded.inadimplente_desde;
+                    ultima_cobranca_em = excluded.ultima_cobranca_em, inadimplente_desde = excluded.inadimplente_desde,
+                    projeto_id = excluded.projeto_id;
                 """;
             cmd.Parameters.AddWithValue("$id", a.Id);
             cmd.Parameters.AddWithValue("$biz", a.BusinessId);
@@ -79,6 +80,7 @@ public sealed class SqliteAssinaturaRepository(ILocalSqliteConnectionFactory con
             cmd.Parameters.AddWithValue("$motivo", (object?)a.MotivoCancelamento ?? DBNull.Value);
             cmd.Parameters.AddWithValue("$ultima", (object?)Iso(a.UltimaCobrancaGeradaEm) ?? DBNull.Value);
             cmd.Parameters.AddWithValue("$inadimplenteDesde", (object?)Iso(a.InadimplenteDesde) ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("$projetoId", (object?)a.ProjetoId ?? DBNull.Value);
             await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
         }, ct);
 
@@ -118,7 +120,8 @@ public sealed class SqliteAssinaturaRepository(ILocalSqliteConnectionFactory con
             canceladaEm: reader.IsDBNull(12) ? null : ParseData(reader.GetString(12)),
             motivoCancelamento: reader.IsDBNull(13) ? null : reader.GetString(13),
             ultimaCobrancaGeradaEm: reader.IsDBNull(14) ? null : ParseData(reader.GetString(14)),
-            inadimplenteDesde: reader.IsDBNull(15) ? null : ParseData(reader.GetString(15)));
+            inadimplenteDesde: reader.IsDBNull(15) ? null : ParseData(reader.GetString(15)),
+            projetoId: reader.IsDBNull(16) ? null : reader.GetString(16));
 
     private static string Iso(DateTimeOffset d) => d.ToString("O", CultureInfo.InvariantCulture);
     private static string? Iso(DateTimeOffset? d) => d?.ToString("O", CultureInfo.InvariantCulture);

@@ -22,7 +22,7 @@ public sealed class SqliteMovimentoFinanceiroRepository(ILocalSqliteConnectionFa
     private const string Colunas =
         """
         id, business_id, conta_bancaria_caixa_id, forma_pagamento_id, parcela_id, conta_origem_id,
-        tipo, valor_centavos, valor_moeda, data_movimento, origem_modulo, origem_id, reversal_of_id, criado_em, corrente
+        tipo, valor_centavos, valor_moeda, data_movimento, origem_modulo, origem_id, reversal_of_id, criado_em, corrente, projeto_id
         """;
 
     public Task<MovimentoFinanceiro?> ObterPorIdAsync(string id, CancellationToken ct = default)
@@ -106,10 +106,10 @@ public sealed class SqliteMovimentoFinanceiroRepository(ILocalSqliteConnectionFa
                 """
                 INSERT INTO movimentos_financeiros
                     (id, business_id, conta_bancaria_caixa_id, forma_pagamento_id, parcela_id, conta_origem_id,
-                     tipo, valor_centavos, valor_moeda, data_movimento, origem_modulo, origem_id, origem_chave, reversal_of_id, criado_em, corrente)
+                     tipo, valor_centavos, valor_moeda, data_movimento, origem_modulo, origem_id, origem_chave, reversal_of_id, criado_em, corrente, projeto_id)
                 VALUES
                     ($id, $biz, $contaCaixa, $formaPag, $parcelaId, $contaOrigem,
-                     $tipo, $valorCentavos, $valorMoeda, $dataMovimento, $origemModulo, $origemId, $origemChave, $reversalOfId, $criadoEm, $corrente)
+                     $tipo, $valorCentavos, $valorMoeda, $dataMovimento, $origemModulo, $origemId, $origemChave, $reversalOfId, $criadoEm, $corrente, $projetoId)
                 ON CONFLICT(id) DO NOTHING;
                 """;
             cmd.Parameters.AddWithValue("$id", movimento.Id);
@@ -128,6 +128,7 @@ public sealed class SqliteMovimentoFinanceiroRepository(ILocalSqliteConnectionFa
             cmd.Parameters.AddWithValue("$reversalOfId", (object?)movimento.ReversalOfId ?? DBNull.Value);
             cmd.Parameters.AddWithValue("$criadoEm", Iso(movimento.CriadoEm));
             cmd.Parameters.AddWithValue("$corrente", (object?)(movimento.Corrente is { } corrente ? (int)corrente : null) ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("$projetoId", (object?)movimento.ProjetoId ?? DBNull.Value);
 
             await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
         }, ct);
@@ -158,7 +159,8 @@ public sealed class SqliteMovimentoFinanceiroRepository(ILocalSqliteConnectionFa
                 origem: new SourceRef(reader.GetString(10), reader.GetString(11)),
                 reversalOfId: reader.IsDBNull(12) ? null : reader.GetString(12),
                 criadoEm: ParseData(reader.GetString(13))!.Value,
-                corrente: reader.IsDBNull(14) ? null : (CorrenteDeReceita)reader.GetInt32(14)));
+                corrente: reader.IsDBNull(14) ? null : (CorrenteDeReceita)reader.GetInt32(14),
+                projetoId: reader.IsDBNull(15) ? null : reader.GetString(15)));
         }
         return resultado;
     }

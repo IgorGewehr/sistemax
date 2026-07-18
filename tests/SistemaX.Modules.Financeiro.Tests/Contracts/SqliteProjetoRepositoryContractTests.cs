@@ -8,25 +8,23 @@ using SistemaX.Modules.Financeiro.Infrastructure.Sqlite;
 
 namespace SistemaX.Modules.Financeiro.Tests.Contracts;
 
-public sealed class SqliteAssinaturaRepositoryContractTests : AssinaturaRepositoryContractTests, IDisposable
+public sealed class SqliteProjetoRepositoryContractTests : ProjetoRepositoryContractTests, IDisposable
 {
-    private readonly string _dbPath = Path.Combine(Path.GetTempPath(), $"sistemax-assinatura-contract-{Guid.NewGuid():N}.db");
+    private readonly string _dbPath = Path.Combine(Path.GetTempPath(), $"sistemax-projeto-contract-{Guid.NewGuid():N}.db");
     private readonly LocalSqliteConnectionFactory _connectionFactory;
 
-    public SqliteAssinaturaRepositoryContractTests()
+    public SqliteProjetoRepositoryContractTests()
     {
         _connectionFactory = new LocalSqliteConnectionFactory(Options.Create(new LocalDatabaseOptions { DatabasePath = _dbPath }));
 
         using var connection = _connectionFactory.OpenConnection();
         using var transaction = connection.BeginTransaction();
-        new FinanceiroSchemaMigrationV15().AplicarAsync(connection, transaction, CancellationToken.None).GetAwaiter().GetResult();
-        new FinanceiroSchemaMigrationV24().AplicarAsync(connection, transaction, CancellationToken.None).GetAwaiter().GetResult();
-        new FinanceiroSchemaMigrationV28().AplicarAsync(connection, transaction, CancellationToken.None).GetAwaiter().GetResult();
+        new FinanceiroSchemaMigrationV26().AplicarAsync(connection, transaction, CancellationToken.None).GetAwaiter().GetResult();
         transaction.Commit();
     }
 
-    protected override IAssinaturaRepository CriarRepositorio()
-        => new SqliteAssinaturaRepository(_connectionFactory, new SessaoSempreInativa());
+    protected override IProjetoRepository CriarRepositorio()
+        => new SqliteProjetoRepository(_connectionFactory, new SessaoSempreInativa());
 
     public void Dispose()
     {

@@ -21,6 +21,7 @@ public sealed class SqliteMovimentoFinanceiroRepositoryContractTests : Movimento
         using var transaction = connection.BeginTransaction();
         new FinanceiroSchemaMigrationV3().AplicarAsync(connection, transaction, CancellationToken.None).GetAwaiter().GetResult();
         new FinanceiroSchemaMigrationV18().AplicarAsync(connection, transaction, CancellationToken.None).GetAwaiter().GetResult();
+        new FinanceiroSchemaMigrationV32().AplicarAsync(connection, transaction, CancellationToken.None).GetAwaiter().GetResult();
         transaction.Commit();
     }
 

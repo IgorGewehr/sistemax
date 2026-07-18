@@ -21,6 +21,7 @@ public sealed class SqliteContaAPagarRepositoryContractTests : ContaAPagarReposi
         using var transaction = connection.BeginTransaction();
         new FinanceiroSchemaMigrationV2().AplicarAsync(connection, transaction, CancellationToken.None).GetAwaiter().GetResult();
         new FinanceiroSchemaMigrationV17().AplicarAsync(connection, transaction, CancellationToken.None).GetAwaiter().GetResult();
+        new FinanceiroSchemaMigrationV31().AplicarAsync(connection, transaction, CancellationToken.None).GetAwaiter().GetResult();
         transaction.Commit();
     }
 

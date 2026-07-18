@@ -21,7 +21,7 @@ public sealed class SqliteRecorrenciaRepository(ILocalSqliteConnectionFactory co
     private const string Colunas =
         """
         id, business_id, descricao, tipo, valor_previsto_centavos, valor_previsto_moeda, categoria_id,
-        dia_fixo, frequencia, data_inicio, data_fim, ativa, ultima_geracao_em
+        dia_fixo, frequencia, data_inicio, data_fim, ativa, ultima_geracao_em, projeto_id
         """;
 
     public Task<IReadOnlyList<RecorrenciaAgg>> ListarAtivasAsync(string businessId, CancellationToken ct = default)
@@ -67,10 +67,10 @@ public sealed class SqliteRecorrenciaRepository(ILocalSqliteConnectionFactory co
                 """
                 INSERT INTO recorrencias
                     (id, business_id, descricao, tipo, valor_previsto_centavos, valor_previsto_moeda, categoria_id,
-                     dia_fixo, frequencia, data_inicio, data_fim, ativa, ultima_geracao_em)
+                     dia_fixo, frequencia, data_inicio, data_fim, ativa, ultima_geracao_em, projeto_id)
                 VALUES
                     ($id, $biz, $descricao, $tipo, $valorCentavos, $valorMoeda, $categoriaId,
-                     $diaFixo, $frequencia, $dataInicio, $dataFim, $ativa, $ultimaGeracaoEm)
+                     $diaFixo, $frequencia, $dataInicio, $dataFim, $ativa, $ultimaGeracaoEm, $projetoId)
                 ON CONFLICT(id) DO UPDATE SET
                     descricao               = excluded.descricao,
                     valor_previsto_centavos = excluded.valor_previsto_centavos,
@@ -80,7 +80,8 @@ public sealed class SqliteRecorrenciaRepository(ILocalSqliteConnectionFactory co
                     frequencia              = excluded.frequencia,
                     data_fim                = excluded.data_fim,
                     ativa                   = excluded.ativa,
-                    ultima_geracao_em       = excluded.ultima_geracao_em;
+                    ultima_geracao_em       = excluded.ultima_geracao_em,
+                    projeto_id              = excluded.projeto_id;
                 """;
             cmd.Parameters.AddWithValue("$id", recorrencia.Id);
             cmd.Parameters.AddWithValue("$biz", recorrencia.BusinessId);
@@ -95,6 +96,7 @@ public sealed class SqliteRecorrenciaRepository(ILocalSqliteConnectionFactory co
             cmd.Parameters.AddWithValue("$dataFim", (object?)Iso(recorrencia.DataFim) ?? DBNull.Value);
             cmd.Parameters.AddWithValue("$ativa", recorrencia.Ativa ? 1 : 0);
             cmd.Parameters.AddWithValue("$ultimaGeracaoEm", (object?)Iso(recorrencia.UltimaGeracaoEm) ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("$projetoId", (object?)recorrencia.ProjetoId ?? DBNull.Value);
 
             await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
         }, ct);
@@ -112,7 +114,8 @@ public sealed class SqliteRecorrenciaRepository(ILocalSqliteConnectionFactory co
             dataInicio: ParseData(reader.GetString(9))!.Value,
             dataFim: reader.IsDBNull(10) ? null : ParseData(reader.GetString(10)),
             ativa: reader.GetInt32(11) != 0,
-            ultimaGeracaoEm: reader.IsDBNull(12) ? null : ParseData(reader.GetString(12)));
+            ultimaGeracaoEm: reader.IsDBNull(12) ? null : ParseData(reader.GetString(12)),
+            projetoId: reader.IsDBNull(13) ? null : reader.GetString(13));
 
     private static string Iso(DateTimeOffset d) => d.ToString("O", CultureInfo.InvariantCulture);
     private static string? Iso(DateTimeOffset? d) => d?.ToString("O", CultureInfo.InvariantCulture);

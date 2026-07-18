@@ -46,6 +46,18 @@ public abstract class ContaFinanceiraBase : AggregateRoot<string>
     public CorrenteDeReceita? Corrente { get; }
 
     /// <summary>
+    /// Dimensão "Projeto" (docs/financeiro/design-analise-por-projeto.md §3.2) — 2ª dimensão irmã
+    /// de <see cref="Corrente"/>, MESMA semântica nullable/aditiva: <c>null</c> = "sem projeto" =
+    /// comportamento de hoje, intacto. Só populado quando o tenant tem
+    /// <c>ConfiguracaoFinanceiraTenant.AnalisePorProjetoAtiva</c> ligado — ver
+    /// <c>Application.Projetos.AnalisePorProjetoGuard</c>, que barra (422) qualquer escrita com
+    /// este campo não-nulo enquanto o toggle estiver desligado. Nunca entra no DRE oficial —
+    /// projeto é uma LENTE (read-model próprio, <c>Application.Projetos.PainelDoProjetoService</c>),
+    /// nunca uma dimensão do demonstrativo (§2.3).
+    /// </summary>
+    public string? ProjetoId { get; }
+
+    /// <summary>
     /// P1-5 (docs/financeiro/revisao-domain-fit-cnpj.md) — quando NÃO-NULO, o número de
     /// competências (meses) sobre as quais <see cref="ValorTotal"/> deve ser RECONHECIDO no DRE,
     /// via <see cref="Application.Quant.CronogramaLinear"/> a partir de <see cref="DataCompetencia"/>
@@ -67,7 +79,7 @@ public abstract class ContaFinanceiraBase : AggregateRoot<string>
     protected ContaFinanceiraBase(
         string id, string businessId, SourceRef sourceRef, string descricao, string categoriaId,
         string? centroDeCustoId, DateTimeOffset dataCompetencia, Money valorTotal, IReadOnlyCollection<Parcela> parcelas,
-        CorrenteDeReceita? corrente = null, int? mesesDeReconhecimento = null)
+        CorrenteDeReceita? corrente = null, int? mesesDeReconhecimento = null, string? projetoId = null)
     {
         Id = id;
         BusinessId = businessId;
@@ -80,6 +92,7 @@ public abstract class ContaFinanceiraBase : AggregateRoot<string>
         CriadoEm = DateTimeOffset.UtcNow;
         Corrente = corrente;
         MesesDeReconhecimento = mesesDeReconhecimento;
+        ProjetoId = projetoId;
         _parcelas.AddRange(parcelas);
         Status = StatusFinanceiro.Aberto;
     }
@@ -91,7 +104,7 @@ public abstract class ContaFinanceiraBase : AggregateRoot<string>
         string id, string businessId, SourceRef sourceRef, string descricao, string categoriaId,
         string? centroDeCustoId, DateTimeOffset dataCompetencia, Money valorTotal, StatusFinanceiro status,
         DateTimeOffset criadoEm, IReadOnlyCollection<Parcela> parcelas, CorrenteDeReceita? corrente = null,
-        int? mesesDeReconhecimento = null)
+        int? mesesDeReconhecimento = null, string? projetoId = null)
     {
         Id = id;
         BusinessId = businessId;
@@ -105,6 +118,7 @@ public abstract class ContaFinanceiraBase : AggregateRoot<string>
         CriadoEm = criadoEm;
         Corrente = corrente;
         MesesDeReconhecimento = mesesDeReconhecimento;
+        ProjetoId = projetoId;
         _parcelas.AddRange(parcelas);
     }
 

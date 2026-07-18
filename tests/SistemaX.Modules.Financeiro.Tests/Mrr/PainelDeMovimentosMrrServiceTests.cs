@@ -31,7 +31,7 @@ public class PainelDeMovimentosMrrServiceTests
         var mes2 = new DateTimeOffset(2026, 7, 10, 0, 0, 0, TimeSpan.Zero);
         var (assinaturas, movimentos, relogio) = NovoAmbiente(mes1);
 
-        var criar = new CriarAssinaturaUseCase(assinaturas, movimentos);
+        var criar = new CriarAssinaturaUseCase(assinaturas, movimentos, new InMemoryConfiguracaoFinanceiraTenantRepository());
         var alterar = new AlterarValorAssinaturaUseCase(assinaturas, movimentos, relogio);
         var pausarReativar = new PausarReativarAssinaturaUseCase(assinaturas, movimentos, relogio);
         var cancelar = new CancelarAssinaturaUseCase(assinaturas, movimentos, relogio);
@@ -96,7 +96,7 @@ public class PainelDeMovimentosMrrServiceTests
         var mes2 = new DateTimeOffset(2026, 7, 10, 0, 0, 0, TimeSpan.Zero);
         var (assinaturas, movimentos, relogio) = NovoAmbiente(mes1);
 
-        var criar = new CriarAssinaturaUseCase(assinaturas, movimentos);
+        var criar = new CriarAssinaturaUseCase(assinaturas, movimentos, new InMemoryConfiguracaoFinanceiraTenantRepository());
         var cancelar = new CancelarAssinaturaUseCase(assinaturas, movimentos, relogio);
 
         // Base estabelecida ANTES do mês 2 — R$1.000 + R$200 = R$1.200. É ESSE o MrrInicio real.

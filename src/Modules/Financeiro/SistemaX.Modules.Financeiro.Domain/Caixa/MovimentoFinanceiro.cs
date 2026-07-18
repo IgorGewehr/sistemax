@@ -36,13 +36,19 @@ public sealed class MovimentoFinanceiro : AggregateRoot<string>
     /// muda a que corrente ele pertence.</summary>
     public CorrenteDeReceita? Corrente { get; }
 
+    /// <summary>Dimensão "Projeto" (docs/financeiro/design-analise-por-projeto.md §3.2) — mesma
+    /// semântica nullable/aditiva de <see cref="Corrente"/>. Um estorno sempre herda o projeto do
+    /// movimento original (<see cref="GerarEstorno"/>), mesmo racional de <see cref="Corrente"/>:
+    /// reverter um fato não muda a que projeto ele pertence.</summary>
+    public string? ProjetoId { get; }
+
     public bool EhEstorno => ReversalOfId is not null;
 
     private MovimentoFinanceiro(
         string id, string businessId, string contaBancariaCaixaId, string formaPagamentoId,
         string parcelaId, string contaOrigemId, TipoMovimentoFinanceiro tipo, Money valor,
         DateTimeOffset dataMovimento, SourceRef origem, string? reversalOfId, DateTimeOffset criadoEm,
-        CorrenteDeReceita? corrente)
+        CorrenteDeReceita? corrente, string? projetoId)
     {
         Id = id;
         BusinessId = businessId;
@@ -57,6 +63,7 @@ public sealed class MovimentoFinanceiro : AggregateRoot<string>
         ReversalOfId = reversalOfId;
         CriadoEm = criadoEm;
         Corrente = corrente;
+        ProjetoId = projetoId;
     }
 
     /// <summary>REIDRATAÇÃO a partir do banco — não valida, não levanta evento.</summary>
@@ -64,13 +71,13 @@ public sealed class MovimentoFinanceiro : AggregateRoot<string>
         string id, string businessId, string contaBancariaCaixaId, string formaPagamentoId,
         string parcelaId, string contaOrigemId, TipoMovimentoFinanceiro tipo, Money valor,
         DateTimeOffset dataMovimento, SourceRef origem, string? reversalOfId, DateTimeOffset criadoEm,
-        CorrenteDeReceita? corrente = null)
-        => new(id, businessId, contaBancariaCaixaId, formaPagamentoId, parcelaId, contaOrigemId, tipo, valor, dataMovimento, origem, reversalOfId, criadoEm, corrente);
+        CorrenteDeReceita? corrente = null, string? projetoId = null)
+        => new(id, businessId, contaBancariaCaixaId, formaPagamentoId, parcelaId, contaOrigemId, tipo, valor, dataMovimento, origem, reversalOfId, criadoEm, corrente, projetoId);
 
     public static Result<MovimentoFinanceiro> Registrar(
         string businessId, string contaBancariaCaixaId, string formaPagamentoId, string parcelaId,
         string contaOrigemId, TipoMovimentoFinanceiro tipo, Money valor, DateTimeOffset dataMovimento, SourceRef origem,
-        CorrenteDeReceita? corrente = null)
+        CorrenteDeReceita? corrente = null, string? projetoId = null)
     {
         if (string.IsNullOrWhiteSpace(parcelaId))
             return Result.Falhar<MovimentoFinanceiro>(new Error(
@@ -82,7 +89,7 @@ public sealed class MovimentoFinanceiro : AggregateRoot<string>
 
         var movimento = new MovimentoFinanceiro(
             IdGenerator.NovoId(), businessId, contaBancariaCaixaId, formaPagamentoId, parcelaId,
-            contaOrigemId, tipo, valor, dataMovimento, origem, reversalOfId: null, DateTimeOffset.UtcNow, corrente);
+            contaOrigemId, tipo, valor, dataMovimento, origem, reversalOfId: null, DateTimeOffset.UtcNow, corrente, projetoId);
 
         movimento.Raise(new MovimentoFinanceiroRegistrado(movimento.Id, businessId, valor.Centavos, tipo == TipoMovimentoFinanceiro.Entrada));
         return Result.Ok(movimento);
@@ -102,7 +109,7 @@ public sealed class MovimentoFinanceiro : AggregateRoot<string>
 
         var estorno = new MovimentoFinanceiro(
             IdGenerator.NovoId(), BusinessId, ContaBancariaCaixaId, FormaPagamentoId, ParcelaId,
-            ContaOrigemId, tipoInvertido, Valor, dataEstorno, origemEstorno, reversalOfId: Id, DateTimeOffset.UtcNow, Corrente);
+            ContaOrigemId, tipoInvertido, Valor, dataEstorno, origemEstorno, reversalOfId: Id, DateTimeOffset.UtcNow, Corrente, ProjetoId);
 
         estorno.Raise(new MovimentoFinanceiroEstornado(estorno.Id, Id, Valor.Centavos));
         return Result.Ok(estorno);

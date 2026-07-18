@@ -19,7 +19,7 @@ public sealed class SqliteContaAPagarRepository(ILocalSqliteConnectionFactory co
         """
         id, business_id, source_ref_modulo, source_ref_id, descricao, categoria_id,
         centro_de_custo_id, data_competencia, valor_total_centavos, valor_total_moeda,
-        status, criado_em, fornecedor_id, corrente
+        status, criado_em, fornecedor_id, corrente, projeto_id
         """;
 
     public Task<ContaAPagar?> ObterPorIdAsync(string id, CancellationToken ct = default)
@@ -88,10 +88,10 @@ public sealed class SqliteContaAPagarRepository(ILocalSqliteConnectionFactory co
                     """
                     INSERT INTO contas_a_pagar
                         (id, business_id, source_ref_modulo, source_ref_id, source_ref_chave, descricao, categoria_id,
-                         centro_de_custo_id, data_competencia, valor_total_centavos, valor_total_moeda, status, criado_em, fornecedor_id, corrente)
+                         centro_de_custo_id, data_competencia, valor_total_centavos, valor_total_moeda, status, criado_em, fornecedor_id, corrente, projeto_id)
                     VALUES
                         ($id, $biz, $srModulo, $srId, $srChave, $descricao, $categoriaId,
-                         $centroDeCustoId, $dataCompetencia, $valorCentavos, $valorMoeda, $status, $criadoEm, $fornecedorId, $corrente)
+                         $centroDeCustoId, $dataCompetencia, $valorCentavos, $valorMoeda, $status, $criadoEm, $fornecedorId, $corrente, $projetoId)
                     ON CONFLICT(id) DO UPDATE SET
                         descricao            = excluded.descricao,
                         categoria_id         = excluded.categoria_id,
@@ -101,7 +101,8 @@ public sealed class SqliteContaAPagarRepository(ILocalSqliteConnectionFactory co
                         valor_total_moeda    = excluded.valor_total_moeda,
                         status               = excluded.status,
                         fornecedor_id        = excluded.fornecedor_id,
-                        corrente             = excluded.corrente;
+                        corrente             = excluded.corrente,
+                        projeto_id           = excluded.projeto_id;
                     """;
                 cmd.Parameters.AddWithValue("$id", conta.Id);
                 cmd.Parameters.AddWithValue("$biz", conta.BusinessId);
@@ -118,6 +119,7 @@ public sealed class SqliteContaAPagarRepository(ILocalSqliteConnectionFactory co
                 cmd.Parameters.AddWithValue("$criadoEm", Iso(conta.CriadoEm));
                 cmd.Parameters.AddWithValue("$fornecedorId", (object?)conta.FornecedorId ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("$corrente", (object?)(conta.Corrente is { } corrente ? (int)corrente : null) ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("$projetoId", (object?)conta.ProjetoId ?? DBNull.Value);
 
                 await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
             }
@@ -176,7 +178,8 @@ public sealed class SqliteContaAPagarRepository(ILocalSqliteConnectionFactory co
                     reader.GetString(7), new Money(reader.GetInt64(8), reader.GetString(9)),
                     (StatusFinanceiro)reader.GetInt32(10), reader.GetString(11),
                     reader.IsDBNull(12) ? null : reader.GetString(12),
-                    reader.IsDBNull(13) ? null : (CorrenteDeReceita)reader.GetInt32(13)));
+                    reader.IsDBNull(13) ? null : (CorrenteDeReceita)reader.GetInt32(13),
+                    reader.IsDBNull(14) ? null : reader.GetString(14)));
             }
         }
 
@@ -187,7 +190,7 @@ public sealed class SqliteContaAPagarRepository(ILocalSqliteConnectionFactory co
             resultado.Add(ContaAPagar.Reconstituir(
                 h.Id, h.BusinessId, new SourceRef(h.SourceRefModulo, h.SourceRefId), h.Descricao, h.CategoriaId,
                 h.CentroDeCustoId, ParseData(h.DataCompetencia)!.Value, h.ValorTotal, h.Status,
-                ParseData(h.CriadoEm)!.Value, parcelas, h.FornecedorId, h.Corrente));
+                ParseData(h.CriadoEm)!.Value, parcelas, h.FornecedorId, h.Corrente, h.ProjetoId));
         }
         return resultado;
     }
@@ -229,7 +232,7 @@ public sealed class SqliteContaAPagarRepository(ILocalSqliteConnectionFactory co
     private sealed record HeaderRow(
         string Id, string BusinessId, string SourceRefModulo, string SourceRefId, string Descricao,
         string CategoriaId, string? CentroDeCustoId, string DataCompetencia, Money ValorTotal,
-        StatusFinanceiro Status, string CriadoEm, string? FornecedorId, CorrenteDeReceita? Corrente);
+        StatusFinanceiro Status, string CriadoEm, string? FornecedorId, CorrenteDeReceita? Corrente, string? ProjetoId);
 
     private async Task ExecutarAsync(Func<SqliteConnection, SqliteTransaction?, Task> acao, CancellationToken ct)
     {

@@ -8,9 +8,11 @@ using SistemaX.Modules.Abstractions.Consultor;
 using SistemaX.Modules.Financeiro.Application.Caixa;
 using SistemaX.Modules.Financeiro.Application.CasosDeUso;
 using SistemaX.Modules.Financeiro.Application.Ports;
+using SistemaX.Modules.Financeiro.Application.Projetos;
 using SistemaX.Modules.Financeiro.Application.Quant;
 using SistemaX.Modules.Financeiro.Application.ReadModels;
 using SistemaX.Modules.Financeiro.Domain.Caixa;
+using SistemaX.Modules.Financeiro.Domain.Configuracao;
 using SistemaX.SharedKernel;
 
 namespace SistemaX.Modules.Financeiro.Application.Endpoints;
@@ -67,6 +69,20 @@ public sealed record SuprimentoRequest(string SessaoId, long ValorCentavos, stri
 public sealed record SangriaRequest(string SessaoId, long ValorCentavos, string Motivo, string OperadorId, string OperadorNome);
 
 public sealed record FecharCaixaRequest(string SessaoId, long ContadoCentavos);
+
+/// <summary>DTO de fio de <see cref="ConfiguracaoFinanceiraTenant"/> — o shape exato de
+/// docs/financeiro/design-analise-por-projeto.md §8.1.</summary>
+public sealed record ConfiguracaoFinanceiraDto(bool AnalisePorProjetoAtiva, long? CustoHoraPadraoCentavos, bool TempoEntraNoDre)
+{
+    public static ConfiguracaoFinanceiraDto DeDominio(ConfiguracaoFinanceiraTenant c)
+        => new(c.AnalisePorProjetoAtiva, c.CustoHoraPadraoCentavos, c.TempoEntraNoDre);
+}
+
+public sealed record CriarProjetoRequest(string Nome, string? Descricao = null);
+
+public sealed record EditarProjetoRequest(string? Nome = null, bool AtualizarDescricao = false, string? Descricao = null);
+
+public sealed record VincularProjetoAssinaturaRequest(string? ProjetoId);
 
 /// <summary>
 /// Terceiro <see cref="IModule"/> do Financeiro — existe só para implementar
@@ -688,6 +704,128 @@ public sealed class FinanceiroEndpointsModule : IModule, IModuleEndpoints
                 .ExecutarAsync(businessId, corpo.SessaoId, new Money(corpo.ContadoCentavos), DateTimeOffset.UtcNow, ct)
                 .ConfigureAwait(false);
             return resultado.Sucesso ? Results.Ok(SessaoCaixaDto.DeDominio(resultado.Valor)) : resultado.Erro.ParaRespostaHttp();
+        }).RequerPermissao(Modulo.Financeiro, Acao.Editar);
+
+        // ANÁLISE POR PROJETO (docs/financeiro/design-analise-por-projeto.md, Parte A) — toggle,
+        // CRUD de Projeto e Painel v1. Desligado (default): GET /financeiro/projetos devolve []
+        // (§2.2 do design — nunca 404/erro, a UI só não mostra a lista); qualquer escrita com
+        // projetoId (aqui ou em Assinatura/LancarConta) → 422 financeiro.projetos.desativado.
+
+        api.MapGet("/financeiro/configuracoes", async (
+            HttpContext http,
+            IConfiguracaoFinanceiraTenantRepository repositorio,
+            CancellationToken ct) =>
+        {
+            var businessId = http.ObterBusinessId();
+            var configuracao = await repositorio.ObterAsync(businessId, ct).ConfigureAwait(false) ?? ConfiguracaoFinanceiraTenant.Padrao(businessId);
+            return Results.Ok(ConfiguracaoFinanceiraDto.DeDominio(configuracao));
+        }).RequerPermissao(Modulo.Financeiro, Acao.Ver);
+
+        // É AQUI que o toggle liga/desliga — Acao.Editar (mesma permissão de qualquer escrita de
+        // configuração do módulo).
+        api.MapPut("/financeiro/configuracoes", async (
+            HttpContext http,
+            ConfiguracaoFinanceiraDto corpo,
+            IConfiguracaoFinanceiraTenantRepository repositorio,
+            CancellationToken ct) =>
+        {
+            var businessId = http.ObterBusinessId();
+            var resultado = ConfiguracaoFinanceiraTenant.Criar(businessId, corpo.AnalisePorProjetoAtiva, corpo.CustoHoraPadraoCentavos, corpo.TempoEntraNoDre);
+            if (resultado.Falha) return resultado.Erro.ParaRespostaHttp();
+
+            await repositorio.SalvarAsync(resultado.Valor, ct).ConfigureAwait(false);
+            return Results.Ok(ConfiguracaoFinanceiraDto.DeDominio(resultado.Valor));
+        }).RequerPermissao(Modulo.Financeiro, Acao.Editar);
+
+        api.MapGet("/financeiro/projetos", async (
+            HttpContext http,
+            IProjetoRepository repositorio,
+            CancellationToken ct,
+            bool incluirArquivados = false) =>
+        {
+            var businessId = http.ObterBusinessId();
+            var projetos = await repositorio.ListarAsync(businessId, incluirArquivados, ct).ConfigureAwait(false);
+            return Results.Ok(projetos.Select(ProjetoDto.DeDominio));
+        }).RequerPermissao(Modulo.Financeiro, Acao.Ver);
+
+        api.MapPost("/financeiro/projetos", async (
+            HttpContext http,
+            CriarProjetoRequest corpo,
+            CriarProjetoUseCase useCase,
+            CancellationToken ct) =>
+        {
+            var businessId = http.ObterBusinessId();
+            var resultado = await useCase.ExecutarAsync(new CriarProjetoComando(businessId, corpo.Nome, corpo.Descricao), ct).ConfigureAwait(false);
+            return resultado.Sucesso ? Results.Ok(ProjetoDto.DeDominio(resultado.Valor)) : resultado.Erro.ParaRespostaHttp();
+        }).RequerPermissao(Modulo.Financeiro, Acao.Editar);
+
+        // Renomear/editar descrição — PATCH semântico (edição parcial). Arquivar/reativar são
+        // rotas de AÇÃO próprias (abaixo), nunca um campo de status neste PATCH — mesmo racional
+        // de "FSM tem verbo próprio" do resto do módulo (AbrirCaixaRequest/FecharCaixaRequest).
+        api.MapPatch("/financeiro/projetos/{id}", async (
+            HttpContext http,
+            string id,
+            EditarProjetoRequest corpo,
+            EditarProjetoUseCase useCase,
+            CancellationToken ct) =>
+        {
+            var businessId = http.ObterBusinessId();
+            var resultado = await useCase
+                .ExecutarAsync(new RenomearProjetoComando(businessId, id, corpo.Nome, corpo.Descricao, corpo.AtualizarDescricao), ct)
+                .ConfigureAwait(false);
+            return resultado.Sucesso ? Results.Ok(ProjetoDto.DeDominio(resultado.Valor)) : resultado.Erro.ParaRespostaHttp();
+        }).RequerPermissao(Modulo.Financeiro, Acao.Editar);
+
+        api.MapPost("/financeiro/projetos/{id}/arquivar", async (
+            HttpContext http,
+            string id,
+            ArquivarReativarProjetoUseCase useCase,
+            CancellationToken ct) =>
+        {
+            var businessId = http.ObterBusinessId();
+            var resultado = await useCase.ArquivarAsync(businessId, id, ct).ConfigureAwait(false);
+            return resultado.Sucesso ? Results.Ok(ProjetoDto.DeDominio(resultado.Valor)) : resultado.Erro.ParaRespostaHttp();
+        }).RequerPermissao(Modulo.Financeiro, Acao.Editar);
+
+        api.MapPost("/financeiro/projetos/{id}/reativar", async (
+            HttpContext http,
+            string id,
+            ArquivarReativarProjetoUseCase useCase,
+            CancellationToken ct) =>
+        {
+            var businessId = http.ObterBusinessId();
+            var resultado = await useCase.ReativarAsync(businessId, id, ct).ConfigureAwait(false);
+            return resultado.Sucesso ? Results.Ok(ProjetoDto.DeDominio(resultado.Valor)) : resultado.Erro.ParaRespostaHttp();
+        }).RequerPermissao(Modulo.Financeiro, Acao.Editar);
+
+        // Painel v1 (design §9) — MRR/churn(hazard)/LTV/MC1 do projeto. 404 se o projeto não
+        // existir; painel calcula mesmo com o toggle desligado hoje (leitura não é "escrita com
+        // projetoId" — o guard só barra escrita; a rota só é alcançável de qualquer forma se o
+        // chamador já sabe o id do projeto).
+        api.MapGet("/financeiro/projetos/{id}/painel", async (
+            HttpContext http,
+            string id,
+            PainelDoProjetoService servico,
+            CancellationToken ct) =>
+        {
+            var businessId = http.ObterBusinessId();
+            var resultado = await servico.CalcularAsync(businessId, id, ct).ConfigureAwait(false);
+            return resultado.Sucesso ? Results.Ok(resultado.Valor) : resultado.Erro.ParaRespostaHttp(StatusCodes.Status404NotFound);
+        }).RequerPermissao(Modulo.Financeiro, Acao.Ver);
+
+        // Tagging aditivo em Assinatura (design §8.5) — vincular/desvincular (projetoId: null).
+        api.MapPost("/financeiro/assinaturas/{id}/projeto", async (
+            HttpContext http,
+            string id,
+            VincularProjetoAssinaturaRequest corpo,
+            VincularProjetoAssinaturaUseCase useCase,
+            CancellationToken ct) =>
+        {
+            var businessId = http.ObterBusinessId();
+            var resultado = await useCase.ExecutarAsync(businessId, id, corpo.ProjetoId, ct).ConfigureAwait(false);
+            return resultado.Sucesso
+                ? Results.Ok(new { id = resultado.Valor.Id, projetoId = resultado.Valor.ProjetoId })
+                : resultado.Erro.ParaRespostaHttp();
         }).RequerPermissao(Modulo.Financeiro, Acao.Editar);
     }
 

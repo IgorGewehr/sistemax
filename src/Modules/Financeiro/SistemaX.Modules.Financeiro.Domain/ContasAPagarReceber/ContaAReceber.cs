@@ -33,8 +33,8 @@ public sealed class ContaAReceber : ContaFinanceiraBase
         string id, string businessId, SourceRef sourceRef, string descricao, string categoriaId,
         string? centroDeCustoId, DateTimeOffset dataCompetencia, Money valorTotal,
         IReadOnlyCollection<Parcela> parcelas, string? clienteId, CorrenteDeReceita? corrente,
-        string? tecnicoId, Money? valorServico, Money? valorPecas, int? mesesDeReconhecimento)
-        : base(id, businessId, sourceRef, descricao, categoriaId, centroDeCustoId, dataCompetencia, valorTotal, parcelas, corrente, mesesDeReconhecimento)
+        string? tecnicoId, Money? valorServico, Money? valorPecas, int? mesesDeReconhecimento, string? projetoId)
+        : base(id, businessId, sourceRef, descricao, categoriaId, centroDeCustoId, dataCompetencia, valorTotal, parcelas, corrente, mesesDeReconhecimento, projetoId)
     {
         ClienteId = clienteId;
         TecnicoId = tecnicoId;
@@ -46,8 +46,8 @@ public sealed class ContaAReceber : ContaFinanceiraBase
         string id, string businessId, SourceRef sourceRef, string descricao, string categoriaId,
         string? centroDeCustoId, DateTimeOffset dataCompetencia, Money valorTotal, StatusFinanceiro status,
         DateTimeOffset criadoEm, IReadOnlyCollection<Parcela> parcelas, string? clienteId, CorrenteDeReceita? corrente,
-        string? tecnicoId, Money? valorServico, Money? valorPecas, int? mesesDeReconhecimento)
-        : base(id, businessId, sourceRef, descricao, categoriaId, centroDeCustoId, dataCompetencia, valorTotal, status, criadoEm, parcelas, corrente, mesesDeReconhecimento)
+        string? tecnicoId, Money? valorServico, Money? valorPecas, int? mesesDeReconhecimento, string? projetoId)
+        : base(id, businessId, sourceRef, descricao, categoriaId, centroDeCustoId, dataCompetencia, valorTotal, status, criadoEm, parcelas, corrente, mesesDeReconhecimento, projetoId)
     {
         ClienteId = clienteId;
         TecnicoId = tecnicoId;
@@ -60,9 +60,10 @@ public sealed class ContaAReceber : ContaFinanceiraBase
         string id, string businessId, SourceRef sourceRef, string descricao, string categoriaId,
         string? centroDeCustoId, DateTimeOffset dataCompetencia, Money valorTotal, StatusFinanceiro status,
         DateTimeOffset criadoEm, IReadOnlyCollection<Parcela> parcelas, string? clienteId, CorrenteDeReceita? corrente = null,
-        string? tecnicoId = null, Money? valorServico = null, Money? valorPecas = null, int? mesesDeReconhecimento = null)
+        string? tecnicoId = null, Money? valorServico = null, Money? valorPecas = null, int? mesesDeReconhecimento = null,
+        string? projetoId = null)
         => new(id, businessId, sourceRef, descricao, categoriaId, centroDeCustoId, dataCompetencia, valorTotal, status, criadoEm, parcelas, clienteId, corrente,
-            tecnicoId, valorServico, valorPecas, mesesDeReconhecimento);
+            tecnicoId, valorServico, valorPecas, mesesDeReconhecimento, projetoId);
 
     public static Result<ContaAReceber> Criar(
         string businessId,
@@ -78,7 +79,8 @@ public sealed class ContaAReceber : ContaFinanceiraBase
         string? tecnicoId = null,
         Money? valorServico = null,
         Money? valorPecas = null,
-        int? mesesDeReconhecimento = null)
+        int? mesesDeReconhecimento = null,
+        string? projetoId = null)
     {
         var validacao = ValidarParcelas(valorTotal, parcelas);
         if (validacao.Falha) return Result.Falhar<ContaAReceber>(validacao.Erro);
@@ -96,7 +98,7 @@ public sealed class ContaAReceber : ContaFinanceiraBase
         var conta = new ContaAReceber(
             IdGenerator.NovoId(), businessId, sourceRef, descricao, categoriaId,
             centroDeCustoId, dataCompetencia, valorTotal, parcelas, clienteId, corrente,
-            tecnicoId, valorServico, valorPecas, mesesDeReconhecimento);
+            tecnicoId, valorServico, valorPecas, mesesDeReconhecimento, projetoId);
 
         conta.Raise(new ContaCriada(conta.Id, businessId, "receber", valorTotal.Centavos, sourceRef.Chave));
         return Result.Ok(conta);

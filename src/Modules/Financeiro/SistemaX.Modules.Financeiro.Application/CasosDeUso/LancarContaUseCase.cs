@@ -1,3 +1,4 @@
+using SistemaX.Modules.Financeiro.Application.Projetos;
 using SistemaX.Modules.Financeiro.Application.Ports;
 using SistemaX.Modules.Financeiro.Domain.Comum;
 using SistemaX.Modules.Financeiro.Domain.Contabil;
@@ -17,6 +18,9 @@ namespace SistemaX.Modules.Financeiro.Application.CasosDeUso;
 /// quem melhor sabe se este lançamento manual pertence a uma das três correntes; <c>null</c>
 /// (default) fica não-classificado nesta dimensão, mesmo tratamento de qualquer conta sem sinal
 /// claro.</param>
+/// <param name="ProjetoId">Dimensão "Projeto" (docs/financeiro/design-analise-por-projeto.md §3.2)
+/// — barrada (422, <see cref="Projetos.AnalisePorProjetoGuard"/>) enquanto o toggle do tenant
+/// estiver desligado.</param>
 public sealed record LancarContaComando(
     string BusinessId,
     string Descricao,
@@ -27,19 +31,24 @@ public sealed record LancarContaComando(
     string IdempotencyKey,
     string? CentroDeCustoId = null,
     string? ContraparteId = null,
-    CorrenteDeReceita? Corrente = null);
+    CorrenteDeReceita? Corrente = null,
+    string? ProjetoId = null);
 
-public sealed class LancarContaAPagarUseCase(IContaAPagarRepository contasAPagar, ILancamentoContabilRepository lancamentos)
+public sealed class LancarContaAPagarUseCase(
+    IContaAPagarRepository contasAPagar, ILancamentoContabilRepository lancamentos, IConfiguracaoFinanceiraTenantRepository configuracoes)
 {
     public async Task<Result<ContaAPagar>> ExecutarAsync(LancarContaComando comando, CancellationToken ct = default)
     {
+        var gating = await AnalisePorProjetoGuard.ExigirAtivaSeProjetoIdAsync(comando.BusinessId, comando.ProjetoId, configuracoes, ct).ConfigureAwait(false);
+        if (gating.Falha) return Result.Falhar<ContaAPagar>(gating.Erro);
+
         var origem = new SourceRef("financeiro-nativo", comando.IdempotencyKey);
         var existente = await contasAPagar.BuscarPorOrigemAsync(comando.BusinessId, origem.Chave, ct);
         if (existente is not null) return Result.Ok(existente);
 
         var contaResultado = ContaAPagar.Criar(
             comando.BusinessId, origem, comando.Descricao, comando.CategoriaId, comando.DataCompetencia,
-            comando.ValorTotal, comando.Parcelas, comando.CentroDeCustoId, comando.ContraparteId, comando.Corrente);
+            comando.ValorTotal, comando.Parcelas, comando.CentroDeCustoId, comando.ContraparteId, comando.Corrente, comando.ProjetoId);
         if (contaResultado.Falha) return contaResultado;
 
         await contasAPagar.SalvarAsync(contaResultado.Valor, ct);
@@ -52,17 +61,22 @@ public sealed class LancarContaAPagarUseCase(IContaAPagarRepository contasAPagar
     }
 }
 
-public sealed class LancarContaAReceberUseCase(IContaAReceberRepository contasAReceber, ILancamentoContabilRepository lancamentos)
+public sealed class LancarContaAReceberUseCase(
+    IContaAReceberRepository contasAReceber, ILancamentoContabilRepository lancamentos, IConfiguracaoFinanceiraTenantRepository configuracoes)
 {
     public async Task<Result<ContaAReceber>> ExecutarAsync(LancarContaComando comando, CancellationToken ct = default)
     {
+        var gating = await AnalisePorProjetoGuard.ExigirAtivaSeProjetoIdAsync(comando.BusinessId, comando.ProjetoId, configuracoes, ct).ConfigureAwait(false);
+        if (gating.Falha) return Result.Falhar<ContaAReceber>(gating.Erro);
+
         var origem = new SourceRef("financeiro-nativo", comando.IdempotencyKey);
         var existente = await contasAReceber.BuscarPorOrigemAsync(comando.BusinessId, origem.Chave, ct);
         if (existente is not null) return Result.Ok(existente);
 
         var contaResultado = ContaAReceber.Criar(
             comando.BusinessId, origem, comando.Descricao, comando.CategoriaId, comando.DataCompetencia,
-            comando.ValorTotal, comando.Parcelas, comando.CentroDeCustoId, comando.ContraparteId, comando.Corrente);
+            comando.ValorTotal, comando.Parcelas, comando.CentroDeCustoId, comando.ContraparteId, comando.Corrente,
+            projetoId: comando.ProjetoId);
         if (contaResultado.Falha) return contaResultado;
 
         await contasAReceber.SalvarAsync(contaResultado.Valor, ct);

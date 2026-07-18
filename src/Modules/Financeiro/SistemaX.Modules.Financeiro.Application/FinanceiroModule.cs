@@ -6,6 +6,7 @@ using SistemaX.Modules.Financeiro.Application.CasosDeUso;
 using SistemaX.Modules.Financeiro.Application.Consultor;
 using SistemaX.Modules.Financeiro.Application.EventosDeIntegracao.Handlers;
 using SistemaX.Modules.Financeiro.Application.Mrr;
+using SistemaX.Modules.Financeiro.Application.Projetos;
 using SistemaX.Modules.Financeiro.Application.ReadModels;
 
 namespace SistemaX.Modules.Financeiro.Application;
@@ -67,6 +68,14 @@ public sealed class FinanceiroModule : IModule
         services.AddScoped<CancelarAssinaturaUseCase>();
         services.AddScoped<PausarReativarAssinaturaUseCase>();
         services.AddScoped<AlterarValorAssinaturaUseCase>();
+        services.AddScoped<VincularProjetoAssinaturaUseCase>();
+
+        // Análise por Projeto (docs/financeiro/design-analise-por-projeto.md, Parte A) — CRUD de
+        // Projeto (opt-in via AnalisePorProjetoGuard) + Painel v1 (MRR/churn/LTV/MC1 por projeto).
+        services.AddScoped<CriarProjetoUseCase>();
+        services.AddScoped<EditarProjetoUseCase>();
+        services.AddScoped<ArquivarReativarProjetoUseCase>();
+        services.AddScoped<PainelDoProjetoService>();
 
         // Motor de recorrência (geração de contas/cobranças)
         services.AddScoped<GerarContasRecorrentesUseCase>();

@@ -20,6 +20,7 @@ public sealed class SqliteRecorrenciaRepositoryContractTests : RecorrenciaReposi
         using var connection = _connectionFactory.OpenConnection();
         using var transaction = connection.BeginTransaction();
         new FinanceiroSchemaMigrationV7().AplicarAsync(connection, transaction, CancellationToken.None).GetAwaiter().GetResult();
+        new FinanceiroSchemaMigrationV29().AplicarAsync(connection, transaction, CancellationToken.None).GetAwaiter().GetResult();
         transaction.Commit();
     }
 

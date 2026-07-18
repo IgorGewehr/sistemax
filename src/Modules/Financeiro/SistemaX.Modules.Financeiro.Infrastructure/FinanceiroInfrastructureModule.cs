@@ -131,6 +131,23 @@ public sealed class FinanceiroInfrastructureModule : IModule
             // P1-4 — ledger de movimentos de MRR (mrr_movimentos).
             services.AddScoped<IMovimentoMrrRepository, SqliteMovimentoMrrRepository>();
             services.AddModuleSchemaMigration<FinanceiroSchemaMigrationV25>();
+
+            // Análise por Projeto (docs/financeiro/design-analise-por-projeto.md, Parte A) — V26
+            // (projetos) + V27 (o toggle) + V28-V32 (tagging projeto_id em Assinatura/Recorrencia/
+            // ContaAReceber/ContaAPagar/MovimentoFinanceiro) + V33-V34 (coluna aditiva, FORA da
+            // chave, nas fact tables — ver doc da V33 para o porquê do rebuild com a coluna NA
+            // chave ficar para a fatia P5 do design, não esta Parte A).
+            services.AddScoped<IProjetoRepository, SqliteProjetoRepository>();
+            services.AddScoped<IConfiguracaoFinanceiraTenantRepository, SqliteConfiguracaoFinanceiraTenantRepository>();
+            services.AddModuleSchemaMigration<FinanceiroSchemaMigrationV26>();
+            services.AddModuleSchemaMigration<FinanceiroSchemaMigrationV27>();
+            services.AddModuleSchemaMigration<FinanceiroSchemaMigrationV28>();
+            services.AddModuleSchemaMigration<FinanceiroSchemaMigrationV29>();
+            services.AddModuleSchemaMigration<FinanceiroSchemaMigrationV30>();
+            services.AddModuleSchemaMigration<FinanceiroSchemaMigrationV31>();
+            services.AddModuleSchemaMigration<FinanceiroSchemaMigrationV32>();
+            services.AddModuleSchemaMigration<FinanceiroSchemaMigrationV33>();
+            services.AddModuleSchemaMigration<FinanceiroSchemaMigrationV34>();
         }
         else
         {
@@ -154,6 +171,8 @@ public sealed class FinanceiroInfrastructureModule : IModule
             services.AddSingleton<IAssinaturaRepository, InMemoryAssinaturaRepository>();
             services.AddSingleton<IConfiguracaoRadarSimplesRepository, InMemoryConfiguracaoRadarSimplesRepository>();
             services.AddSingleton<IMovimentoMrrRepository, InMemoryMovimentoMrrRepository>();
+            services.AddSingleton<IProjetoRepository, InMemoryProjetoRepository>();
+            services.AddSingleton<IConfiguracaoFinanceiraTenantRepository, InMemoryConfiguracaoFinanceiraTenantRepository>();
         }
 
         // Projeções (IProjection) — Scoped em ambos os modos: o repo por trás pode ser Scoped

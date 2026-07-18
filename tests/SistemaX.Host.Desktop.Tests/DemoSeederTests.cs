@@ -106,9 +106,12 @@ public sealed class DemoSeederTests : IAsyncLifetime
         await _provider.GetRequiredService<ProjectionRunner>().ExecutarTudoAsync(CancellationToken.None);
 
         await AssertPainelDeProjetoDigiSatTemNumeroRealAsync();
+        await AssertPainelDeProjetoAevoTemMargemRealAsync();
         await AssertDrePorCorrenteTemAsTresCorrentesAsync();
         await AssertRoiDoNegocioTemInvestimentoRealAsync();
         await AssertComercioEServicoGeraramReceitaAsync();
+        await AssertRadarDoSimplesTemNumeroRealAsync();
+        await AssertRecebiveisTemNumeroRealAsync();
     }
 
     /// <summary>Snapshot das contagens que provam idempotência — cobre cada técnica de guarda
@@ -147,6 +150,46 @@ public sealed class DemoSeederTests : IAsyncLifetime
         Assert.Equal(1, resultado.Receita.AssinaturasAtivas);
         Assert.True(resultado.Payback.InvestimentoTotalCentavos > 0, "Investimento (licença DigiSat) deveria ser positivo.");
         Assert.True(resultado.Capacidade.UnidadesTotais >= 5, "5 unidades de licença deveriam aparecer na capacidade.");
+
+        // Ociosidade (item #48 pendência 4) — até aqui só decorria implicitamente de "1 assinatura
+        // vs 5 unidades"; aqui provamos o NÚMERO: 1 assinatura ocupa 1/5 unidades (80% ociosas —
+        // 4 de 5), e o custo de ociosidade bate com a MESMA fórmula de produção
+        // (amortização do mês × fração ociosa, PainelDoProjetoService.CalcularCapacidade) aplicada
+        // sobre a amortização real devolvida no mesmo painel — não um valor hardcoded adivinhado.
+        Assert.Equal(5, resultado.Capacidade.UnidadesTotais);
+        Assert.Equal(1, resultado.Capacidade.UnidadesUtilizadas);
+        Assert.Equal(20m, resultado.Capacidade.UtilizacaoPercent); // 1/5 = 20% em uso, 80% ocioso (4 de 5 unidades)
+        Assert.True(resultado.Margem.AmortizacaoMes.Centavos > 0, "Amortização do mês da licença DigiSat deveria ser positiva — pré-condição da ociosidade.");
+        var ociosidadeEsperadaCentavos = (long)Math.Round(resultado.Margem.AmortizacaoMes.Centavos * 0.8m, MidpointRounding.ToEven);
+        Assert.Equal(ociosidadeEsperadaCentavos, resultado.Capacidade.CustoOciosidadeMesCentavos);
+        Assert.True(resultado.Capacidade.CustoOciosidadeMesCentavos > 0, "4 das 5 unidades da licença DigiSat estão ociosas — o custo de ociosidade deveria ser positivo.");
+    }
+
+    /// <summary>Cobertura ISOLADA do painel do Aevo (item #48 pendência 1) — até aqui a margem do
+    /// Aevo só era coberta indiretamente pelo DRE agregado da corrente Recorrente (que soma
+    /// DigiSat+Aevo+outras assinaturas). Aqui provamos que <see cref="PainelDoProjetoService"/>
+    /// devolve, PARA O AEVO especificamente: MRR real (2 assinaturas somando ~R$1.200, passo 5 do
+    /// <see cref="DemoSeeder"/>), o custo de IA (~R$340/mês, passo 6) aparecendo como custo direto
+    /// tageado no projeto, e a margem de contribuição (MC1) sobrevivendo POSITIVA a esse desconto —
+    /// não um número emprestado de outro projeto ou do agregado.</summary>
+    private async Task AssertPainelDeProjetoAevoTemMargemRealAsync()
+    {
+        await using var scope = _provider.CreateAsyncScope();
+        var sp = scope.ServiceProvider;
+
+        var aevo = await sp.GetRequiredService<IProjetoRepository>().BuscarPorNomeAsync(BusinessId, "Aevo");
+        Assert.NotNull(aevo);
+
+        var painel = await sp.GetRequiredService<PainelDoProjetoService>().CalcularAsync(BusinessId, aevo!.Id);
+        Assert.True(painel.Sucesso, painel.Falha ? painel.Erro.Mensagem : string.Empty);
+
+        var resultado = painel.Valor;
+        Assert.True(resultado.Receita.Mrr.Centavos > 0, "MRR do Aevo deveria ser positivo — as 2 assinaturas Aevo Plataforma foram tageadas no projeto.");
+        Assert.Equal(2, resultado.Receita.AssinaturasAtivas);
+        Assert.True(resultado.Margem.CustoDireto.Centavos > 0, "Custo de infraestrutura de IA deveria aparecer como custo direto tageado no projeto Aevo.");
+        Assert.True(
+            resultado.Margem.Mc1.Centavos > 0,
+            "Margem (MC1) do Aevo deveria ficar positiva mesmo após descontar o custo de IA (~R$340) do MRR (~R$1.200) — prova isolada da margem própria do projeto, não emprestada do DRE agregado.");
     }
 
     private async Task AssertDrePorCorrenteTemAsTresCorrentesAsync()
@@ -193,5 +236,45 @@ public sealed class DemoSeederTests : IAsyncLifetime
             .ListarPorCompetenciaAsync(BusinessId, DateTimeOffset.UtcNow.AddMonths(-1), DateTimeOffset.UtcNow);
         Assert.Contains(contasAReceber, c => c.Corrente == Modules.Financeiro.Domain.Comum.CorrenteDeReceita.Comercio);
         Assert.Contains(contasAReceber, c => c.Corrente == Modules.Financeiro.Domain.Comum.CorrenteDeReceita.Servico);
+    }
+
+    /// <summary>Cobertura do painel Radar do Simples com o cenário DigiSat/Aevo/Imobilizado (item
+    /// #48 pendência 3) — até aqui o DemoSeeder alimentava <c>fato_receita_diaria</c> (docstring da
+    /// classe) mas nenhum teste chamava <see cref="RadarDoSimplesService"/> pra provar que o RBT12
+    /// e o mix por anexo saem não-vazios. RBT12 (janela de 12 meses CALENDÁRIO FECHADOS, exclui o
+    /// mês corrente) é alimentado pelas cobranças de assinatura passadas (passo 5/9 do
+    /// <see cref="DemoSeeder"/> — Mercado Sao Joao/Padaria/Auto Peças/Gestao Raiz/Brain/DigiSat/Aevo
+    /// começaram 2 a 6 meses atrás, então já têm competência em mês fechado); vendas/OS avulsas
+    /// (passo 8) só entram no mix do MÊS CORRENTE (repartição do DAS por anexo), não no RBT12.</summary>
+    private async Task AssertRadarDoSimplesTemNumeroRealAsync()
+    {
+        await using var scope = _provider.CreateAsyncScope();
+        var sp = scope.ServiceProvider;
+
+        var radar = await sp.GetRequiredService<RadarDoSimplesService>().CalcularAsync(BusinessId);
+        Assert.True(radar.Sucesso, radar.Falha ? radar.Erro.Mensagem : string.Empty);
+
+        var resultado = radar.Valor;
+        Assert.True(resultado.Rbt12Centavos > 0, "RBT12 deveria ser positivo — assinaturas de meses fechados anteriores (Mercado Sao Joao etc.) alimentam fato_receita_diaria.");
+        Assert.True(resultado.ImpostoTotalEstimadoCentavos > 0, "DAS estimado deveria ser positivo com RBT12 > 0.");
+        Assert.NotEmpty(resultado.PorAnexo);
+        Assert.True(resultado.PorAnexo.Sum(p => p.ReceitaMesCentavos) > 0, "Receita do mês repartida por anexo deveria ser positiva — vendas/OS/assinaturas do mês corrente.");
+    }
+
+    /// <summary>Cobertura do painel de Recebíveis com o cenário rico (item #48 pendência 3) —
+    /// <c>fato_recebiveis</c> é foldada pela venda no crédito (passo 8a, MDR/lag reais) e pelo
+    /// faturamento das OS (passo 8b); aqui provamos que <see cref="IFatoRecebiveisRepository"/>
+    /// devolve linhas com valor líquido real (já descontado MDR), não vazio nem zerado.</summary>
+    private async Task AssertRecebiveisTemNumeroRealAsync()
+    {
+        await using var scope = _provider.CreateAsyncScope();
+        var sp = scope.ServiceProvider;
+
+        var desde = DateOnly.FromDateTime(DateTimeOffset.UtcNow.AddYears(-1).UtcDateTime);
+        var ate = DateOnly.FromDateTime(DateTimeOffset.UtcNow.AddYears(1).UtcDateTime);
+        var recebiveis = await sp.GetRequiredService<IFatoRecebiveisRepository>().ListarPorVencimentoAsync(BusinessId, desde, ate);
+
+        Assert.NotEmpty(recebiveis);
+        Assert.True(recebiveis.Sum(r => r.ValorLiquidoCentavos) > 0, "Recebíveis deveriam somar valor líquido positivo — venda no crédito (passo 8a) + OS faturadas (passo 8b).");
     }
 }

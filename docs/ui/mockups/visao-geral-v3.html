@@ -1,0 +1,632 @@
+<style>
+  :root {
+    --bg: 210 40% 98%;
+    --surface: 0 0% 100%;
+    --surface-2: 210 40% 96.5%;
+    --fg: 222 47% 11%;
+    --muted: 215 16% 47%;
+    --faint: 215 20% 65%;
+    --border: 214 32% 90%;
+    --primary: 0 72% 51%;
+    --primary-soft: 0 72% 96%;
+    --pos: 152 58% 40%;
+    --pos-soft: 152 55% 94%;
+    --warn: 32 90% 44%;
+    --warn-soft: 38 92% 94%;
+    --crit: 349 78% 48%;
+    --crit-soft: 349 80% 96%;
+    --ring: 0 72% 51%;
+    --shadow: 220 40% 20%;
+    /* Trio categórico das 3 correntes — validado (CVD/contraste) p/ claro e escuro */
+    --cat-serv: 217 63% 49%;
+    --cat-rec: 171 88% 32%;
+    --cat-com: 33 93% 44%;
+    --mono: "SF Mono", ui-monospace, "JetBrains Mono", "Cascadia Code", Menlo, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  }
+  :root[data-theme="light"] {
+    --bg: 210 40% 98%; --surface: 0 0% 100%; --surface-2: 210 40% 96.5%;
+    --fg: 222 47% 11%; --muted: 215 16% 47%; --faint: 215 20% 65%; --border: 214 32% 90%;
+    --primary: 0 72% 51%; --primary-soft: 0 72% 96%; --pos: 152 58% 40%; --pos-soft: 152 55% 94%;
+    --warn: 32 90% 44%; --warn-soft: 38 92% 94%; --crit: 349 78% 48%; --crit-soft: 349 80% 96%; --shadow: 220 40% 20%;
+    --cat-serv: 217 63% 49%; --cat-rec: 171 88% 32%; --cat-com: 33 93% 44%;
+  }
+  :root[data-theme="dark"] {
+    --bg: 222 47% 5%; --surface: 220 40% 7.5%; --surface-2: 218 34% 11%;
+    --fg: 210 40% 96%; --muted: 215 20% 60%; --faint: 215 18% 42%; --border: 215 25% 16%;
+    --primary: 0 72% 58%; --primary-soft: 0 45% 13%; --pos: 152 55% 50%; --pos-soft: 152 40% 12%;
+    --warn: 38 92% 55%; --warn-soft: 36 45% 13%; --crit: 350 85% 62%; --crit-soft: 349 45% 14%; --shadow: 222 60% 2%;
+    --cat-serv: 216 67% 58%; --cat-rec: 174 66% 38%; --cat-com: 33 87% 44%;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: hsl(var(--bg)); color: hsl(var(--fg));
+    font-family: var(--sans); -webkit-font-smoothing: antialiased;
+    font-size: 14px; line-height: 1.5;
+  }
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .eyebrow { text-transform: uppercase; letter-spacing: 0.08em; font-size: 11px; font-weight: 600; color: hsl(var(--muted)); }
+
+  /* ---- App shell ---- */
+  .app { display: grid; grid-template-columns: 60px 1fr; min-height: 100vh; }
+  .rail {
+    background: hsl(var(--surface)); border-right: 1px solid hsl(var(--border));
+    display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 0;
+  }
+  .rail .logo {
+    width: 34px; height: 34px; border-radius: 10px; margin-bottom: 10px;
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(0 72% 40%));
+    display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 15px;
+    box-shadow: 0 4px 14px hsl(var(--primary) / 0.4);
+  }
+  .rail button {
+    width: 40px; height: 40px; border-radius: 11px; border: 0; background: transparent;
+    color: hsl(var(--faint)); cursor: pointer; display: grid; place-items: center; transition: .15s;
+  }
+  .rail button svg { width: 20px; height: 20px; }
+  .rail button:hover { background: hsl(var(--surface-2)); color: hsl(var(--fg)); }
+  .rail button.active { background: hsl(var(--primary-soft)); color: hsl(var(--primary)); }
+  .rail .spacer { flex: 1; }
+
+  .main { min-width: 0; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 26px 32px 90px; }
+
+  /* ---- Header ---- */
+  header.page { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 22px; flex-wrap: wrap; }
+  header.page h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; margin: 4px 0 2px; text-wrap: balance; }
+  header.page .sub { color: hsl(var(--muted)); font-size: 13.5px; }
+  .head-actions { display: flex; align-items: center; gap: 10px; }
+  .period { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border: 1px solid hsl(var(--border));
+    border-radius: 10px; background: hsl(var(--surface)); font-weight: 600; font-size: 13px; cursor: pointer; }
+  .period:hover { background: hsl(var(--surface-2)); }
+  .btn-ghost { padding: 8px 11px; border-radius: 10px; border: 1px solid hsl(var(--border)); background: hsl(var(--surface));
+    color: hsl(var(--fg)); cursor: pointer; font-size: 13px; display: inline-flex; gap: 6px; align-items: center; }
+  .btn-ghost:hover { background: hsl(var(--surface-2)); }
+
+  /* ---- Cards ---- */
+  .card { background: hsl(var(--surface)); border: 1px solid hsl(var(--border)); border-radius: 16px;
+    box-shadow: 0 1px 2px hsl(var(--shadow) / 0.06), 0 8px 24px -18px hsl(var(--shadow) / 0.5); }
+  .card h2.sec { font-size: 13px; font-weight: 700; letter-spacing: -0.01em; padding: 16px 18px 2px; margin: 0; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .card h2.sec .hint { font-weight: 500; font-size: 12px; color: hsl(var(--muted)); }
+
+  /* Tabs do Financeiro */
+  .tabs { display: flex; gap: 2px; border-bottom: 1px solid hsl(var(--border)); margin-bottom: 20px; overflow-x: auto; }
+  .tab { padding: 10px 14px; font-size: 13.5px; font-weight: 600; color: hsl(var(--muted)); border: 0; background: none; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; transition: .15s; }
+  .tab:hover { color: hsl(var(--fg)); }
+  .tab.active { color: hsl(var(--primary)); border-bottom-color: hsl(var(--primary)); }
+
+  /* Info tooltip (ⓘ) — CSS only */
+  .info-ic { position: relative; display: inline-flex; width: 15px; height: 15px; border-radius: 50%;
+    background: hsl(var(--surface-2)); color: hsl(var(--muted)); font-size: 10px; align-items: center; justify-content: center;
+    cursor: help; margin-left: 5px; vertical-align: middle; }
+  .info-ic:hover::after, .info-ic:focus-visible::after {
+    content: attr(data-tip); position: absolute; bottom: 130%; left: 50%; transform: translateX(-50%);
+    width: 236px; background: hsl(var(--fg)); color: hsl(var(--bg)); font-size: 11.5px; font-weight: 500;
+    padding: 9px 11px; border-radius: 9px; line-height: 1.45; z-index: 8; text-transform: none; letter-spacing: normal;
+    box-shadow: 0 10px 26px hsl(var(--shadow) / 0.35); }
+  .info-ic:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+
+  /* ---- ① Fila de cima: medidor de saúde + projeção do caixa ---- */
+  .rowA { display: grid; grid-template-columns: 340px 1fr; gap: 16px; margin-bottom: 16px; align-items: stretch; }
+
+  .gauge-card { padding: 18px 20px 16px; display: flex; flex-direction: column; }
+  .gauge-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .verdict { display: inline-flex; align-items: center; gap: 7px; padding: 4px 11px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+  .verdict .vdot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+  .verdict.pos  { background: hsl(var(--pos-soft));  color: hsl(var(--pos));  border: 1px solid hsl(var(--pos) / 0.35); }
+  .verdict.warn { background: hsl(var(--warn-soft)); color: hsl(var(--warn)); border: 1px solid hsl(var(--warn) / 0.35); }
+  .verdict.crit { background: hsl(var(--crit-soft)); color: hsl(var(--crit)); border: 1px solid hsl(var(--crit) / 0.35); }
+
+  .gauge-hit { border: 0; background: none; cursor: pointer; padding: 4px 0 0; margin: 2px auto 0; display: block;
+    border-radius: 14px; transition: background .12s; font: inherit; color: inherit; }
+  .gauge-hit:hover { background: hsl(var(--surface-2) / 0.7); }
+  .gauge-hit:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+  .gauge-wrap { position: relative; width: 236px; margin: 0 auto; }
+  .gauge-wrap svg { display: block; width: 236px; height: auto; overflow: visible; }
+  .gauge-val { position: absolute; left: 0; right: 0; top: 46px; text-align: center; pointer-events: none; }
+  .gauge-val .gv { font-size: 44px; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
+  .gauge-val .gl { font-size: 11.5px; color: hsl(var(--muted)); font-weight: 600; margin-top: 3px; }
+
+  .mini2 { display: flex; gap: 10px; margin-top: auto; padding-top: 14px; }
+  .chip { flex: 1; min-width: 0; border: 0; cursor: pointer; background: hsl(var(--surface-2)); border-radius: 12px;
+    padding: 10px 13px; text-align: left; font: inherit; color: inherit; transition: transform .12s, box-shadow .12s; }
+  .chip:hover { transform: translateY(-1px); box-shadow: 0 8px 18px -12px hsl(var(--shadow) / 0.5); }
+  .chip:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+  .chip .ck { font-size: 11px; color: hsl(var(--muted)); font-weight: 600; }
+  .chip .cv { font-size: 15px; font-weight: 700; margin-top: 2px; }
+  .chip .cv .ok { color: hsl(var(--pos)); font-weight: 700; font-size: 12.5px; margin-left: 3px; }
+
+  /* ---- Projeção do caixa (único gráfico grande) ---- */
+  .timeline-card { padding-bottom: 6px; display: flex; flex-direction: column; }
+  .inline-legend { display: flex; gap: 16px; padding: 6px 18px 0; font-size: 12px; color: hsl(var(--muted)); }
+  .inline-legend .lg { display: inline-flex; align-items: center; gap: 6px; }
+  .li-solid { width: 16px; height: 2.5px; background: hsl(var(--fg)); display: inline-block; border-radius: 2px; }
+  .li-dash { width: 16px; height: 0; border-top: 2.5px dashed hsl(var(--fg) / 0.7); display: inline-block; }
+  .chart-inner { position: relative; margin: 2px 8px 8px; flex: 1; display: flex; align-items: flex-end; }
+  .chart-inner svg { width: 100%; height: auto; display: block; }
+  .chart-tip { position: absolute; transform: translate(-50%, -112%); background: hsl(var(--fg)); color: hsl(var(--bg));
+    padding: 9px 11px; border-radius: 10px; font-size: 11.5px; line-height: 1.55; min-width: 172px;
+    box-shadow: 0 12px 28px hsl(var(--shadow) / 0.4); opacity: 0; pointer-events: none; transition: opacity .15s, transform .15s; z-index: 7; }
+  .chart-tip.show { opacity: 1; transform: translate(-50%, -122%); }
+  .chart-tip .tt-date { font-weight: 700; margin-bottom: 3px; }
+  .chart-tip .tt-val { opacity: .9; }
+  .chart-tip .tt-ev { margin-top: 4px; font-weight: 600; }
+  .chart-tip .tt-ev.pos { color: hsl(152 55% 62%); }
+  .chart-tip .tt-ev.crit { color: hsl(350 85% 72%); }
+  .chart-tip .tt-ev.muted { color: hsl(var(--faint)); font-weight: 400; }
+
+  /* ---- ② Tiles escaneáveis ---- */
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 16px; }
+  .tile { text-align: left; padding: 15px 16px 14px; cursor: pointer; font: inherit; color: inherit;
+    display: flex; flex-direction: column; gap: 9px; position: relative; transition: transform .12s, border-color .12s, box-shadow .12s; }
+  .tile:hover { transform: translateY(-2px); border-color: hsl(var(--primary) / 0.45);
+    box-shadow: 0 12px 26px -16px hsl(var(--shadow) / 0.55); }
+  .tile:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+  .tile .t-arr { position: absolute; top: 13px; right: 14px; font-size: 13px; color: hsl(var(--primary));
+    opacity: 0; transition: opacity .12s; }
+  .tile:hover .t-arr { opacity: 1; }
+  .tile .t-val { font-size: 25px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .tile .t-val small { font-size: 13px; font-weight: 600; color: hsl(var(--muted)); letter-spacing: 0; }
+  .delta { display: inline-flex; align-items: center; gap: 3px; font-size: 12px; font-weight: 700; }
+  .delta.up { color: hsl(var(--pos)); }
+  .tile .t-viz { height: 30px; display: flex; align-items: flex-end; }
+  .tile .t-viz svg { width: 100%; max-width: 128px; height: 30px; overflow: visible; }
+  .tile .t-sub { font-size: 11.5px; color: hsl(var(--muted)); }
+  .tile .t-sub .warn-bit { color: hsl(var(--warn)); font-weight: 700; }
+
+  /* micro-barra dividida (em dia × atrasado) */
+  .splitmini { display: flex; gap: 2px; width: 100%; max-width: 128px; height: 7px; align-self: center; margin-bottom: 8px; }
+  .splitmini i { display: block; height: 100%; border-radius: 999px; }
+  .splitmini .sm-ok { background: hsl(var(--pos)); }
+  .splitmini .sm-late { background: hsl(var(--warn)); }
+
+  /* micro-colunas (quando o dinheiro sai, por semana) */
+  .paybars { display: flex; gap: 6px; align-items: flex-end; height: 28px; margin-bottom: 2px; }
+  .paybars i { display: block; width: 20px; border-radius: 3px 3px 0 0; background: hsl(var(--fg) / 0.22); }
+  .paybars i.big { background: hsl(var(--fg) / 0.55); }
+
+  /* ---- ③ Fila de baixo: mix + ROI + Simples ---- */
+  .rowC { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 14px; }
+  .rowC.cols-2 { grid-template-columns: 1.3fr 1fr; }
+  .mix { text-align: left; padding: 15px 18px 14px; cursor: pointer; font: inherit; color: inherit;
+    display: flex; flex-direction: column; gap: 6px; position: relative; transition: transform .12s, border-color .12s, box-shadow .12s; }
+  .mix:hover, .mini:hover { transform: translateY(-2px); border-color: hsl(var(--primary) / 0.45);
+    box-shadow: 0 12px 26px -16px hsl(var(--shadow) / 0.55); }
+  .mix:focus-visible, .mini:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+  .mix .t-arr, .mini .t-arr { position: absolute; top: 13px; right: 14px; font-size: 13px; color: hsl(var(--primary)); opacity: 0; transition: opacity .12s; }
+  .mix:hover .t-arr, .mini:hover .t-arr { opacity: 1; }
+  .mix-body { display: flex; align-items: center; gap: 18px; flex: 1; }
+  .donut-wrap { position: relative; width: 116px; height: 116px; flex: none; }
+  .donut-wrap svg { display: block; width: 116px; height: 116px; }
+  .donut-c { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; pointer-events: none; }
+  .donut-c .dv { font-size: 14.5px; font-weight: 800; letter-spacing: -0.01em; }
+  .donut-c .dl { font-size: 10.5px; color: hsl(var(--muted)); font-weight: 600; }
+  .donut-legend { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; }
+  .dleg { display: flex; align-items: center; gap: 9px; font-size: 12.5px; font-weight: 600; }
+  .dleg i { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+  .dleg .dn { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .dleg .dp { font-weight: 700; font-size: 13px; }
+
+  .mini { text-align: left; padding: 15px 16px 14px; cursor: pointer; font: inherit; color: inherit;
+    display: flex; flex-direction: column; gap: 8px; justify-content: center; position: relative; transition: transform .12s, border-color .12s, box-shadow .12s; }
+  .mini .eyebrow { margin-bottom: 2px; }
+  .mini .t-val { font-size: 25px; font-weight: 800; letter-spacing: -0.02em; line-height: 1.1; }
+  .mini .t-val small { font-size: 12.5px; font-weight: 600; color: hsl(var(--muted)); letter-spacing: 0; margin-left: 6px; }
+  .meter { position: relative; height: 8px; border-radius: 999px; overflow: hidden; margin-top: 2px; }
+  .meter.pos-track { background: hsl(var(--pos) / 0.14); }
+  .meter.cat-track { background: hsl(var(--cat-serv) / 0.14); }
+  .meter i { position: absolute; inset: 0 auto 0 0; border-radius: 999px; }
+  .meter .fill-pos { background: hsl(var(--pos)); }
+  .meter .fill-cat { background: hsl(var(--cat-serv)); }
+  .meter .tick { position: absolute; top: -2px; bottom: -2px; width: 2px; border-radius: 2px; background: hsl(var(--fg) / 0.5); }
+  .mini .t-sub { font-size: 11.5px; color: hsl(var(--muted)); }
+
+  /* ---- FAB global (⊕ Lançar) ---- */
+  .fab { position: fixed; right: 24px; bottom: 24px; width: 52px; height: 52px; border-radius: 16px; border: 0;
+    background: hsl(var(--primary)); color: #fff; font-size: 24px; cursor: pointer; display: grid; place-items: center;
+    box-shadow: 0 10px 26px hsl(var(--primary) / 0.4); transition: transform .12s, filter .12s; z-index: 9; }
+  .fab:hover { filter: brightness(1.06); transform: translateY(-2px) scale(1.03); }
+
+  /* ---- Toast ---- */
+  .toast { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(12px); background: hsl(var(--fg));
+    color: hsl(var(--bg)); padding: 11px 18px; border-radius: 12px; font-size: 13px; font-weight: 500; max-width: 90vw;
+    box-shadow: 0 14px 32px hsl(var(--shadow) / 0.4); opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 20; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .theme-toggle { position: fixed; top: 14px; right: 16px; z-index: 10; }
+  .demo-toggle { position: fixed; top: 56px; right: 16px; z-index: 10; font-size: 12px; }
+
+  .fade-in { animation: fadeUp .42s ease both; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+  @media (max-width: 1040px) {
+    .tiles { grid-template-columns: repeat(2, 1fr); }
+    .rowC, .rowC.cols-2 { grid-template-columns: 1fr 1fr; }
+    .mix { grid-column: 1 / -1; }
+  }
+  @media (max-width: 980px) { .rowA { grid-template-columns: 1fr; } }
+  @media (max-width: 860px) {
+    .app { grid-template-columns: 1fr; }
+    .rail { display: none; }
+    .wrap { padding: 22px 16px 90px; }
+  }
+  @media (max-width: 620px) {
+    .tiles { grid-template-columns: 1fr; }
+    .rowC, .rowC.cols-2 { grid-template-columns: 1fr; }
+    .mini2 { flex-direction: column; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<button class="btn-ghost theme-toggle" onclick="(function(){var r=document.documentElement;var d=(r.getAttribute('data-theme')|| (matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'))==='dark';r.setAttribute('data-theme',d?'light':'dark');})()">◐ tema</button>
+<button class="btn-ghost demo-toggle" id="optinDemo" title="Só do mockup: simula o tenant com o toggle de Investimento & ROI desligado">⏻ opt-in: ligado</button>
+
+<div class="app">
+  <nav class="rail" aria-label="Navegação">
+    <div class="logo">S</div>
+    <button title="Início"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10.5 12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1z"/></svg></button>
+    <button class="active" title="Financeiro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg></button>
+    <button title="Vendas / PDV"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2 3h3l2.4 12.5a1 1 0 0 0 1 .8h9.2a1 1 0 0 0 1-.8L21 7H6"/></svg></button>
+    <button title="Estoque"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/></svg></button>
+    <button title="Clientes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M17 5.5a3 3 0 0 1 0 5.6M22 20a6 6 0 0 0-4-5.7"/></svg></button>
+    <div class="spacer"></div>
+    <button title="Ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 2h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12a7 7 0 0 0 .1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 22h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6A7 7 0 0 0 19 12z"/></svg></button>
+  </nav>
+
+  <main class="main">
+    <div class="wrap">
+      <header class="page">
+        <div>
+          <div class="eyebrow">Financeiro · Visão Geral</div>
+          <h1>Visão Geral</h1>
+          <div class="sub">Bateu o olho, entendeu.</div>
+        </div>
+        <div class="head-actions">
+          <div class="period" onclick="toast('Trocar o mês recarregaria os visuais com o novo período.')">Julho 2026
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+          </div>
+        </div>
+      </header>
+
+      <nav class="tabs" aria-label="Seções do Financeiro">
+        <button class="tab active">Visão geral</button>
+        <button class="tab" data-tabnav="Entradas & Saídas">Entradas &amp; saídas</button>
+        <button class="tab" data-tabnav="Recorrentes">Recorrentes</button>
+        <button class="tab" data-tabnav="Projetos">Projetos</button>
+        <button class="tab" data-tabnav="Bancário">Bancário</button>
+        <button class="tab" data-tabnav="Fluxo de caixa">Fluxo de caixa</button>
+        <button class="tab" data-tabnav="Investimento & ROI">Investimento &amp; ROI</button>
+        <button class="tab" data-tabnav="Relatórios">Relatórios</button>
+        <button class="tab" data-tabnav="Configurações">Configurações</button>
+      </nav>
+
+      <!-- ① Medidor de saúde (dominante) + projeção do caixa -->
+      <section class="rowA">
+        <div class="card gauge-card fade-in" style="animation-delay:.02s">
+          <div class="gauge-head">
+            <span class="eyebrow">Saúde do negócio
+              <span class="info-ic" tabindex="0" data-tip="Fôlego: quantos dias o caixa segura se nada novo entrar, já contando tudo que está agendado pra sair. Verde: mais de 30 dias · âmbar: 15 a 30 · vermelho: menos de 15. Hoje: 38 dias e 4% de chance de faltar caixa no mês.">ⓘ</span>
+            </span>
+            <span class="verdict pos"><span class="vdot"></span>Saudável</span>
+          </div>
+          <button class="gauge-hit" data-nav="Fluxo de caixa" data-msg="→ Fluxo de caixa — projeção dia a dia e fôlego" aria-label="Fôlego de caixa: 38 dias, zona saudável. Abrir Fluxo de caixa.">
+            <div class="gauge-wrap" id="gaugeWrap">
+              <div class="gauge-val">
+                <div class="gv num">38</div>
+                <div class="gl">dias de fôlego</div>
+              </div>
+            </div>
+          </button>
+          <div class="mini2">
+            <button class="chip" data-nav="Bancário" data-msg="→ Bancário — saldo por conta (banco + gaveta)">
+              <div class="ck">Em caixa</div>
+              <div class="cv num">R$ 12.400</div>
+            </button>
+            <button class="chip" data-nav="Entradas & Saídas" data-msg="→ Entradas & Saídas — o que já tem dono (15 dias + imposto)">
+              <div class="ck">Pode tirar</div>
+              <div class="cv num">R$ 4.900<span class="ok">✓</span></div>
+            </button>
+          </div>
+        </div>
+
+        <div class="card timeline-card fade-in" style="animation-delay:.06s">
+          <h2 class="sec">Caixa · próximos 30 dias <span class="hint">toque num dia</span></h2>
+          <div class="inline-legend">
+            <span class="lg"><i class="li-solid"></i>realizado</span>
+            <span class="lg"><i class="li-dash"></i>previsto</span>
+          </div>
+          <div class="chart-inner" id="chartInner">
+            <div class="chart-tip" id="chartTip"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ② Tiles: a receber · a pagar · resultado · assinaturas -->
+      <section class="tiles">
+        <button class="card tile fade-in" style="animation-delay:.10s" data-nav="Entradas & Saídas" data-msg="→ Entradas & Saídas — recebíveis em aberto, atrasados primeiro">
+          <span class="t-arr">→</span>
+          <span class="eyebrow">A receber</span>
+          <span class="t-val num">R$ 7.960</span>
+          <span class="t-viz" aria-hidden="true">
+            <span class="splitmini"><i class="sm-ok" style="width:77%"></i><i class="sm-late" style="width:23%"></i></span>
+          </span>
+          <span class="t-sub"><span class="warn-bit num">R$ 1.850</span> atrasado</span>
+        </button>
+
+        <button class="card tile fade-in" style="animation-delay:.13s" data-nav="Entradas & Saídas" data-msg="→ Entradas & Saídas — contas a pagar dos próximos 30 dias">
+          <span class="t-arr">→</span>
+          <span class="eyebrow">A pagar</span>
+          <span class="t-val num">R$ 12.050</span>
+          <span class="t-viz" aria-hidden="true">
+            <span class="paybars">
+              <i style="height:9px"  title="18–24/07 · R$ 2.530"></i>
+              <i style="height:26px" class="big" title="25–31/07 · R$ 8.250 (folha)"></i>
+              <i style="height:3px"  title="01–07/08 · R$ 640"></i>
+              <i style="height:3px"  title="08–14/08 · R$ 630"></i>
+            </span>
+          </span>
+          <span class="t-sub">maior: folha · 27/07</span>
+        </button>
+
+        <button class="card tile fade-in" style="animation-delay:.16s" data-nav="Relatórios" data-msg="→ Relatórios — DRE do mês, aberto por corrente">
+          <span class="t-arr">→</span>
+          <span class="eyebrow">Resultado</span>
+          <span class="t-val num">R$ 4.530 <span class="delta up">▲ 12%</span></span>
+          <span class="t-viz" aria-hidden="true">
+            <svg viewBox="0 0 122 30">
+              <polyline points="2,21.4 25,27 48,15.8 71,19.1 94,11.7 117,5" fill="none" stroke="hsl(var(--faint))" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="117" cy="5" r="3.5" fill="hsl(var(--pos))" stroke="hsl(var(--surface))" stroke-width="2"/>
+            </svg>
+          </span>
+          <span class="t-sub">margem 29%</span>
+        </button>
+
+        <button class="card tile fade-in" style="animation-delay:.19s" data-nav="Recorrentes" data-msg="→ Recorrentes — MRR por serviço e assinaturas ativas">
+          <span class="t-arr">→</span>
+          <span class="eyebrow">Assinaturas</span>
+          <span class="t-val num">R$ 2.527<small>/mês</small></span>
+          <span class="t-viz" aria-hidden="true">
+            <svg viewBox="0 0 122 30">
+              <polyline points="2,27 18,22.9 35,19.4 51,19.4 68,12.6 84,10.5 101,7.4 117,5" fill="none" stroke="hsl(var(--faint))" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="117" cy="5" r="3.5" fill="hsl(var(--pos))" stroke="hsl(var(--surface))" stroke-width="2"/>
+            </svg>
+          </span>
+          <span class="t-sub">6 ativas</span>
+        </button>
+      </section>
+
+      <!-- ③ Mix de receita + ROI (opt-in) + Simples -->
+      <section class="rowC" id="rowC">
+        <button class="card mix fade-in" style="animation-delay:.22s" data-nav="Relatórios" data-msg="→ Relatórios — DRE por corrente (Serviços, Assinaturas, Loja)">
+          <span class="t-arr">→</span>
+          <span class="eyebrow">De onde vem</span>
+          <div class="mix-body">
+            <div class="donut-wrap" id="donutWrap" role="img" aria-label="Receita do mês, R$ 15.800: Serviços 58%, Assinaturas 29%, Loja 13%">
+              <div class="donut-c">
+                <div>
+                  <div class="dv num">R$ 15.800</div>
+                  <div class="dl">no mês</div>
+                </div>
+              </div>
+            </div>
+            <div class="donut-legend">
+              <span class="dleg"><i style="background:hsl(var(--cat-serv))"></i><span class="dn">Serviços</span><span class="dp num">58%</span></span>
+              <span class="dleg"><i style="background:hsl(var(--cat-rec))"></i><span class="dn">Assinaturas</span><span class="dp num">29%</span></span>
+              <span class="dleg"><i style="background:hsl(var(--cat-com))"></i><span class="dn">Loja</span><span class="dp num">13%</span></span>
+            </div>
+          </div>
+        </button>
+
+        <button class="card mini optin-row fade-in" style="animation-delay:.25s" data-nav="Investimento & ROI" data-msg="→ Investimento & ROI — curva investido × recuperado">
+          <span class="t-arr">→</span>
+          <span class="eyebrow">Investimento</span>
+          <span class="t-val num">58%<small>recuperado</small></span>
+          <span class="meter pos-track" aria-hidden="true"><i class="fill-pos" style="width:58%"></i></span>
+          <span class="t-sub num">R$ 44.000 de R$ 75.800</span>
+        </button>
+
+        <button class="card mini fade-in" style="animation-delay:.28s" data-nav="Relatórios" data-msg="→ Relatórios — Radar do Simples (RBT12, faixa e degraus)">
+          <span class="t-arr">→</span>
+          <span class="eyebrow">Simples Nacional</span>
+          <span class="t-val num">6,8%<small>de imposto</small></span>
+          <span class="meter cat-track" aria-hidden="true"><i class="fill-cat" style="width:19%"></i><span class="tick" style="right:0"></span></span>
+          <span class="t-sub">faixa 2 · degrau longe (~8 meses)</span>
+        </button>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<button class="fab" title="Lançar" onclick="toast('⊕ Lançamento rápido — disponível em todas as telas do Financeiro.')" aria-label="Lançar">+</button>
+<div class="toast" id="toast"></div>
+
+<script>
+  // ---- toast global ----
+  function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(t._h);
+    t._h = setTimeout(() => t.classList.remove('show'), 2600);
+  }
+  function brl(n) { return 'R$ ' + Math.round(Math.abs(n)).toLocaleString('pt-BR'); }
+
+  // ---- drills: a Visão Geral só MOSTRA — todo clique aponta pra aba dona ----
+  document.querySelectorAll('[data-nav]').forEach(el => {
+    el.addEventListener('click', () => toast(el.dataset.msg || ('→ Indo para: ' + el.dataset.nav)));
+  });
+  document.querySelectorAll('[data-tabnav]').forEach(el => {
+    el.addEventListener('click', () => toast('Abriria a aba "' + el.dataset.tabnav + '" (fora do escopo deste mockup — só Visão Geral está implementada)'));
+  });
+
+  // ---- Demo (só do mockup): tenant com Investimento & ROI desligado ----
+  (function () {
+    const btn = document.getElementById('optinDemo');
+    let on = true;
+    btn.addEventListener('click', () => {
+      on = !on;
+      document.querySelectorAll('.optin-row').forEach(r => { r.style.display = on ? '' : 'none'; });
+      document.getElementById('rowC').classList.toggle('cols-2', !on);
+      btn.textContent = on ? '⏻ opt-in: ligado' : '⏻ opt-in: desligado';
+      toast(on
+        ? 'Toggle ligado — o cartão de Investimento volta pro lugar.'
+        : 'Toggle desligado — nenhum pixel de ROI; a fila se reacomoda sozinha.');
+    });
+  })();
+
+  // ---- ① Medidor: fôlego de caixa (zonas + marcador no arco) ----
+  (function () {
+    const W = 236, H = 136, cx = 118, cy = 120, R = 94, SW = 15, MAX = 60, val = 38;
+    const zones = [[0, 15, 'crit'], [15, 30, 'warn'], [30, 60, 'pos']];
+    const GAPF = 2.4 / 180; // folga entre zonas (graus → fração)
+    const pt = (f, r) => { const a = Math.PI * (1 - f); return [cx + r * Math.cos(a), cy - r * Math.sin(a)]; };
+    function arc(f0, f1, r) {
+      const [x0, y0] = pt(f0, r), [x1, y1] = pt(f1, r);
+      return `M ${x0.toFixed(1)},${y0.toFixed(1)} A ${r},${r} 0 ${(f1 - f0) > 0.5 ? 1 : 0} 1 ${x1.toFixed(1)},${y1.toFixed(1)}`;
+    }
+    let s = `<svg viewBox="0 0 ${W} ${H}" aria-hidden="true">`;
+    zones.forEach(([a, b, tone]) => {
+      const f0 = a / MAX + (a > 0 ? GAPF : 0), f1 = b / MAX - (b < MAX ? GAPF : 0);
+      const active = val >= a && (val < b || b === MAX);
+      s += `<path d="${arc(f0, f1, R)}" fill="none" stroke="hsl(var(--${tone}))" stroke-width="${SW}" stroke-linecap="round" opacity="${active ? 1 : 0.22}"/>`;
+    });
+    // marcador do valor no arco (com anel na cor da superfície)
+    const [mx, my] = pt(Math.min(val, MAX) / MAX, R);
+    s += `<circle cx="${mx.toFixed(1)}" cy="${my.toFixed(1)}" r="7" fill="hsl(var(--fg))" stroke="hsl(var(--surface))" stroke-width="3"/>`;
+    // extremos da escala, discretos
+    s += `<text x="${cx - R}" y="${cy + 16}" font-size="9.5" fill="hsl(var(--faint))" text-anchor="middle" font-family="var(--sans)">0</text>`;
+    s += `<text x="${cx + R}" y="${cy + 16}" font-size="9.5" fill="hsl(var(--faint))" text-anchor="middle" font-family="var(--sans)">60+</text>`;
+    s += `</svg>`;
+    document.getElementById('gaugeWrap').insertAdjacentHTML('afterbegin', s);
+  })();
+
+  // ---- ③ Rosca: mix de receita nas 3 correntes ----
+  (function () {
+    const cx = 58, cy = 58, R = 44, SW = 15;
+    const segs = [
+      ['cat-serv', 0.58],
+      ['cat-rec', 0.29],
+      ['cat-com', 0.13]
+    ];
+    const GAPF = 4 / 360;
+    const pt = (f, r) => { const a = -Math.PI / 2 + 2 * Math.PI * f; return [cx + r * Math.cos(a), cy + r * Math.sin(a)]; };
+    let f = 0, s = `<svg viewBox="0 0 116 116" aria-hidden="true">`;
+    segs.forEach(([tone, frac]) => {
+      const f0 = f + GAPF / 2, f1 = f + frac - GAPF / 2;
+      const [x0, y0] = pt(f0, R), [x1, y1] = pt(f1, R);
+      s += `<path d="M ${x0.toFixed(1)},${y0.toFixed(1)} A ${R},${R} 0 ${(f1 - f0) > 0.5 ? 1 : 0} 1 ${x1.toFixed(1)},${y1.toFixed(1)}" fill="none" stroke="hsl(var(--${tone}))" stroke-width="${SW}"/>`;
+      f += frac;
+    });
+    s += `</svg>`;
+    document.getElementById('donutWrap').insertAdjacentHTML('afterbegin', s);
+  })();
+
+  // ---- ① Projeção do caixa: 14 dias realizados + hoje + 30 previstos, sempre acima do zero ----
+  (function () {
+    // financeiroApi.fluxo(14, 30) — base 04/07/2026, hoje = 18/07 (índice 14)
+    const values = [
+      9200, 9450, 9700, 9600, 10100, 10350, 10200, 10800, 11050, 11300, 11150, 11700, 12050, 12250,
+      12400,
+      12600, 10500, 10650, 11270, 11420, 10990, 9690, 9840, 2890, 3780, 3930, 4180, 4430,
+      6960, 7110, 7260, 6860, 8660, 8810, 8960, 8900, 9050, 9200, 9080, 9330, 9480, 9360, 9610, 9760, 9910
+    ];
+    const events = {
+      16: { desc: 'Aluguel', delta: -2100, tone: 'crit' },
+      18: { desc: 'Recebimento · OS Auto Peças Silva', delta: 620, tone: 'pos' },
+      20: { desc: 'Energia + internet', delta: -430, tone: 'crit' },
+      21: { desc: 'Imposto (DAS)', delta: -1300, tone: 'crit' },
+      23: { desc: 'Folha de pagamento', delta: -6950, tone: 'crit' },
+      24: { desc: 'Recebimento · Mercado São João', delta: 890, tone: 'pos' },
+      28: { desc: 'Assinaturas do mês', delta: 2527, tone: 'pos' },
+      32: { desc: 'Recebimento · OS bancada CNC', delta: 1800, tone: 'pos' }
+    };
+    const n = values.length, todayIdx = 14;
+    const W = 880, H = 226, padL = 14, padR = 14, padTop = 30, padBottom = 28;
+    const plotW = W - padL - padR, plotH = H - padTop - padBottom;
+    const min = 0, max = 13000;
+    const xFor = i => padL + i * (plotW / (n - 1));
+    const yFor = v => padTop + (max - v) / (max - min) * plotH;
+    const y0 = yFor(0);
+    const idxAll = [...Array(n).keys()];
+    const minIdx = values.indexOf(Math.min(...values));
+
+    function pathFor(idxs) {
+      return idxs.map((i, k) => (k === 0 ? 'M' : 'L') + xFor(i).toFixed(1) + ',' + yFor(values[i]).toFixed(1)).join(' ');
+    }
+    const solidPath = pathFor(idxAll.slice(0, todayIdx + 1));
+    const dashPath = pathFor(idxAll.slice(todayIdx));
+
+    let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Projeção do caixa: sempre positivo nos próximos 30 dias; ponto mais baixo R$ 2.890 em 27 de julho.">`;
+    svg += `<defs><linearGradient id="gArea" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="hsl(var(--pos))" stop-opacity="0.14"/>
+      <stop offset="1" stop-color="hsl(var(--pos))" stop-opacity="0"/>
+    </linearGradient></defs>`;
+
+    // lavagem de área sob a curva inteira (o rio nunca toca o fundo = tudo bem)
+    svg += `<path d="${pathFor(idxAll)} L ${xFor(n - 1).toFixed(1)},${y0.toFixed(1)} L ${xFor(0).toFixed(1)},${y0.toFixed(1)} Z" fill="url(#gArea)"/>`;
+
+    // linha do zero (o "fundo") + rótulo mínimo
+    svg += `<line x1="${padL}" y1="${y0.toFixed(1)}" x2="${W - padR}" y2="${y0.toFixed(1)}" stroke="hsl(var(--border))" stroke-width="1"/>`;
+    svg += `<text x="${padL + 2}" y="${(y0 - 5).toFixed(1)}" font-size="9" fill="hsl(var(--faint))" font-family="var(--sans)">0</text>`;
+
+    // linha vertical "hoje"
+    const todayX = xFor(todayIdx);
+    svg += `<line x1="${todayX.toFixed(1)}" y1="${padTop - 6}" x2="${todayX.toFixed(1)}" y2="${H - padBottom}" stroke="hsl(var(--muted))" stroke-width="1" stroke-dasharray="2 3" opacity="0.5"/>`;
+
+    // curva: realizado sólido + previsto tracejado
+    svg += `<path d="${solidPath}" fill="none" stroke="hsl(var(--fg))" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>`;
+    svg += `<path d="${dashPath}" fill="none" stroke="hsl(var(--fg))" stroke-width="2.3" stroke-dasharray="1 5.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.8"/>`;
+
+    // único destaque: o dia mais apertado (não cruza o zero — só mostra a folga mínima)
+    const mmx = xFor(minIdx), mmy = yFor(values[minIdx]);
+    svg += `<circle cx="${mmx.toFixed(1)}" cy="${mmy.toFixed(1)}" r="4.5" fill="hsl(var(--warn))" stroke="hsl(var(--surface))" stroke-width="2.2"/>`;
+    svg += `<text x="${mmx.toFixed(1)}" y="${(mmy + 20).toFixed(1)}" font-size="10" font-weight="600" fill="hsl(var(--muted))" text-anchor="middle" font-family="var(--sans)">menor · <tspan font-family="var(--mono)" font-weight="700" fill="hsl(var(--fg))">R$ 2.890</tspan></text>`;
+
+    // ponto e valor no fim da projeção
+    const ex = xFor(n - 1), ey = yFor(values[n - 1]);
+    svg += `<circle cx="${ex.toFixed(1)}" cy="${ey.toFixed(1)}" r="3.5" fill="hsl(var(--fg))" stroke="hsl(var(--surface))" stroke-width="2"/>`;
+    svg += `<text x="${ex.toFixed(1)}" y="${(ey - 10).toFixed(1)}" font-size="10" font-weight="700" fill="hsl(var(--muted))" text-anchor="end" font-family="var(--mono)">R$ 9.910</text>`;
+
+    // rótulos mínimos de eixo
+    [[0, '04/07', 'start'], [todayIdx, 'hoje', 'middle'], [n - 1, '17/08', 'end']].forEach(([i, label, anchor]) => {
+      svg += `<text x="${xFor(i).toFixed(1)}" y="${H - padBottom + 15}" font-size="10" fill="hsl(var(--muted))" text-anchor="${anchor}" font-family="var(--sans)">${label}</text>`;
+    });
+
+    // áreas de clique invisíveis por dia
+    const slot = plotW / n;
+    idxAll.forEach(i => {
+      svg += `<rect class="hit" data-i="${i}" x="${(xFor(i) - slot / 2).toFixed(1)}" y="${padTop - 6}" width="${slot.toFixed(1)}" height="${(H - padBottom - (padTop - 6)).toFixed(1)}" fill="transparent" style="cursor:pointer"/>`;
+    });
+
+    svg += `</svg>`;
+
+    const inner = document.getElementById('chartInner');
+    inner.insertAdjacentHTML('afterbegin', svg);
+
+    const tip = document.getElementById('chartTip');
+    function dayLabel(i) {
+      const d = new Date(2026, 6, 4 + i);
+      const p = x => (x < 10 ? '0' + x : x);
+      return p(d.getDate()) + '/' + p(d.getMonth() + 1);
+    }
+    inner.querySelectorAll('.hit').forEach(r => {
+      r.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const i = +r.dataset.i;
+        const val = values[i];
+        const ev = events[i];
+        let html = `<div class="tt-date">${dayLabel(i)}${i === todayIdx ? ' · hoje' : ''}</div>`;
+        html += `<div class="tt-val num">Saldo: <b>${brl(val)}</b></div>`;
+        if (ev) html += `<div class="tt-ev ${ev.tone}">${ev.delta > 0 ? '+' : '−'}${brl(ev.delta)} · ${ev.desc}</div>`;
+        else html += `<div class="tt-ev muted">Dia comum — só o movimento do balcão.</div>`;
+        tip.innerHTML = html;
+        tip.style.left = (xFor(i) / W * 100) + '%';
+        tip.style.top = (yFor(val) / H * 100) + '%';
+        tip.classList.add('show');
+      });
+    });
+    document.addEventListener('click', (e) => { if (!inner.contains(e.target)) tip.classList.remove('show'); });
+  })();
+</script>

@@ -8,11 +8,14 @@ import { Configuracoes } from '@/pages/Configuracoes';
 import { Dashboard } from '@/pages/Dashboard';
 import { Estoque } from '@/pages/Estoque';
 import { Bancario } from '@/pages/financeiro/Bancario';
+import { Configuracoes as FinanceiroConfiguracoes } from '@/pages/financeiro/Configuracoes';
 import { EntradasSaidas } from '@/pages/financeiro/EntradasSaidas';
 import { FinanceiroLayout } from '@/pages/financeiro/FinanceiroLayout';
 import { FluxoCaixa } from '@/pages/financeiro/FluxoCaixa';
+import { Projetos } from '@/pages/financeiro/Projetos';
 import { Recorrentes } from '@/pages/financeiro/Recorrentes';
 import { Relatorios } from '@/pages/financeiro/Relatorios';
+import { RoiNegocio } from '@/pages/financeiro/RoiNegocio';
 import { VisaoGeral } from '@/pages/financeiro/VisaoGeral';
 import { OrdemServico } from '@/pages/OrdemServico';
 import { Pdv } from '@/pages/Pdv';
@@ -27,9 +30,12 @@ export function App() {
           <Route index element={<VisaoGeral />} />
           <Route path="entradas-saidas" element={<EntradasSaidas />} />
           <Route path="recorrentes" element={<Recorrentes />} />
+          <Route path="projetos" element={<Projetos />} />
           <Route path="bancario" element={<Bancario />} />
           <Route path="fluxo-de-caixa" element={<FluxoCaixa />} />
+          <Route path="roi-negocio" element={<RoiNegocio />} />
           <Route path="relatorios" element={<Relatorios />} />
+          <Route path="configuracoes" element={<FinanceiroConfiguracoes />} />
         </Route>
         <Route path="pdv" element={<Pdv />} />
         <Route path="estoque" element={<Estoque />} />

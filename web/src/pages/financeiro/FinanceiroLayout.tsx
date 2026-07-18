@@ -4,9 +4,12 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
 /**
- * Casca do módulo Financeiro — a barra de abas de sub-seções (o `.tabs` dos mockups). As 6 abas,
- * na ordem exata do contrato (`docs/ui/financeiro-ui.md` §2), vêm dos mockups aprovados. Cada
- * página renderiza seu próprio cabeçalho (eyebrow + título + ações) conforme o seu mockup.
+ * Casca do módulo Financeiro — a barra de abas de sub-seções (o `.tabs` dos mockups). As 8 abas
+ * vêm dos mockups aprovados: `Projetos` na posição de `projeto.html` e `Investimento & ROI` na
+ * posição de `roi-negocio.html` (os dois mockups têm nav ligeiramente diferentes — a ordem aqui é
+ * a UNIÃO das duas). `Configurações` (9ª) não tem mockup próprio — é onde os dois toggles opt-in
+ * dessas duas telas viram reais (`ver docs/financeiro/design-{analise-por-projeto,imobilizado-roi}.md`
+ * §2.3: "menu... só renderiza com o toggle" — o toggle em si precisa morar em algum lugar).
  *
  * Sem aba "Consultor" (o Super Consultor é inline e read-only — Lei 2) e sem menu "Mais/em breve".
  */
@@ -16,9 +19,12 @@ const TABS: FinanceiroTab[] = [
   { to: '/financeiro', label: 'Visão geral', end: true },
   { to: '/financeiro/entradas-saidas', label: 'Entradas & saídas' },
   { to: '/financeiro/recorrentes', label: 'Recorrentes' },
+  { to: '/financeiro/projetos', label: 'Projetos' },
   { to: '/financeiro/bancario', label: 'Bancário' },
   { to: '/financeiro/fluxo-de-caixa', label: 'Fluxo de caixa' },
+  { to: '/financeiro/roi-negocio', label: 'Investimento & ROI' },
   { to: '/financeiro/relatorios', label: 'Relatórios' },
+  { to: '/financeiro/configuracoes', label: 'Configurações' },
 ];
 
 export function FinanceiroLayout() {

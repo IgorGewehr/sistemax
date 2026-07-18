@@ -400,6 +400,246 @@ export interface FecharCaixaRequest {
   contadoCentavos: number;
 }
 
+// ── Análise por Projeto + Imobilizado/ROI (docs/financeiro/design-analise-por-projeto.md §9,
+// docs/financeiro/design-imobilizado-roi.md §7) — DTOs de fio 1:1 com `FinanceiroEndpointsModule`/
+// `PainelDoProjetoService`/`RoiDoNegocioService` (.NET). `DateOnly` do .NET serializa como string
+// ISO `yyyy-MM-dd`; `Money` como `{ centavos, moeda }` — mesma convenção do resto deste arquivo.
+
+/** `ConfiguracaoFinanceiraDto` (.NET) — os dois toggles opt-in do Financeiro + os 3 campos do
+ * segundo toggle (Imobilizado/ROI). Mesmo shape serve de request no `PUT` (o endpoint recria a
+ * config inteira a cada gravação — nunca um PATCH parcial). */
+export interface ConfiguracaoFinanceiraDto {
+  analisePorProjetoAtiva: boolean;
+  custoHoraPadraoCentavos: number | null;
+  tempoEntraNoDre: boolean;
+  imobilizadoRoiAtivo: boolean;
+  taxaDescontoAnualBps: number | null;
+  inicioOperacao: string | null;
+}
+
+export interface ProjetoDto {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  status: string;
+  criadoEm: string;
+  arquivadoEm: string | null;
+}
+
+export interface CriarProjetoRequest {
+  nome: string;
+  descricao?: string | null;
+}
+
+export interface PainelReceitaProjetoDto {
+  mrr: Money;
+  arr: Money;
+  assinaturasAtivas: number;
+  ticketMedio: Money;
+}
+
+export interface PainelChurnProjetoDto {
+  cancelamentos12m: number;
+  exposicaoAssinaturaMeses12m: number;
+  churnMensalPercent: number;
+  vidaEsperadaMeses: number | null;
+}
+
+export interface PainelLtvProjetoDto {
+  ltv: Money | null;
+  limiteInferior: Money;
+  metodo: string;
+  observacao: string | null;
+}
+
+export interface PainelMargemProjetoDto {
+  competencia: string;
+  receita: Money;
+  custoDireto: Money;
+  mc1: Money;
+  mc1Percent: number;
+  amortizacaoMes: Money;
+  mc2: Money;
+  mc2Percent: number;
+  custoTempoMes: Money | null;
+  mc3: Money | null;
+  mc3Percent: number | null;
+}
+
+export interface PainelCapacidadeProjetoDto {
+  unidadesTotais: number;
+  unidadesUtilizadas: number;
+  utilizacaoPercent: number;
+  custoOciosidadeMesCentavos: number;
+}
+
+export interface PainelPaybackProjetoDto {
+  investimentoTotalCentavos: number;
+  fluxoCaixaAcumuladoCentavos: number;
+  paybackRealizadoEm: string | null;
+  paybackProjetadoMeses: number | null;
+  metodo: string;
+}
+
+export interface PainelRoiProjetoDto {
+  realizadoPercent: number | null;
+  roiSobreInvestimentoPercent: number | null;
+  runRateAnualizadoPercent: number | null;
+}
+
+export interface PainelTempoPorClienteDto {
+  clienteId: string;
+  clienteNome: string | null;
+  minutos: number;
+  custoCentavos: number | null;
+}
+
+export interface PainelTempoProjetoDto {
+  minutosJanela: number;
+  custoJanelaCentavos: number | null;
+  porCliente: PainelTempoPorClienteDto[];
+}
+
+/** `PainelDoProjetoResultado` (.NET) — `GET /financeiro/projetos/{id}/painel`. */
+export interface PainelDoProjetoDto {
+  projeto: ProjetoDto;
+  receita: PainelReceitaProjetoDto;
+  churn: PainelChurnProjetoDto;
+  ltv: PainelLtvProjetoDto;
+  margem: PainelMargemProjetoDto;
+  capacidade: PainelCapacidadeProjetoDto;
+  payback: PainelPaybackProjetoDto;
+  roi: PainelRoiProjetoDto;
+  tempo: PainelTempoProjetoDto;
+}
+
+/** `AtivoDeCapitalDto` (.NET) — reusado por Análise por Projeto (licenças/intangível) E por
+ * Imobilizado (bens tangíveis) — "um agregado só, dois gates" (design-imobilizado-roi.md §8.1). */
+export interface AtivoDeCapitalDto {
+  id: string;
+  projetoId: string | null;
+  nome: string;
+  natureza: string;
+  categoria: string;
+  custoAquisicaoCentavos: number;
+  valorResidualCentavos: number;
+  dataAquisicao: string;
+  inicioDepreciacao: string;
+  vidaUtilMeses: number;
+  quantidadeUnidades: number;
+  contaAPagarId: string | null;
+  status: string;
+  ultimaCompetenciaReconhecida: string | null;
+  encerradoEm: string | null;
+  baixadoEm: string | null;
+  motivoBaixa: string | null;
+  valorContabilAtualCentavos: number;
+  amortizacaoMensalCentavos: number;
+  valorVendaCentavos: number | null;
+  resultadoAlienacaoCentavos: number | null;
+}
+
+export interface ParcelaInvestimentoRequest {
+  vencimento: string;
+  valorCentavos: number;
+}
+
+export interface CriarAtivoDeCapitalRequest {
+  nome: string;
+  natureza: string;
+  categoria: string;
+  custoAquisicaoCentavos: number;
+  dataAquisicao: string;
+  vidaUtilMeses: number;
+  valorResidualCentavos?: number;
+  inicioDepreciacao?: string | null;
+  quantidadeUnidades?: number;
+  projetoId?: string | null;
+  parcelas?: ParcelaInvestimentoRequest[] | null;
+  contaAPagarId?: string | null;
+}
+
+export interface AporteDeCapitalDto {
+  id: string;
+  valorCentavos: number;
+  data: string;
+  descricao: string;
+  criadoEm: string;
+}
+
+export interface RegistrarAporteDeCapitalRequest {
+  valorCentavos: number;
+  data: string;
+  descricao: string;
+}
+
+export interface RoiSerieMensalDto {
+  competencia: string;
+  fluxoOperacionalCentavos: number;
+  capexCentavos: number;
+  aporteCentavos: number;
+  liquidoCentavos: number;
+  acumuladoCentavos: number;
+  acumuladoDescontadoCentavos: number;
+}
+
+export interface RoiPorCategoriaDto {
+  categoria: string;
+  custoCentavos: number;
+  valorContabilCentavos: number;
+  vendidos: number;
+  resultadoAlienacaoCentavos: number;
+}
+
+export interface RoiInvestimentoDto {
+  capexCentavos: number;
+  aportesCentavos: number;
+  totalCentavos: number;
+  giroConsumidoObservadoCentavos: number;
+  bens: number;
+  porCategoria: RoiPorCategoriaDto[];
+  resultadoAlienacaoTotalCentavos: number;
+}
+
+export interface RoiRecuperacaoDto {
+  fluxoOperacionalAcumuladoCentavos: number;
+  recuperadoCentavos: number;
+  faltamCentavos: number;
+  percentRecuperado: number;
+}
+
+export interface RoiPaybackDto {
+  simplesRealizadoEm: string | null;
+  descontadoRealizadoEm: string | null;
+  projetadoMeses: number | null;
+  descontadoProjetadoMeses: number | null;
+  metodo: string;
+}
+
+export interface RoiTirDto {
+  mensalPercent: number | null;
+  anualizadaPercent: number | null;
+  motivoIndefinida: string | null;
+}
+
+export interface RoiPercentuaisDto {
+  caixaPercent: number;
+  competenciaPercent: number;
+  mesesAteRoiCompleto: number | null;
+}
+
+/** `RoiDoNegocioResultado` (.NET) — `GET /financeiro/roi-negocio`. 404 com o toggle desligado. */
+export interface RoiDoNegocioDto {
+  marcoInicial: string;
+  taxaDescontoAnualBps: number | null;
+  investimento: RoiInvestimentoDto;
+  recuperacao: RoiRecuperacaoDto;
+  payback: RoiPaybackDto;
+  tir: RoiTirDto;
+  roi: RoiPercentuaisDto;
+  serie: RoiSerieMensalDto[];
+}
+
 export const financeiroApi = {
   disponivelParaRetirada: () => api.get<DisponivelParaRetiradaDto>('/financeiro/disponivel-retirada'),
   fluxo: (diasHistorico = 14, diasProjecao = 30) =>
@@ -487,4 +727,27 @@ export const financeiroApi = {
   caixaSuprimento: (payload: SuprimentoRequest) => api.post<SessaoCaixaDto>('/financeiro/caixa/suprimento', payload),
   caixaSangria: (payload: SangriaRequest) => api.post<SessaoCaixaDto>('/financeiro/caixa/sangria', payload),
   caixaFechar: (payload: FecharCaixaRequest) => api.post<SessaoCaixaDto>('/financeiro/caixa/fechar', payload),
+
+  // Análise por Projeto + Imobilizado/ROI (docs/financeiro/design-analise-por-projeto.md,
+  // docs/financeiro/design-imobilizado-roi.md) — dois toggles opt-in independentes em
+  // `ConfiguracaoFinanceiraTenant`. Desligado: `projetos`/`imobilizado`/`aportes` devolvem `[]`
+  // (nunca erro); `roiNegocio` devolve 404 (é um painel, não uma listagem) — ver
+  // `FinanceiroEndpointsModule.MapearEndpoints` linhas 744-1027.
+  configuracoes: () => api.get<ConfiguracaoFinanceiraDto>('/financeiro/configuracoes'),
+  salvarConfiguracoes: (payload: ConfiguracaoFinanceiraDto) =>
+    api.put<ConfiguracaoFinanceiraDto>('/financeiro/configuracoes', payload),
+
+  projetos: (incluirArquivados = false) =>
+    api.get<ProjetoDto[]>(`/financeiro/projetos${incluirArquivados ? '?incluirArquivados=true' : ''}`),
+  criarProjeto: (payload: CriarProjetoRequest) => api.post<ProjetoDto>('/financeiro/projetos', payload),
+  projetoPainel: (id: string) => api.get<PainelDoProjetoDto>(`/financeiro/projetos/${id}/painel`),
+
+  imobilizado: () => api.get<AtivoDeCapitalDto[]>('/financeiro/imobilizado'),
+  criarImobilizado: (payload: CriarAtivoDeCapitalRequest) => api.post<AtivoDeCapitalDto>('/financeiro/imobilizado', payload),
+
+  aportes: () => api.get<AporteDeCapitalDto[]>('/financeiro/aportes'),
+  criarAporte: (payload: RegistrarAporteDeCapitalRequest) => api.post<AporteDeCapitalDto>('/financeiro/aportes', payload),
+  excluirAporte: (id: string) => api.delete<void>(`/financeiro/aportes/${id}`),
+
+  roiNegocio: () => api.get<RoiDoNegocioDto>('/financeiro/roi-negocio'),
 };

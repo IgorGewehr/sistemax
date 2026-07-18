@@ -18,9 +18,11 @@ interface SuperConsultorSectionProps {
  * Super Consultor (bloco ⑤, única IA da tela) — só observa/explica/aconselha (Lei 2: read-only).
  * Consome `GET /financeiro/consultor`: insights JÁ narrados e rankeados pelo backend. O card
  * (borda em gradiente, ícone, tipografia) replica 1:1 `docs/ui/mockups/visao-geral.html` — a fonte
- * de dados trocou de mock para real, o layout não. O insight de maior prioridade (primeiro da
- * lista) vira o parágrafo-destaque + "Ver como calculamos" (os `facts` crus); os demais aparecem
- * como observações secundárias no mesmo card. Nenhum CTA de ação — só narração e navegação.
+ * de dados trocou de mock para real, o layout não. Por padrão só a PRIORIDADE (o insight de maior
+ * rank) aparece como parágrafo-destaque + os affordances read-only ("Ver de onde vem"/"Ver como
+ * calculamos"); os demais insights ficam colapsados atrás de "ver mais N →" — o dono quer "passar
+ * o que importa rápido", não uma lista de 6+ observações despejada de uma vez. Nenhum CTA de ação
+ * — só narração e navegação.
  */
 export function SuperConsultorSection({ recurso, onDrill }: SuperConsultorSectionProps) {
   return (
@@ -68,14 +70,50 @@ function Conteudo({ recurso, onDrill }: SuperConsultorSectionProps) {
   return (
     <>
       <InsightPrincipal insight={principal} onDrill={onDrill} />
-      {secundarios.length > 0 && (
-        <div className="mt-3.5 space-y-2 border-t border-border/60 pt-3">
-          {secundarios.map((insight) => (
-            <InsightSecundario key={insight.id} insight={insight} onDrill={onDrill} />
-          ))}
-        </div>
-      )}
+      <InsightsSecundarios insights={secundarios} onDrill={onDrill} />
     </>
+  );
+}
+
+/**
+ * Os insights que não são a prioridade — colapsados por padrão atrás de "ver mais N →". O dono
+ * quer "passar o que importa rápido": só a prioridade fica exposta de cara, o resto é opt-in.
+ */
+function InsightsSecundarios({ insights, onDrill }: { insights: InsightConsultor[]; onDrill: (target: DrillTarget) => void }) {
+  const [aberto, setAberto] = useState(false);
+
+  if (insights.length === 0) return null;
+
+  return (
+    <div className="mt-3 border-t border-border/60 pt-2.5">
+      <button
+        type="button"
+        aria-expanded={aberto}
+        onClick={() => setAberto((v) => !v)}
+        className="inline-flex items-center gap-1 text-[12.5px] font-semibold text-primary-600 hover:underline"
+      >
+        {aberto ? 'Ver menos' : `Ver mais ${insights.length} →`}
+        <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', aberto && 'rotate-180')} />
+      </button>
+
+      <AnimatePresence initial={false}>
+        {aberto && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.25, ease: [0, 0, 0.2, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="mt-2.5 space-y-2">
+              {insights.map((insight) => (
+                <InsightSecundario key={insight.id} insight={insight} onDrill={onDrill} />
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
   );
 }
 

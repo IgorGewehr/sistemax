@@ -16,7 +16,7 @@ interface KpiRowProps {
 export function KpiRow({ kpis }: KpiRowProps) {
   const resultadoSubiu = kpis.resultadoDeltaPct >= 0;
   return (
-    <section className="mb-3.5 grid grid-cols-2 gap-3.5 md:grid-cols-4">
+    <section className="mb-4 grid grid-cols-2 gap-3.5 md:grid-cols-4">
       <KpiCard hero label="A receber em aberto" value={<MoneyValue centavos={kpis.aReceberAbertoCentavos} />}>
         <MockBadge
           className="absolute right-3 top-3"

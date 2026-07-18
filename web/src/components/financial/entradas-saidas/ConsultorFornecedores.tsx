@@ -14,7 +14,7 @@ interface ConsultorFornecedoresProps {
  */
 export function ConsultorFornecedores({ data, onVerDetalhe }: ConsultorFornecedoresProps) {
   return (
-    <ConsultorInsight action={{ label: `Ver os ${data.qtdPagamentos} →`, onClick: onVerDetalhe }}>
+    <ConsultorInsight className="mb-4" action={{ label: `Ver os ${data.qtdPagamentos} →`, onClick: onVerDetalhe }}>
       <b>Gasto com Fornecedores subiu {data.deltaPct}%</b> vs sua média de <MoneyValue centavos={data.mediaHistoricaCentavos} /> — os{' '}
       {data.qtdPagamentos} pagamentos deste mês somam <MoneyValue centavos={data.totalMesCentavos} />.
     </ConsultorInsight>

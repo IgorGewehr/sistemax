@@ -42,10 +42,13 @@ const PULSE_DURATION_MS = 1900;
 
 /**
  * Corpo interativo do Fluxo de Caixa — dado REAL (`useFluxoCaixa`, `SessaoCaixa`/`caixa/*`, ver
- * docs/wiring/financeiro-telas-restantes.md §4). Estados loading/erro/vazio no mesmo padrão de
- * `BancarioBoard`: um bloco quebrado (aqui, a leitura combinada de hoje+histórico) não impede o
- * resto da página. `sessaoHoje === null` (nenhuma sessão aberta ainda hoje) é um estado de
- * primeira classe — mostra o convite "Abrir caixa" no lugar do formulário/KPIs de hoje.
+ * docs/wiring/financeiro-telas-restantes.md §4). 4 estados de primeira classe, nesta ordem:
+ * loading (skeleton) → erro (`board.erro`, nunca tela branca/travada) → vazio de verdade
+ * (`sessaoHoje === null` E nenhuma sessão fechada no mês — o estado do seed/primeiro acesso: um
+ * `EmptyState` dedicado com o CTA "Abrir caixa", em vez de KPIs/Consultor/gráfico todos com zero)
+ * → board completo. `sessaoHoje === null` com histórico não-vazio (dia ainda não abriu, mas o mês
+ * já tem sessões fechadas) segue pro board completo — o convite "Abrir caixa" mora no KPI
+ * "Na gaveta agora" (`KpisSection`), não aqui.
  */
 export function FluxoCaixaBoard({
   board,
@@ -138,6 +141,31 @@ export function FluxoCaixaBoard({
       <Surface padding="lg" className="mb-4">
         <EmptyState icon={<Wallet className="h-5 w-5" />} title="Não deu para carregar o caixa" description={board.erro ?? ''} className="border-none py-6" />
       </Surface>
+    );
+  }
+
+  // Nenhuma sessão aberta hoje E nenhuma sessão fechada no mês (o estado do primeiro acesso, sem
+  // seed) — as seções de KPIs/Consultor/gráfico/tabela não têm nada real pra narrar ainda; um
+  // estado vazio dedicado com o único CTA que desbloqueia tudo (abrir o caixa) bate mais que
+  // renderizar 4 blocos com zeros e "sem padrão ainda".
+  if (!board.dado.sessaoHoje && board.dado.sessoesFechadas.length === 0) {
+    return (
+      <>
+        <Surface padding="lg" className="min-h-[280px]">
+          <EmptyState
+            icon={<Wallet className="h-5 w-5" />}
+            title="Nenhum caixa aberto ainda"
+            description="Abra o caixa do dia para registrar entradas em espécie, sangrias e suprimentos — o histórico e o Super Consultor aparecem assim que houver a primeira sessão."
+            className="border-none py-6"
+            action={
+              <Button variant="primary" size="sm" onClick={() => setModalAbrirAberto(true)}>
+                Abrir caixa
+              </Button>
+            }
+          />
+        </Surface>
+        <ModalAbrirCaixa open={modalAbrirAberto} onClose={() => setModalAbrirAberto(false)} onConfirmar={handleConfirmarAbertura} enviando={enviandoAcao} />
+      </>
     );
   }
 

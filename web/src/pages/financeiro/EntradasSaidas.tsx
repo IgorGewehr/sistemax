@@ -38,11 +38,11 @@ export function EntradasSaidas() {
       <SegmentedFiltro value={vm.segFiltro} onChange={vm.setSegFiltro} />
 
       {vm.kpis.carregando ? (
-        <Surface padding="lg" className="mb-3.5 min-h-[140px]">
+        <Surface padding="lg" className="mb-4 min-h-[140px]">
           <Skeleton className="h-24 w-full" />
         </Surface>
       ) : vm.kpis.erro || !vm.kpis.dado ? (
-        <Surface padding="lg" className="mb-3.5">
+        <Surface padding="lg" className="mb-4">
           <EmptyState icon={<Receipt className="h-5 w-5" />} title="Não deu para carregar os KPIs" description={vm.kpis.erro ?? ''} className="border-none py-6" />
         </Surface>
       ) : (
@@ -50,11 +50,11 @@ export function EntradasSaidas() {
       )}
 
       {vm.consultorFornecedores.carregando ? (
-        <Surface padding="lg" className="mb-3.5 min-h-[86px]">
+        <Surface padding="lg" className="mb-4 min-h-[86px]">
           <Skeleton className="h-14 w-full" />
         </Surface>
       ) : vm.consultorFornecedores.erro || !vm.consultorFornecedores.dado ? (
-        <Surface padding="lg" className="mb-3.5">
+        <Surface padding="lg" className="mb-4">
           <EmptyState
             icon={<Receipt className="h-5 w-5" />}
             title="Não deu para carregar o Consultor de Fornecedores"

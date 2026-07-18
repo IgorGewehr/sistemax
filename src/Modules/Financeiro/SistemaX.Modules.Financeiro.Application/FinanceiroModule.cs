@@ -146,6 +146,20 @@ public sealed class FinanceiroModule : IModule
         services.AddScoped<InadimplenciaService>();
         services.AddScoped<RadarDoSimplesService>();
 
+        // Lentes verticais opt-in (multi-MEI, docs/financeiro/ideias-matemonstro.md) — cada uma é
+        // um read-model pequeno reusando dado/fórmula que já existe (fato_margem_produto,
+        // ApontamentoDeTempo, ContaAReceber.TecnicoId, FormaDePagamento, RadarDoSimplesService);
+        // zero fact table nova, zero fórmula duplicada. Alimentação: food cost % + engenharia de
+        // cardápio (quadrante margem×popularidade, já o catálogo #6 re-rotulado). Serviços/beleza:
+        // ocupação por profissional + receita/margem por técnico. Preço por divisor: preço-piso
+        // vale pros 3 verticais %-sobre-preço (vestuário/marketplace, delivery, comissão). Varejo
+        // (Curva ABC/Giro/Ruptura) mora no Estoque — o dado (Produto/MovimentoDeEstoque) é de lá.
+        services.AddScoped<FoodCostService>();
+        services.AddScoped<EngenhariaDeCardapioService>();
+        services.AddScoped<OcupacaoService>();
+        services.AddScoped<ReceitaPorProfissionalService>();
+        services.AddScoped<PrecoPorDivisorService>();
+
         // Fase 2 do plano de inteligência do Financeiro — Super Consultor real (ADR-0005 §3.5):
         // o Financeiro registra o SEU provider de fatos (R5 — "cada módulo registra o seu via
         // DI"). O orquestrador module-agnostic (ConsultorService/IConsultorNarrador/

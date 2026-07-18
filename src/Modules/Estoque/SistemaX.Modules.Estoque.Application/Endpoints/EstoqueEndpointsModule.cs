@@ -130,5 +130,69 @@ public sealed class EstoqueEndpointsModule : IModule, IModuleEndpoints
             var posicoes = await servico.ObterPosicaoAsync(businessId, ct).ConfigureAwait(false);
             return Results.Ok(posicoes);
         }).RequerPermissao(Modulo.Estoque, Acao.Ver);
+
+        // LENTE VERTICAL VAREJO (opt-in — só faz sentido pra quem tem catálogo/giro de produto;
+        // CurvaAbcService/GiroDeEstoqueService/RupturaService já existiam registrados em
+        // EstoqueModule, prontos e testados, só sem superfície HTTP até aqui). Nenhum dado novo:
+        // as 3 lentes reusam só Produto+MovimentoDeEstoque+SaldoDeItem já existentes — read-model
+        // puro, gate Estoque.Ver (mesma permissão do catálogo, não uma nova).
+
+        // GET /api/estoque/analises/curva-abc — classe A/B/C por VALOR DE CUSTO baixado (corte
+        // 80/95 clássico) no período — "o que concentra o giro" / "o que é capital parado (C)".
+        api.MapGet("/estoque/analises/curva-abc", async (
+            HttpContext http,
+            CurvaAbcService servico,
+            CancellationToken ct,
+            DateTimeOffset? de = null,
+            DateTimeOffset? ate = null) =>
+        {
+            var businessId = http.ObterBusinessId();
+            var (desde, ateQuando) = ResolverPeriodo(de, ate);
+            var curva = await servico.ClassificarAsync(businessId, desde, ateQuando, ct).ConfigureAwait(false);
+            return Results.Ok(curva);
+        }).RequerPermissao(Modulo.Estoque, Acao.Ver);
+
+        // GET /api/estoque/analises/giro — giro anualizado (CMV do período ÷ valor imobilizado
+        // atual) + cobertura em dias (disponível ÷ consumo médio diário), ordenado do mais parado
+        // pro mais girado — é o "isso aqui é dinheiro parado na prateleira?" do dono de loja.
+        api.MapGet("/estoque/analises/giro", async (
+            HttpContext http,
+            GiroDeEstoqueService servico,
+            CancellationToken ct,
+            DateTimeOffset? de = null,
+            DateTimeOffset? ate = null) =>
+        {
+            var businessId = http.ObterBusinessId();
+            var (desde, ateQuando) = ResolverPeriodo(de, ate);
+            var linhas = await servico.CalcularAsync(businessId, desde, ateQuando, ct).ConfigureAwait(false);
+            return Results.Ok(linhas);
+        }).RequerPermissao(Modulo.Estoque, Acao.Ver);
+
+        // GET /api/estoque/analises/ruptura — dias com saldo disponível ≤ 0 dentro da janela +
+        // venda perdida estimada (consumo médio × dias em ruptura × preço de catálogo).
+        api.MapGet("/estoque/analises/ruptura", async (
+            HttpContext http,
+            RupturaService servico,
+            CancellationToken ct,
+            DateTimeOffset? de = null,
+            DateTimeOffset? ate = null) =>
+        {
+            var businessId = http.ObterBusinessId();
+            var (desde, ateQuando) = ResolverPeriodo(de, ate);
+            var linhas = await servico.AnalisarAsync(businessId, desde, ateQuando, ct).ConfigureAwait(false);
+            return Results.Ok(linhas);
+        }).RequerPermissao(Modulo.Estoque, Acao.Ver);
+    }
+
+    /// <summary>Default de 30 dias terminando agora quando <paramref name="de"/>/<paramref name="ate"/>
+    /// não vêm na query string — mesmo horizonte-padrão das rotas <c>fato-*</c> do Financeiro
+    /// (<c>FinanceiroEndpointsModule.ResolverPeriodo</c>), só que em <see cref="DateTimeOffset"/>
+    /// porque é isso que os 3 read-models de análise (Razão de estoque) recebem.</summary>
+    private static (DateTimeOffset De, DateTimeOffset Ate) ResolverPeriodo(DateTimeOffset? de, DateTimeOffset? ate)
+    {
+        var agora = DateTimeOffset.UtcNow;
+        var ateResolvido = ate ?? agora;
+        var deResolvido = de ?? ateResolvido.AddDays(-30);
+        return (deResolvido, ateResolvido);
     }
 }

@@ -44,6 +44,7 @@ public class FinanceiroConsultorFactProviderTests
         InMemoryProjetoRepository Projetos,
         InMemoryAssinaturaRepository Assinaturas,
         InMemoryAtivoDeCapitalRepository AtivosDeCapital,
+        InMemoryAporteDeCapitalRepository AportesDeCapital,
         FakeRelogio Relogio);
 
     private static Ambiente NovoAmbiente(DateTimeOffset agora)
@@ -71,14 +72,18 @@ public class FinanceiroConsultorFactProviderTests
         var painelDoProjeto = new PainelDoProjetoService(
             projetosRepo, assinaturas, contasAReceber, contasAPagar, ativosDeCapital, movimentos, apontamentos, relogio);
         var resumoDeTempo = new ResumoDeTempoService(apontamentos, projetosRepo);
+        var aportesDeCapital = new InMemoryAporteDeCapitalRepository();
+        var roiDoNegocio = new RoiDoNegocioService(ativosDeCapital, aportesDeCapital, movimentos, contasAPagar, configuracoes, dreGerencial, relogio);
 
         var provider = new FinanceiroConsultorFactProvider(
             previsaoDeCaixa, pontoDeEquilibrio, inadimplencia, radarDoSimples,
-            contasAPagar, contasAReceber, movimentos, configuracoes, projetosRepo, painelDoProjeto, resumoDeTempo, relogio);
+            contasAPagar, contasAReceber, movimentos, configuracoes, projetosRepo, painelDoProjeto, resumoDeTempo,
+            roiDoNegocio, dreGerencial, relogio);
 
         return new Ambiente(
             provider, fatoCaixaDiario, contasAPagar, contasAReceber, movimentos,
-            recorrencias, fatoCustoDiario, fatoReceitaDiaria, configuracoes, projetosRepo, assinaturas, ativosDeCapital, relogio);
+            recorrencias, fatoCustoDiario, fatoReceitaDiaria, configuracoes, projetosRepo, assinaturas, ativosDeCapital,
+            aportesDeCapital, relogio);
     }
 
     private static PeriodoRef Periodo(DateTimeOffset hoje) => new(BusinessId, DateOnly.FromDateTime(hoje.UtcDateTime));
@@ -427,5 +432,92 @@ public class FinanceiroConsultorFactProviderTests
         var fatos = await ambiente.Provider.ColetarAsync(Periodo(hoje));
 
         Assert.DoesNotContain(fatos, f => f.RuleId == "fin.conta-grande-antes-de-receber");
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────────────────
+    // Painel de Imobilizado + ROI (docs/financeiro/design-imobilizado-roi.md §11) — fatos
+    // fail-quiet gateados pelo MESMO toggle que RoiDoNegocioService já usa (ImobilizadoRoiAtivo).
+    // ─────────────────────────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task ColetarAsync_SemImobilizadoRoiAtivo_NaoEmiteNenhumFatoDeRoi()
+    {
+        var hoje = new DateTimeOffset(2026, 8, 15, 12, 0, 0, TimeSpan.Zero);
+        var ambiente = NovoAmbiente(hoje);
+
+        // Toggle NUNCA ligado (nenhuma configuração salva) — mesmo com um bem amortizável
+        // cadastrado, RoiDoNegocioService recusa (FinanceiroOptInGuard) e nenhum fato "fin.roi.*"
+        // pode nascer — a mesma trava de FinanceiroOptInGuard.ExigirImobilizadoRoiAsync.
+        var dataAquisicao = DateOnly.FromDateTime(hoje.AddMonths(-6).Date);
+        var ativo = SistemaX.Modules.Financeiro.Domain.Ativos.AtivoDeCapital.Criar(
+            BusinessId, "Balcão frigorífico", SistemaX.Modules.Financeiro.Domain.Ativos.NaturezaAtivo.Tangivel,
+            SistemaX.Modules.Financeiro.Domain.Ativos.CategoriaAtivo.Equipamento, Money.DeReais(12_000), Money.Zero,
+            dataAquisicao, dataAquisicao, vidaUtilMeses: 12, criadoEm: hoje).Valor;
+        await ambiente.AtivosDeCapital.SalvarAsync(ativo);
+
+        var fatos = await ambiente.Provider.ColetarAsync(Periodo(hoje));
+
+        Assert.DoesNotContain(fatos, f => f.RuleId.StartsWith("fin.roi.", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task ColetarAsync_ComRoiAtivoSemNenhumBemOuAporte_EmiteSoOFatoDeRoiJaCompleto()
+    {
+        var hoje = new DateTimeOffset(2026, 8, 15, 12, 0, 0, TimeSpan.Zero);
+        var ambiente = NovoAmbiente(hoje);
+        await ambiente.Configuracoes.SalvarAsync(
+            SistemaX.Modules.Financeiro.Domain.Configuracao.ConfiguracaoFinanceiraTenant.Criar(BusinessId, imobilizadoRoiAtivo: true).Valor);
+
+        var fatos = await ambiente.Provider.ColetarAsync(Periodo(hoje));
+
+        var fatosRoi = fatos.Where(f => f.RuleId.StartsWith("fin.roi.", StringComparison.Ordinal)).ToList();
+        var completo = Assert.Single(fatosRoi);
+        Assert.Equal("fin.roi.faltam-para-completo", completo.RuleId);
+        Assert.Contains("já está completo", completo.TemplateFallback);
+    }
+
+    [Fact]
+    public async Task ColetarAsync_ComRoiAtivoEBemAmortizavelEFluxo_EmiteOsTresFatosDeRoi()
+    {
+        var m0 = new DateOnly(2026, 2, 1);
+        var hoje = new DateTimeOffset(2026, 8, 15, 12, 0, 0, TimeSpan.Zero); // mês 6 de vida útil 12
+        var ambiente = NovoAmbiente(hoje);
+        await ambiente.Configuracoes.SalvarAsync(
+            SistemaX.Modules.Financeiro.Domain.Configuracao.ConfiguracaoFinanceiraTenant.Criar(BusinessId, imobilizadoRoiAtivo: true).Valor);
+
+        // Bem R$12.000, vida útil 12 meses, pago fora do sistema (sem ContaAPagarId) -> capex
+        // integral no mês da aquisição (trilho B) + D&A linear de R$1.000/mês (12.000/12).
+        var ativo = SistemaX.Modules.Financeiro.Domain.Ativos.AtivoDeCapital.Criar(
+            BusinessId, "Balcão frigorífico", SistemaX.Modules.Financeiro.Domain.Ativos.NaturezaAtivo.Tangivel,
+            SistemaX.Modules.Financeiro.Domain.Ativos.CategoriaAtivo.Equipamento, Money.DeReais(12_000), Money.Zero,
+            m0, m0, vidaUtilMeses: 12, criadoEm: hoje).Valor;
+        await ambiente.AtivosDeCapital.SalvarAsync(ativo);
+
+        // Um único fluxo operacional positivo (R$5.000) no mês 3 — dá troca de sinal na série
+        // (capex negativo no mês 0, entrada positiva no mês 3) para a TIR ter raiz.
+        var dataFluxo = new DateTimeOffset(m0.AddMonths(3).Year, m0.AddMonths(3).Month, 15, 12, 0, 0, TimeSpan.Zero);
+        var movimento = MovimentoFinanceiro.Registrar(
+            BusinessId, "caixa-1", "pix", "parcela-1", "conta-1",
+            TipoMovimentoFinanceiro.Entrada, Money.DeReais(5_000), dataFluxo, new SourceRef("teste", "fluxo-1"));
+        await ambiente.Movimentos.SalvarAsync(movimento.Valor);
+
+        var fatos = await ambiente.Provider.ColetarAsync(Periodo(hoje));
+        var fatosRoi = fatos.Where(f => f.RuleId.StartsWith("fin.roi.", StringComparison.Ordinal)).ToList();
+
+        Assert.Equal(3, fatosRoi.Count);
+
+        // Investido = R$12.000 (capex, sem aporte); recuperado = R$5.000 (fluxo operacional) ->
+        // faltam R$7.000 — exatidão de centavos, não faixa.
+        var faltam = Assert.Single(fatosRoi, f => f.RuleId == "fin.roi.faltam-para-completo");
+        Assert.Equal(new Money(700_000).Formatado(), faltam.Facts["faltamParaRoiCompleto"]);
+
+        // D&A do mês corrente = R$1.000 (12.000 ÷ 12), lida direto do DRE — nenhum cálculo novo.
+        var depreciacao = Assert.Single(fatosRoi, f => f.RuleId == "fin.roi.depreciacao-mensal");
+        Assert.Equal(new Money(100_000).Formatado(), depreciacao.Facts["depreciacaoMensal"]);
+
+        // TIR existe e tem raiz (série tem sinal negativo e positivo) — o valor exato já é
+        // travado por TaxaInternaDeRetornoTests; aqui só a integração/formatação importam.
+        var tir = Assert.Single(fatosRoi, f => f.RuleId == "fin.roi.tir");
+        Assert.EndsWith("% a.a.", tir.Facts["tirAnualizada"]);
     }
 }

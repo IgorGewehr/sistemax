@@ -1084,6 +1084,104 @@ public sealed class FinanceiroEndpointsModule : IModule, IModuleEndpoints
             var resultado = await servico.CalcularAsync(businessId, desde.InicioDoDia(), ateQuando.FimDoDia(), ct).ConfigureAwait(false);
             return Results.Ok(resultado);
         }).RequerPermissao(Modulo.Financeiro, Acao.Ver);
+
+        // ─────────────────────────────────────────────────────────────────────────────────────
+        // LENTES VERTICAIS OPT-IN (multi-MEI, docs/financeiro/ideias-matemonstro.md) — cada rota é
+        // um read-model pequeno sobre dado que já existe; nenhuma delas exige toggle de
+        // configuração (opt-in é por PRESENÇA DE DADO — sem venda/apontamento/técnico no período,
+        // a resposta vem vazia, e é a própria UI quem decide mostrar a lente pro tipo de negócio
+        // certo). Varejo (Curva ABC/Giro/Ruptura) mora em /estoque/analises/* — o dado é de lá.
+        // ─────────────────────────────────────────────────────────────────────────────────────
+
+        // ALIMENTAÇÃO/DELIVERY — food cost % (CMV do prato ÷ receita), por produto no período.
+        // `produtoId` opcional filtra um único prato (drill-down do cardápio).
+        api.MapGet("/financeiro/alimentacao/food-cost", async (
+            HttpContext http,
+            FoodCostService servico,
+            CancellationToken ct,
+            string? produtoId = null,
+            DateOnly? de = null,
+            DateOnly? ate = null) =>
+        {
+            var businessId = http.ObterBusinessId();
+            var (desde, ateQuando) = ResolverPeriodo(de, ate);
+            var linhas = await servico.CalcularAsync(businessId, desde, ateQuando, produtoId, ct).ConfigureAwait(false);
+            return Results.Ok(linhas);
+        }).RequerPermissao(Modulo.Financeiro, Acao.Ver);
+
+        // ALIMENTAÇÃO/DELIVERY — engenharia de cardápio: matriz margem×popularidade em 4
+        // quadrantes (Estrela/VacaLeiteira/Enigma/Abacaxi).
+        api.MapGet("/financeiro/alimentacao/engenharia-cardapio", async (
+            HttpContext http,
+            EngenhariaDeCardapioService servico,
+            CancellationToken ct,
+            DateOnly? de = null,
+            DateOnly? ate = null) =>
+        {
+            var businessId = http.ObterBusinessId();
+            var (desde, ateQuando) = ResolverPeriodo(de, ate);
+            var linhas = await servico.ClassificarAsync(businessId, desde, ateQuando, ct).ConfigureAwait(false);
+            return Results.Ok(linhas);
+        }).RequerPermissao(Modulo.Financeiro, Acao.Ver);
+
+        // SERVIÇOS/BELEZA — ocupação/produtividade por profissional (horas apontadas ÷ horas
+        // disponíveis). `horasDisponiveisPorDia` opcional (default 8h) — não há cadastro de
+        // agenda/turno no sistema hoje, então quem sabe a capacidade real é quem chama.
+        api.MapGet("/financeiro/servicos/ocupacao", async (
+            HttpContext http,
+            OcupacaoService servico,
+            CancellationToken ct,
+            decimal? horasDisponiveisPorDia = null,
+            DateOnly? de = null,
+            DateOnly? ate = null) =>
+        {
+            var businessId = http.ObterBusinessId();
+            var (desde, ateQuando) = ResolverPeriodo(de, ate);
+            var linhas = await servico
+                .CalcularAsync(businessId, desde.InicioDoDia(), ateQuando.FimDoDia(), horasDisponiveisPorDia, ct)
+                .ConfigureAwait(false);
+            return Results.Ok(linhas);
+        }).RequerPermissao(Modulo.Financeiro, Acao.Ver);
+
+        // SERVIÇOS/BELEZA — receita e margem aproximada por técnico/profissional (OS faturadas
+        // com TecnicoId, corrente Serviço).
+        api.MapGet("/financeiro/servicos/receita-por-profissional", async (
+            HttpContext http,
+            ReceitaPorProfissionalService servico,
+            CancellationToken ct,
+            DateOnly? de = null,
+            DateOnly? ate = null) =>
+        {
+            var businessId = http.ObterBusinessId();
+            var (desde, ateQuando) = ResolverPeriodo(de, ate);
+            var linhas = await servico.CalcularAsync(businessId, desde.InicioDoDia(), ateQuando.FimDoDia(), ct).ConfigureAwait(false);
+            return Results.Ok(linhas);
+        }).RequerPermissao(Modulo.Financeiro, Acao.Ver);
+
+        // PREÇO POR DIVISOR (matemonstro idéia 2) — preço-piso/sugerido dado o custo e os
+        // %-sobre-preço (MDR da forma de pagamento + alíquota efetiva do Radar + comissão).
+        // `precoAtualCentavos` opcional devolve a margem REAL que o preço praticado hoje entrega
+        // (o fato "no crédito, este item rende só X% real"). `null` na resposta ⇒ pedido
+        // matematicamente impossível (percentuais + margem ≥ 100%), nunca um preço negativo.
+        api.MapGet("/financeiro/precificacao/preco-por-divisor", async (
+            HttpContext http,
+            PrecoPorDivisorService servico,
+            CancellationToken ct,
+            long custoCentavos,
+            decimal margemDesejadaPercent = 0m,
+            string? formaDePagamentoId = null,
+            decimal comissaoPercent = 0m,
+            bool incluirAliquotaEfetiva = true,
+            long? precoAtualCentavos = null) =>
+        {
+            var businessId = http.ObterBusinessId();
+            var resultado = await servico
+                .CalcularAsync(businessId, custoCentavos, margemDesejadaPercent, formaDePagamentoId, comissaoPercent, incluirAliquotaEfetiva, precoAtualCentavos, ct)
+                .ConfigureAwait(false);
+            return resultado is null
+                ? Results.UnprocessableEntity(new { erro = "financeiro.preco_por_divisor.sem_solucao", mensagem = "Percentuais somados à margem desejada somam 100% ou mais — nenhum preço finito cobre isso." })
+                : Results.Ok(resultado);
+        }).RequerPermissao(Modulo.Financeiro, Acao.Ver);
     }
 
     /// <summary>Default de 30 dias terminando hoje (UTC) quando <paramref name="de"/>/

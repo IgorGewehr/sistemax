@@ -41,6 +41,8 @@ public sealed class FinanceiroConsultorFactProvider(
     IProjetoRepository projetos,
     PainelDoProjetoService painelDoProjeto,
     ResumoDeTempoService resumoDeTempo,
+    RoiDoNegocioService roiDoNegocio,
+    DreGerencialService dreGerencial,
     IRelogio relogio) : IConsultorFactProvider
 {
     private const string Modulo = "financeiro";
@@ -88,6 +90,13 @@ public sealed class FinanceiroConsultorFactProvider(
         // narra/observa", nunca inventa). Toggle desligado (o caso comum, sem análise por projeto
         // configurada) ⇒ nenhum fato emitido, exatamente como antes desta fatia.
         fatos.AddRange(await ColetarFatosDeProjetoAsync(businessId, ct).ConfigureAwait(false));
+
+        // Imobilizado + Painel de ROI (docs/financeiro/design-imobilizado-roi.md §11 — "Fatos
+        // novos, fail-quiet com toggle off"): reusa SÓ RoiDoNegocioService/DreGerencialService, já
+        // testados na F1; opt-in ESTRITO — sem ImobilizadoRoiAtivo, RoiDoNegocioService devolve
+        // Falha (FinanceiroOptInGuard) e nenhum fato nasce, mesmo padrão fail-quiet do resto do
+        // provider (Lei 2: só narra o que já existe, nunca invade sem opt-in explícito).
+        fatos.AddRange(await ColetarFatosDeRoiAsync(businessId, ct).ConfigureAwait(false));
 
         return fatos;
     }
@@ -496,6 +505,111 @@ public sealed class FinanceiroConsultorFactProvider(
                 ["horasNoMes"] = horas.ToString(CultureInfo.InvariantCulture),
             },
             TemplateFallback: $"O cliente \"{nomeCliente}\" consumiu {horas:0.0}h de atendimento este mês — o maior volume de tempo entre seus clientes tageados.",
+            Drill: new DrillTarget(tela));
+    }
+
+    /// <summary>Orquestra os 3 fatos do painel de ROI (design §11) — SEMPRE consulta
+    /// <see cref="RoiDoNegocioService"/> primeiro: toggle desligado (ou sem marco m0 resolvível)
+    /// devolve <c>Falha</c> e a lista fica vazia sem tocar em mais nada, o mesmo gate que o
+    /// endpoint <c>GET /financeiro/roi-negocio</c> já usa.</summary>
+    private async Task<IReadOnlyList<ConsultorFato>> ColetarFatosDeRoiAsync(string businessId, CancellationToken ct)
+    {
+        var roi = await roiDoNegocio.CalcularAsync(businessId, ct).ConfigureAwait(false);
+        if (roi.Falha) return [];
+
+        var fatos = new List<ConsultorFato> { ColetarFaltamProRoiCompleto(roi.Valor) };
+
+        var tir = ColetarTirDoNegocio(roi.Valor.Tir);
+        if (tir is not null) fatos.Add(tir);
+
+        var depreciacao = await ColetarDepreciacaoMensalAsync(businessId, ct).ConfigureAwait(false);
+        if (depreciacao is not null) fatos.Add(depreciacao);
+
+        return fatos;
+    }
+
+    /// <summary>"Faltam R$X (~N meses) pro ROI completo" (design §11) — reusa
+    /// <see cref="RoiRecuperacao"/>/<see cref="RoiPayback.ProjetadoMeses"/> de
+    /// <see cref="RoiDoNegocioService"/>, zero cálculo novo. Recuperação já completa
+    /// (<c>FaltamCentavos == 0</c>) vira boa notícia, não "faltam R$0" sem sentido.</summary>
+    private ConsultorFato ColetarFaltamProRoiCompleto(RoiDoNegocioResultado roi)
+    {
+        const string ruleId = "fin.roi.faltam-para-completo";
+        const string tela = "imobilizado-roi";
+        var percentRecuperado = roi.Recuperacao.PercentRecuperado.ToString("0.0", CulturaPtBr);
+
+        if (roi.Recuperacao.FaltamCentavos <= 0)
+        {
+            return new ConsultorFato(
+                Modulo, ruleId, tela, Score: 100,
+                Facts: new Dictionary<string, string> { ["percentRecuperado"] = percentRecuperado },
+                TemplateFallback: "Seu ROI do negócio já está completo — o investimento total já voltou em caixa/lucro operacional.",
+                Drill: new DrillTarget(tela));
+        }
+
+        var faltam = new Money(roi.Recuperacao.FaltamCentavos).Formatado();
+        var meses = roi.Payback.ProjetadoMeses;
+        var score = meses is { } m ? Clamp0a10000(10_000 - m * 60L) : 4_000;
+
+        var frase = meses is { } mesesProjetados
+            ? $"Faltam {faltam} (cerca de {mesesProjetados} meses no ritmo atual) para o ROI completo do seu negócio."
+            : $"Faltam {faltam} para o ROI completo do seu negócio — sem tendência clara pra projetar quando, no ritmo atual.";
+
+        return new ConsultorFato(
+            Modulo, ruleId, tela, score,
+            Facts: new Dictionary<string, string>
+            {
+                ["faltamParaRoiCompleto"] = faltam,
+                ["mesesProjetados"] = meses?.ToString(CultureInfo.InvariantCulture) ?? "sem projeção",
+                ["percentRecuperado"] = percentRecuperado,
+            },
+            TemplateFallback: frase,
+            Drill: new DrillTarget(tela));
+    }
+
+    /// <summary>"TIR atual Y% a.a." (design §11) — reusa <see cref="TaxaInternaDeRetorno"/> via
+    /// <see cref="RoiDoNegocioService"/>. TIR indefinida (sem troca de sinal/sem raiz no intervalo)
+    /// não emite fato nenhum — Lei 2, nunca formata um número que não existe.</summary>
+    private ConsultorFato? ColetarTirDoNegocio(RoiTir tir)
+    {
+        if (tir.AnualizadaPercent is not { } anualizada) return null;
+
+        const string ruleId = "fin.roi.tir";
+        const string tela = "imobilizado-roi";
+
+        var tirTexto = anualizada.ToString("0.0", CulturaPtBr);
+        var score = Clamp0a10000((long)Math.Round(anualizada * 100));
+
+        return new ConsultorFato(
+            Modulo, ruleId, tela, score,
+            Facts: new Dictionary<string, string> { ["tirAnualizada"] = $"{tirTexto}% a.a." },
+            TemplateFallback: $"A taxa interna de retorno (TIR) do seu negócio hoje é de {tirTexto}% ao ano.",
+            Drill: new DrillTarget(tela));
+    }
+
+    /// <summary>"Depreciação mensal da estrutura R$Z" (design §11) — reusa a linha
+    /// <see cref="DreResultado.DepreciacaoEAmortizacao"/> que o próprio DRE já expõe (mesmo lar
+    /// único de <see cref="CronogramaLinear"/>, nunca um segundo cálculo de amortização aqui). Mês
+    /// sem nenhum bem amortizável rodando (linha zerada) não emite fato — silêncio é a resposta
+    /// certa quando não há o que narrar.</summary>
+    private async Task<ConsultorFato?> ColetarDepreciacaoMensalAsync(string businessId, CancellationToken ct)
+    {
+        var agora = relogio.Agora();
+        var inicioDoMes = new DateTimeOffset(agora.Year, agora.Month, 1, 0, 0, 0, agora.Offset);
+        var dre = await dreGerencial.CalcularAsync(businessId, inicioDoMes, agora, ct).ConfigureAwait(false);
+
+        if (dre.DepreciacaoEAmortizacao.EhZero) return null;
+
+        const string ruleId = "fin.roi.depreciacao-mensal";
+        const string tela = "imobilizado-roi";
+
+        var valor = dre.DepreciacaoEAmortizacao.Formatado();
+        var score = Clamp0a10000(dre.DepreciacaoEAmortizacao.Centavos / 1_000);
+
+        return new ConsultorFato(
+            Modulo, ruleId, tela, score,
+            Facts: new Dictionary<string, string> { ["depreciacaoMensal"] = valor },
+            TemplateFallback: $"A depreciação/amortização da sua estrutura (equipamentos, licenças, obras) é de {valor} neste mês.",
             Drill: new DrillTarget(tela));
     }
 

@@ -7,6 +7,8 @@ import {
   logout as logoutSession,
   readSession,
   setUnauthorizedHandler,
+  trocarPin as trocarPinRequest,
+  writeSession,
   type Session,
 } from './api/client';
 
@@ -14,6 +16,9 @@ interface AuthContextValue {
   session: Session | null;
   login: (pin: string) => Promise<void>;
   logout: () => void;
+  /** Autoatendimento de troca de PIN (wizard de 1º-boot) — ver `TrocarPinObrigatorio`. Ao
+   * suceder, zera `session.deveTrocarPin` localmente (sem precisar de novo login) e persiste. */
+  trocarPin: (pinAtual: string, pinNovo: string) => Promise<void>;
   loading: boolean;
 }
 
@@ -49,7 +54,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setSession(null);
   }, []);
 
-  const value = useMemo<AuthContextValue>(() => ({ session, login, logout, loading }), [session, login, logout, loading]);
+  const trocarPin = useCallback(async (pinAtual: string, pinNovo: string) => {
+    setLoading(true);
+    try {
+      await trocarPinRequest(pinAtual, pinNovo);
+      setSession((atual) => {
+        if (!atual) return atual;
+        const atualizada: Session = { ...atual, deveTrocarPin: false };
+        writeSession(atualizada);
+        return atualizada;
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const value = useMemo<AuthContextValue>(
+    () => ({ session, login, logout, trocarPin, loading }),
+    [session, login, logout, trocarPin, loading],
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

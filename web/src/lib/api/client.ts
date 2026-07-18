@@ -29,6 +29,10 @@ export interface Session {
   businessId: string;
   papel: string;
   expiraEm: string;
+  /** Espelha `Usuario.PinProvisorio` (ver `LoginResponse`/`BridgeEndpoints`) — `true` enquanto o
+   * usuário não trocou o PIN default do seed (ex.: founder com "1234"). `AuthGate` usa isto para
+   * bloquear o app inteiro atrás de `TrocarPinObrigatorio` até a troca ser concluída. */
+  deveTrocarPin: boolean;
 }
 
 export function readSession(): Session | null {
@@ -146,7 +150,13 @@ export async function login(pin: string): Promise<Session> {
     throw new ApiError(codigo, mensagem, res.status);
   }
 
-  const body = (await res.json()) as { token: string; businessId: string; papel: string; expiraEm: string };
+  const body = (await res.json()) as {
+    token: string;
+    businessId: string;
+    papel: string;
+    expiraEm: string;
+    deveTrocarPin: boolean;
+  };
   const session: Session = body;
   writeSession(session);
   return session;
@@ -156,4 +166,12 @@ export async function login(pin: string): Promise<Session> {
  * a tela de PIN consegue logar de novo sem precisar reabrir o app. */
 export function logout(): void {
   writeSession(null);
+}
+
+/** Autoatendimento — `POST /api/auth/trocar-pin` (ver `BridgeEndpoints`/`TrocarPinUseCase`). O
+ * usuário logado troca o PRÓPRIO PIN provando que conhece o atual; sem permissão especial (ver
+ * distinção de `PATCH /usuarios/{id}` no CLAUDE.md do bridge). É o caminho que
+ * `TrocarPinObrigatorio` usa para encerrar `Usuario.PinProvisorio` no wizard de 1º-boot. */
+export async function trocarPin(pinAtual: string, pinNovo: string): Promise<void> {
+  await api.post<{ ok: boolean }>('/auth/trocar-pin', { pinAtual, pinNovo });
 }

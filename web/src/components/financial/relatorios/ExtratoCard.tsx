@@ -1,5 +1,6 @@
 import { Landmark } from 'lucide-react';
 
+import { MockBadge } from '@/components/shared';
 import { Surface } from '@/components/ui/Surface';
 import { cn } from '@/lib/utils';
 
@@ -35,7 +36,11 @@ export function ExtratoCard({
   className,
 }: ExtratoCardProps) {
   return (
-    <Surface padding="none" className={cn('flex flex-col p-4 sm:p-[18px]', className)}>
+    <Surface padding="none" className={cn('relative flex flex-col p-4 sm:p-[18px]', className)}>
+      <MockBadge
+        className="absolute right-3 top-3"
+        titulo="As contas acima são reais (GET /financeiro/contas-bancarias) — geração de PDF/Excel ainda não tem backend."
+      />
       <div className="mb-3 flex items-start gap-3">
         <span className="grid h-[38px] w-[38px] flex-none place-items-center rounded-xl bg-surface-2 text-muted-foreground">
           <Landmark className="h-[19px] w-[19px]" />

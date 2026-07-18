@@ -5,7 +5,7 @@ import { ApiError } from '@/lib/api/client';
 import { financeiroApi } from '@/lib/api/financeiro';
 import { addDays, todayIso } from '@/lib/date';
 
-import type { AbertoViewModel, DreRegimeBlock, MrrViewModel } from './types';
+import type { AbertoViewModel, AccountOption, DreRegimeBlock, MrrViewModel } from './types';
 
 export interface Recurso<T> {
   dado: T | null;
@@ -43,19 +43,23 @@ function nomeMesDeIso(iso: string): string {
 
 /**
  * Blocos REAIS de Relatórios (docs/wiring/financeiro-telas-restantes.md §5, task #33): MRR
- * (reusa `receita-recorrente`, já ligado noutra tela), Contas em aberto (`relatorios/contas-em-aberto`)
- * e DRE competência (`relatorios/dre`, mês atual + anterior p/ o delta). Regime de caixa e
- * pacote/extrato/histórico continuam ilustrativos — sem read-model ainda.
+ * (reusa `receita-recorrente`, já ligado noutra tela), Contas em aberto (`relatorios/contas-em-aberto`),
+ * DRE competência (`relatorios/dre`, mês atual + anterior p/ o delta) e a lista de contas do
+ * "Extrato por conta" (`GET /financeiro/contas-bancarias`, mesmo endpoint do Bancário). Regime de
+ * caixa e a GERAÇÃO de pacote/extrato/histórico continuam ilustrativos — sem serviço/arquivo real
+ * no backend (ver `MockBadge` em `PacoteCard`/`ExtratoCard`/`HistoryTable`/`DreCard`).
  */
 export function useRelatoriosReais() {
   const [mrr, setMrr] = useState<Recurso<MrrViewModel>>(inicial);
   const [aberto, setAberto] = useState<Recurso<AbertoViewModel>>(inicial);
   const [dreCompetencia, setDreCompetencia] = useState<Recurso<DreRegimeBlock>>(inicial);
+  const [extratoAccounts, setExtratoAccounts] = useState<Recurso<AccountOption[]>>(inicial);
 
   const carregar = useCallback(() => {
     setMrr(inicial());
     setAberto(inicial());
     setDreCompetencia(inicial());
+    setExtratoAccounts(inicial());
 
     financeiroApi
       .receitaRecorrente()
@@ -66,6 +70,14 @@ export function useRelatoriosReais() {
       .relatoriosContasEmAberto()
       .then((dto) => setAberto({ dado: deContasEmAbertoDto(dto), erro: null, carregando: false }))
       .catch((e: unknown) => setAberto({ dado: null, erro: mensagemDeErro(e), carregando: false }));
+
+    financeiroApi
+      .contasBancarias()
+      .then((dtos) => {
+        const accounts: AccountOption[] = [{ id: 'todas', label: 'Todas' }, ...dtos.filter((c) => c.ativa).map((c) => ({ id: c.id, label: c.nome }))];
+        setExtratoAccounts({ dado: accounts, erro: null, carregando: false });
+      })
+      .catch((e: unknown) => setExtratoAccounts({ dado: null, erro: mensagemDeErro(e), carregando: false }));
 
     const atual = periodoMesAtual();
     const anterior = periodoMesAnterior(atual);
@@ -84,5 +96,5 @@ export function useRelatoriosReais() {
     carregar();
   }, [carregar]);
 
-  return { mrr, aberto, dreCompetencia, recarregar: carregar };
+  return { mrr, aberto, dreCompetencia, extratoAccounts, recarregar: carregar };
 }

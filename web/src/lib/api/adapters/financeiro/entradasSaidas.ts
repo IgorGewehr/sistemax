@@ -3,8 +3,8 @@
  * (`components/financial/entradas-saidas/types.ts`), ver docs/wiring/financeiro-telas-restantes.md
  * §1 (task #33). Funções puras, zero React — mesmo padrão de `adapters/financeiro/bancario.ts`.
  */
-import type { LancamentoRow } from '@/components/financial/entradas-saidas/types';
-import type { ExtratoLinhaDto } from '@/lib/api/financeiro';
+import type { ContaDisponivel, LancamentoRow } from '@/components/financial/entradas-saidas/types';
+import type { ContaBancariaDto, ExtratoLinhaDto } from '@/lib/api/financeiro';
 
 /** "2026-07-16T00:00:00-03:00" ou "2026-07-16" → "2026-07-16". Nunca `new Date(iso)` — extração
  * textual, determinística (mesma diretriz de `adapters/financeiro/bancario.ts`). */
@@ -109,4 +109,14 @@ export function saldoAcumuladoAte(pontos: { data: string; saldoAcumulado: { cent
   const candidatos = pontos.filter((p) => isoData(p.data) <= ateData);
   const escolhido = candidatos.length ? candidatos[candidatos.length - 1] : pontos[pontos.length - 1];
   return escolhido?.saldoAcumulado.centavos ?? 0;
+}
+
+/** Select de contas do modal "Dar baixa"/"Lançamento rápido" — reusa `GET /financeiro/contas-bancarias`
+ * (já real na tela Bancário, ver docs/wiring/financeiro-telas-restantes.md §1: "repo/endpoint já
+ * resolvidos, falta só o front consumir aqui"). `CaixaFisico` vira a tag "espécie" (mesma distinção
+ * do mockup original entre "banco" e "Caixa da loja"); só contas ativas aparecem no select. */
+export function deContasBancariasParaDisponiveis(dtos: ContaBancariaDto[]): ContaDisponivel[] {
+  return dtos
+    .filter((c) => c.ativa)
+    .map((c) => ({ nome: c.nome, tag: c.tipo === 'CaixaFisico' ? 'espécie' : 'banco' }));
 }

@@ -1,5 +1,6 @@
 import { FileText, Info, TrendingDown, TrendingUp } from 'lucide-react';
 
+import { MockBadge } from '@/components/shared';
 import { Surface } from '@/components/ui/Surface';
 import { cn } from '@/lib/utils';
 
@@ -36,7 +37,13 @@ export function DreCard({
   const DeltaIcon = block.delta.direction === 'up' ? TrendingUp : TrendingDown;
 
   return (
-    <Surface padding="none" className={cn('flex flex-col p-4 sm:p-[18px]', className)}>
+    <Surface padding="none" className={cn('relative flex flex-col p-4 sm:p-[18px]', className)}>
+      {regime === 'caixa' && (
+        <MockBadge
+          className="absolute right-3 top-3"
+          titulo="Regime de caixa ainda não tem serviço no backend (só competência é real) — números ilustrativos."
+        />
+      )}
       <div className="mb-3 flex items-start gap-3">
         <span className="grid h-[38px] w-[38px] flex-none place-items-center rounded-xl bg-surface-2 text-muted-foreground">
           <FileText className="h-[19px] w-[19px]" />

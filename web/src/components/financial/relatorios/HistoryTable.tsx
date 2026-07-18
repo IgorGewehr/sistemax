@@ -1,15 +1,22 @@
 import { motion } from 'framer-motion';
 
-import { SectionCard, StatusChip } from '@/components/shared';
+import { MockBadge, SectionCard, StatusChip } from '@/components/shared';
 
 import type { HistoryRow } from './types';
 
 const COLUMNS = ['Data', 'Documento', 'Formato', 'Gerado por', 'Envio'];
 
-/** Auditoria — sempre o último bloco da tela (quem gerou/enviou o quê e quando). */
+/** Auditoria — sempre o último bloco da tela (quem gerou/enviou o quê e quando). Sem persistência
+ * real: não existe entidade/endpoint de histórico de exports no backend (as linhas "geradas em
+ * runtime" só vivem no estado do `useRelatoriosController`, somem ao recarregar a página). */
 export function HistoryTable({ rows }: { rows: HistoryRow[] }) {
   return (
-    <SectionCard title="Histórico de exports" hint="auditoria — quem gerou e quando" bodyClassName="overflow-x-auto pb-1">
+    <SectionCard
+      title="Histórico de exports"
+      hint="auditoria — quem gerou e quando"
+      actions={<MockBadge titulo="Sem persistência real — histórico de exemplo, some ao recarregar a página." />}
+      bodyClassName="overflow-x-auto pb-1"
+    >
       <table className="w-full min-w-[620px] border-collapse text-left">
         <thead>
           <tr>

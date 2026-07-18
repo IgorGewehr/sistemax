@@ -1,6 +1,7 @@
 import { AnimatePresence, motion } from 'framer-motion';
 import { Check, Package } from 'lucide-react';
 
+import { MockBadge } from '@/components/shared';
 import { Button } from '@/components/ui/Button';
 import { Surface } from '@/components/ui/Surface';
 import { cn } from '@/lib/utils';
@@ -30,7 +31,11 @@ const BUTTON_LABEL: Record<DocGenState, string> = {
 /** Card-estrela da tela ("O pacote completo pro contador") — o único com CTA primário próprio. */
 export function PacoteCard({ pacote, regime, contact, state, revealed, onGerar, onBaixar, onSend, className }: PacoteCardProps) {
   return (
-    <Surface padding="none" className={cn('flex flex-col p-4 sm:p-[18px]', className)}>
+    <Surface padding="none" className={cn('relative flex flex-col p-4 sm:p-[18px]', className)}>
+      <MockBadge
+        className="absolute right-3 top-3"
+        titulo="Geração de PDF/Excel/ZIP não tem backend ainda — botões simulam o fluxo, nenhum arquivo é gerado de verdade."
+      />
       <div className="mb-3 flex items-start gap-3">
         <span className="grid h-[38px] w-[38px] flex-none place-items-center rounded-xl bg-primary-soft text-primary-600">
           <Package className="h-[19px] w-[19px]" />

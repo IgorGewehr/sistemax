@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Wallet } from 'lucide-react';
+import { CalendarClock, Wallet } from 'lucide-react';
 
 import { CashTimelineSection } from '@/components/financial/visao-geral/CashTimelineSection';
 import { HeroDisponivelCard } from '@/components/financial/visao-geral/HeroDisponivelCard';
@@ -11,7 +11,7 @@ import { SobrevivenciaSection } from '@/components/financial/visao-geral/sobrevi
 import { SuperConsultorSection } from '@/components/financial/visao-geral/SuperConsultorSection';
 import { useDrillNav } from '@/components/financial/visao-geral/useDrillNav';
 import { useVisaoGeral } from '@/components/financial/visao-geral/useVisaoGeral';
-import { MockBadge, PageHeader } from '@/components/shared';
+import { PageHeader } from '@/components/shared';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { Surface } from '@/components/ui/Surface';
@@ -20,10 +20,11 @@ import { Surface } from '@/components/ui/Surface';
  * Visão Geral — 1:1 com `docs/ui/mockups/visao-geral.html`, com dado REAL onde já existe
  * read-model no .NET (ver `useVisaoGeral` + docs/wiring/financeiro-api-contract.md):
  *
- * - `disponivel` ← `GET /financeiro/disponivel-retirada` (real)
- * - `timeline`   ← `GET /financeiro/fluxo` (real)
- * - `consultor`  ← `GET /financeiro/consultor` (real — insights narrados/rankeados, Fase 2)
- * - `lucroDoMes`/`proximosVencimentos` ← MOCK (sem `GET /financeiro/dre` ainda), com `MockBadge`.
+ * - `disponivel`  ← `GET /financeiro/disponivel-retirada` (real)
+ * - `timeline`    ← `GET /financeiro/fluxo` (real)
+ * - `lucroDoMes`  ← `GET /financeiro/relatorios/dre` (atual + anterior) + `relatorios/contas-em-aberto` (real)
+ * - `proximosVencimentos` ← `GET /financeiro/extrato` (real — itemizado, reusa o mesmo endpoint de Entradas & Saídas)
+ * - `consultor`   ← `GET /financeiro/consultor` (real — insights narrados/rankeados, Fase 2)
  * - Bloco "Sobrevivência" (novo, sem mockup próprio) ← `previsao-caixa`/`ponto-equilibrio`/
  *   `inadimplencia`/`radar-simples`, os 4 read-models da F1 que não tinham tela nenhuma.
  */
@@ -60,9 +61,25 @@ export function VisaoGeral() {
           )}
         </motion.div>
 
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.42, delay: 0.06 }} className="relative">
-          <MockBadge className="absolute right-3 top-3 z-[2]" titulo="Lucro do mês precisa do DRE — endpoint ainda não exposto." />
-          <LucroDoMesCard vm={vm.lucroDoMes} onDrill={drill} />
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.42, delay: 0.06 }}>
+          {vm.lucroDoMes.carregando ? (
+            <Surface padding="lg" className="h-full min-h-[220px]">
+              <Skeleton className="h-8 w-40" />
+              <Skeleton className="mt-4 h-4 w-full" />
+              <Skeleton className="mt-2 h-4 w-full" />
+            </Surface>
+          ) : vm.lucroDoMes.erro || !vm.lucroDoMes.dado ? (
+            <Surface padding="lg" className="h-full min-h-[220px]">
+              <EmptyState
+                icon={<Wallet className="h-5 w-5" />}
+                title="Não deu para carregar"
+                description={vm.lucroDoMes.erro ?? ''}
+                className="border-none py-6"
+              />
+            </Surface>
+          ) : (
+            <LucroDoMesCard vm={vm.lucroDoMes.dado} onDrill={drill} />
+          )}
         </motion.div>
       </div>
 
@@ -86,9 +103,24 @@ export function VisaoGeral() {
         )}
       </motion.div>
 
-      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.42, delay: 0.14 }} className="relative mb-4">
-        <MockBadge className="absolute right-3 top-3 z-[2]" titulo="Precisa juntar contas a pagar/receber por vencimento — read-model ainda não existe." />
-        <ProximosVencimentosSection vencimentos={vm.proximosVencimentos} onDrill={drill} />
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.42, delay: 0.14 }} className="mb-4">
+        {vm.proximosVencimentos.carregando ? (
+          <Surface padding="lg" className="min-h-[110px]">
+            <Skeleton className="h-4 w-40" />
+            <Skeleton className="mt-4 h-14 w-full" />
+          </Surface>
+        ) : vm.proximosVencimentos.erro ? (
+          <Surface padding="lg" className="min-h-[110px]">
+            <EmptyState
+              icon={<CalendarClock className="h-5 w-5" />}
+              title="Não deu para carregar"
+              description={vm.proximosVencimentos.erro}
+              className="border-none py-6"
+            />
+          </Surface>
+        ) : (
+          <ProximosVencimentosSection vencimentos={vm.proximosVencimentos.dado ?? []} onDrill={drill} />
+        )}
       </motion.div>
 
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.42, delay: 0.18 }} className="mb-4">

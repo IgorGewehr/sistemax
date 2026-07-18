@@ -5,7 +5,10 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ApiError } from '@/lib/api/client';
 import type {
   ConsultorInsightDto,
+  ContasEmAbertoDto,
   DisponivelParaRetiradaDto,
+  DreDto,
+  ExtratoDto,
   FluxoDeCaixaDto,
   InadimplenciaDto,
   PontoDeEquilibrioDto,
@@ -17,6 +20,9 @@ import { useVisaoGeral } from './useVisaoGeral';
 
 const disponivelParaRetirada = vi.fn();
 const fluxo = vi.fn();
+const relatoriosDre = vi.fn();
+const relatoriosContasEmAberto = vi.fn();
+const extrato = vi.fn();
 const previsaoCaixa = vi.fn();
 const pontoEquilibrio = vi.fn();
 const inadimplencia = vi.fn();
@@ -27,6 +33,9 @@ vi.mock('@/lib/api/financeiro', () => ({
   financeiroApi: {
     disponivelParaRetirada: (...args: unknown[]) => disponivelParaRetirada(...args),
     fluxo: (...args: unknown[]) => fluxo(...args),
+    relatoriosDre: (...args: unknown[]) => relatoriosDre(...args),
+    relatoriosContasEmAberto: (...args: unknown[]) => relatoriosContasEmAberto(...args),
+    extrato: (...args: unknown[]) => extrato(...args),
     previsaoCaixa: (...args: unknown[]) => previsaoCaixa(...args),
     pontoEquilibrio: (...args: unknown[]) => pontoEquilibrio(...args),
     inadimplencia: (...args: unknown[]) => inadimplencia(...args),
@@ -84,6 +93,42 @@ const RADAR_DTO: RadarDoSimplesDto = {
   mesesProjetadosAteOProximoDegrau: null,
 };
 
+const DRE_ATUAL_DTO: DreDto = {
+  receitaBruta: money(1000000),
+  custoDireto: money(400000),
+  despesaOperacional: money(300000),
+  resultadoOperacional: money(300000),
+};
+
+const DRE_ANTERIOR_DTO: DreDto = {
+  receitaBruta: money(900000),
+  custoDireto: money(380000),
+  despesaOperacional: money(280000),
+  resultadoOperacional: money(240000),
+};
+
+const CONTAS_EM_ABERTO_DTO: ContasEmAbertoDto = {
+  receberEmAberto: money(500000),
+  receberAtrasado: money(100000),
+  pagarEmAberto: money(300000),
+  agingBuckets: [],
+};
+
+const EXTRATO_DTO: ExtratoDto = {
+  linhas: [
+    {
+      id: 'l1',
+      data: '2026-07-18',
+      descricao: 'Mercado São João',
+      categoriaId: 'servicos',
+      tipo: 'entrada',
+      status: 'previsto',
+      valor: money(89000),
+    },
+  ],
+  kpis: { totalEntradas: money(89000), totalSaidas: money(0), saldoPeriodo: money(89000) },
+};
+
 const CONSULTOR_DTO: ConsultorInsightDto[] = [
   {
     modulo: 'financeiro',
@@ -111,6 +156,9 @@ describe('useVisaoGeral', () => {
   beforeEach(() => {
     disponivelParaRetirada.mockReset().mockResolvedValue(DISPONIVEL_DTO);
     fluxo.mockReset().mockResolvedValue(FLUXO_DTO);
+    relatoriosDre.mockReset().mockResolvedValueOnce(DRE_ATUAL_DTO).mockResolvedValue(DRE_ANTERIOR_DTO);
+    relatoriosContasEmAberto.mockReset().mockResolvedValue(CONTAS_EM_ABERTO_DTO);
+    extrato.mockReset().mockResolvedValue(EXTRATO_DTO);
     previsaoCaixa.mockReset().mockResolvedValue(PREVISAO_DTO);
     pontoEquilibrio.mockReset().mockResolvedValue(BREAKEVEN_DTO);
     inadimplencia.mockReset().mockResolvedValue(INADIMPLENCIA_DTO);
@@ -118,16 +166,20 @@ describe('useVisaoGeral', () => {
     consultor.mockReset().mockResolvedValue(CONSULTOR_DTO);
   });
 
-  it('começa carregando todos os 7 recursos e preenche com os adapters ao resolver', async () => {
+  it('começa carregando todos os recursos e preenche com os adapters ao resolver', async () => {
     const { result } = renderHook(() => useVisaoGeral());
 
     expect(result.current.disponivel.carregando).toBe(true);
     expect(result.current.timeline.carregando).toBe(true);
+    expect(result.current.lucroDoMes.carregando).toBe(true);
+    expect(result.current.proximosVencimentos.carregando).toBe(true);
     expect(result.current.sobrevivencia.runway.carregando).toBe(true);
     expect(result.current.consultor.carregando).toBe(true);
 
     await waitFor(() => expect(result.current.disponivel.carregando).toBe(false));
     await waitFor(() => expect(result.current.timeline.carregando).toBe(false));
+    await waitFor(() => expect(result.current.lucroDoMes.carregando).toBe(false));
+    await waitFor(() => expect(result.current.proximosVencimentos.carregando).toBe(false));
     await waitFor(() => expect(result.current.sobrevivencia.runway.carregando).toBe(false));
     await waitFor(() => expect(result.current.sobrevivencia.breakeven.carregando).toBe(false));
     await waitFor(() => expect(result.current.sobrevivencia.inadimplencia.carregando).toBe(false));
@@ -137,6 +189,10 @@ describe('useVisaoGeral', () => {
     expect(result.current.disponivel.dado?.livreDeVerdadeCentavos).toBe(400000);
     expect(result.current.disponivel.erro).toBeNull();
     expect(result.current.timeline.dado?.valoresDiarios).toEqual([1000]);
+    expect(result.current.lucroDoMes.dado?.lucroCentavos).toBe(300000);
+    expect(result.current.lucroDoMes.dado?.aReceberCentavos).toBe(500000);
+    expect(result.current.proximosVencimentos.dado).toHaveLength(1);
+    expect(result.current.proximosVencimentos.dado?.[0].descricao).toBe('Mercado São João');
     expect(result.current.sobrevivencia.runway.dado?.diasRunwayRealista).toBe(60);
     expect(result.current.sobrevivencia.breakeven.dado?.progressoPercentual).toBe(50);
     expect(result.current.consultor.dado?.insights).toHaveLength(2);
@@ -146,15 +202,17 @@ describe('useVisaoGeral', () => {
     expect(result.current.consultor.dado?.insights[1].drill).toBeNull();
   });
 
-  it('lucroDoMes/proximosVencimentos continuam vindo do mock; consultor agora vem da rede', async () => {
+  it('lucroDoMes/proximosVencimentos agora vêm da rede (extrato + relatorios/dre + contas-em-aberto)', async () => {
     const { result } = renderHook(() => useVisaoGeral());
-    await waitFor(() => expect(result.current.consultor.carregando).toBe(false));
+    await waitFor(() => expect(result.current.lucroDoMes.carregando).toBe(false));
+    await waitFor(() => expect(result.current.proximosVencimentos.carregando).toBe(false));
 
-    expect(result.current.lucroDoMes).toBeDefined();
-    expect(result.current.proximosVencimentos).toBeDefined();
-    expect(consultor).toHaveBeenCalledTimes(1);
-    expect(result.current.consultor.dado).not.toBeNull();
-    expect(result.current.consultor.erro).toBeNull();
+    expect(result.current.lucroDoMes.erro).toBeNull();
+    expect(result.current.lucroDoMes.dado).not.toBeNull();
+    expect(result.current.proximosVencimentos.erro).toBeNull();
+    expect(relatoriosDre).toHaveBeenCalledTimes(2);
+    expect(relatoriosContasEmAberto).toHaveBeenCalledTimes(1);
+    expect(extrato).toHaveBeenCalledTimes(1);
   });
 
   it('consultor fora do ar não derruba os outros blocos e cai numa mensagem de erro', async () => {

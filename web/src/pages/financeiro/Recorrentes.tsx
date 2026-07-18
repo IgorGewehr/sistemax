@@ -11,7 +11,7 @@ import type { LenteRecorrentes } from '@/components/financial/recorrentes/types'
 import { useAssinaturasDetalhe } from '@/components/financial/recorrentes/useAssinaturasDetalhe';
 import { useContasFixasReal } from '@/components/financial/recorrentes/useContasFixasReal';
 import { useReceitaRecorrente } from '@/components/financial/recorrentes/useReceitaRecorrente';
-import { PageHeader } from '@/components/shared';
+import { MockBadge, PageHeader } from '@/components/shared';
 import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Skeleton } from '@/components/ui/Skeleton';
@@ -39,8 +39,8 @@ const LENS_COPY: Record<LenteRecorrentes, { titulo: string; subtitulo: string; b
  * O resumo agregado de Assinaturas (MRR/ARR/ticket médio) e as duas tabelas nominais "Todas as ..."
  * já são dado REAL — ver `useReceitaRecorrente`/`useAssinaturasDetalhe`/`useContasFixasReal`. O
  * retrato analítico com histórico de 6/12 meses (`RetratoFixo`, MRR por serviço, retenção da
- * carteira) continua ilustrativo (`RECORRENTES_MOCK`) — esse cruzamento ainda não tem read-model
- * (docs/wiring/financeiro-telas-restantes.md §2).
+ * carteira) continua ilustrativo (`RECORRENTES_MOCK`), marcado com `MockBadge` — esse cruzamento
+ * ainda não tem read-model (docs/wiring/financeiro-telas-restantes.md §2).
  */
 export function Recorrentes() {
   const [lens, setLens] = useState<LenteRecorrentes>('fixas');
@@ -74,6 +74,12 @@ export function Recorrentes() {
 
       {lens === 'fixas' ? (
         <>
+          <div className="mb-3 flex items-center gap-2">
+            <MockBadge titulo="Cruzamento Recorrencia×histórico ainda não tem read-model — sem ele não há variação 6/12m nem alerta." />
+            <span className="text-xs text-muted-foreground">
+              "Retrato do fixo" e o histórico de 12 meses são ilustrativos — a tabela "Todas as recorrências" abaixo já é real.
+            </span>
+          </div>
           <PainelContasFixas data={RECORRENTES_MOCK.fixas} />
           {fixasReal.carregando ? (
             <Surface padding="lg" className="mb-4 min-h-[160px]">
@@ -111,6 +117,12 @@ export function Recorrentes() {
           ) : (
             <AssinaturasTabelaReal itens={assinaturasDetalhe.dado} />
           )}
+          <div className="mb-3 flex items-center gap-2">
+            <MockBadge titulo="MRR por serviço rico (clientes/churn/LTV/retenção) ainda não tem read-model — receita-recorrente só dá o agregado total." />
+            <span className="text-xs text-muted-foreground">
+              "MRR por serviço" e "Retenção da carteira" são ilustrativos — a tabela "Todas as assinaturas" acima já é real.
+            </span>
+          </div>
           <PainelAssinaturas data={RECORRENTES_MOCK.assinaturas} />
         </>
       )}

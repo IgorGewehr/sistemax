@@ -22,3 +22,16 @@ export function diffDays(fromIso: string, toIsoDate: string): number {
   const b = new Date(`${toIsoDate}T00:00:00`).getTime();
   return Math.round((b - a) / 86_400_000);
 }
+
+/** "2026-07-16" → "2026-07-01" — primeiro dia do mês daquela data. */
+export function startOfMonthIso(iso: string): string {
+  return `${iso.slice(0, 7)}-01`;
+}
+
+/** "2026-07-16" → "2026-07-31" — último dia do mês daquela data (calendário real, sem hardcode
+ * de 28/30/31). */
+export function endOfMonthIso(iso: string): string {
+  const [ano, mes] = iso.split('-');
+  const primeiroDoProximoMes = new Date(Number(ano), Number(mes), 1);
+  return addDays(toIso(primeiroDoProximoMes), -1);
+}

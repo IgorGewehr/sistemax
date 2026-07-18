@@ -2,9 +2,15 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { deConsultorDtos } from '@/lib/api/adapters/financeiro/consultor';
 import { deBreakevenDto, deInadimplenciaDto, deRadarSimplesDto, deRunwayDto } from '@/lib/api/adapters/financeiro/sobrevivencia';
-import { deDisponivelDto, deTimelineDto } from '@/lib/api/adapters/financeiro/visaoGeral';
+import {
+  deDisponivelDto,
+  deLucroDoMesDto,
+  deProximosVencimentosDeExtrato,
+  deTimelineDto,
+} from '@/lib/api/adapters/financeiro/visaoGeral';
 import { ApiError } from '@/lib/api/client';
 import { financeiroApi } from '@/lib/api/financeiro';
+import { addDays, endOfMonthIso, startOfMonthIso, todayIso } from '@/lib/date';
 import { visaoGeralMock } from '@/mocks/financeiro/visao-geral';
 
 import type {
@@ -13,7 +19,7 @@ import type {
   RadarSimplesCardData,
   RunwayCardData,
 } from './sobrevivencia/types';
-import type { ConsultorViewModel, DisponivelViewModel, TimelineViewModel } from './types';
+import type { ConsultorViewModel, DisponivelViewModel, LucroDoMesViewModel, ProximoVencimento, TimelineViewModel } from './types';
 
 export interface Recurso<T> {
   dado: T | null;
@@ -32,15 +38,19 @@ function mensagemDeErro(e: unknown): string {
 /**
  * Todo o estado de dado REAL de "Visão Geral" vive aqui — mesmo padrão de `useEstoque` (F1c),
  * mas com um `Recurso<T>` por bloco em vez de um `carregando`/`erroCarregamento` únicos: um card
- * quebrado (ex.: `/financeiro/inadimplencia` fora do ar) não deve derrubar os outros 5.
+ * quebrado (ex.: `/financeiro/inadimplencia` fora do ar) não deve derrubar os outros.
  *
- * `lucroDoMes`/`proximosVencimentos` continuam vindo do MOCK — não têm read-model exposto ainda
- * (`GET /financeiro/dre` não existe, ver docs/wiring/financeiro-api-contract.md §3); a página marca
- * esses blocos com `MockBadge`. O `consultor` (bloco ⑤) JÁ é real: `GET /financeiro/consultor`.
+ * `lucroDoMes` (DRE mês atual + anterior, `relatorios/dre`, + `relatorios/contas-em-aberto` pro
+ * "ainda por receber") e `proximosVencimentos` (`GET /financeiro/extrato`, linhas não pagas dos
+ * próximos 7 dias) viraram REAIS nesta reconciliação (docs/wiring/financeiro-telas-restantes.md
+ * §33) — nenhum dos dois usa mock nem precisa de `MockBadge` mais. O `consultor` (bloco ⑤) já era
+ * real: `GET /financeiro/consultor`.
  */
 export function useVisaoGeral() {
   const [disponivel, setDisponivel] = useState<Recurso<DisponivelViewModel>>(inicial);
   const [timeline, setTimeline] = useState<Recurso<TimelineViewModel>>(inicial);
+  const [lucroDoMes, setLucroDoMes] = useState<Recurso<LucroDoMesViewModel>>(inicial);
+  const [proximosVencimentos, setProximosVencimentos] = useState<Recurso<ProximoVencimento[]>>(inicial);
   const [runway, setRunway] = useState<Recurso<RunwayCardData>>(inicial);
   const [breakeven, setBreakeven] = useState<Recurso<BreakevenCardData>>(inicial);
   const [inadimplencia, setInadimplencia] = useState<Recurso<InadimplenciaCardData>>(inicial);
@@ -50,6 +60,8 @@ export function useVisaoGeral() {
   const carregar = useCallback(() => {
     setDisponivel(inicial());
     setTimeline(inicial());
+    setLucroDoMes(inicial());
+    setProximosVencimentos(inicial());
     setRunway(inicial());
     setBreakeven(inicial());
     setInadimplencia(inicial());
@@ -65,6 +77,30 @@ export function useVisaoGeral() {
       .fluxo()
       .then((dto) => setTimeline({ dado: deTimelineDto(dto), erro: null, carregando: false }))
       .catch((e) => setTimeline({ dado: null, erro: mensagemDeErro(e), carregando: false }));
+
+    const hoje = todayIso();
+    const mesAtual = { de: startOfMonthIso(hoje), ate: endOfMonthIso(hoje) };
+    const fimDoMesAnterior = addDays(mesAtual.de, -1);
+    const mesAnterior = { de: startOfMonthIso(fimDoMesAnterior), ate: fimDoMesAnterior };
+
+    Promise.all([
+      financeiroApi.relatoriosDre(mesAtual.de, mesAtual.ate),
+      financeiroApi.relatoriosDre(mesAnterior.de, mesAnterior.ate),
+      financeiroApi.relatoriosContasEmAberto(),
+    ])
+      .then(([dreAtual, dreAnterior, contasEmAberto]) => {
+        setLucroDoMes({
+          dado: deLucroDoMesDto(dreAtual, dreAnterior.resultadoOperacional.centavos, contasEmAberto),
+          erro: null,
+          carregando: false,
+        });
+      })
+      .catch((e) => setLucroDoMes({ dado: null, erro: mensagemDeErro(e), carregando: false }));
+
+    financeiroApi
+      .extrato(hoje, addDays(hoje, 7))
+      .then((dto) => setProximosVencimentos({ dado: deProximosVencimentosDeExtrato(dto.linhas), erro: null, carregando: false }))
+      .catch((e) => setProximosVencimentos({ dado: null, erro: mensagemDeErro(e), carregando: false }));
 
     financeiroApi
       .previsaoCaixa()
@@ -100,10 +136,10 @@ export function useVisaoGeral() {
     periodoLabel: visaoGeralMock.periodoLabel,
     disponivel,
     timeline,
-    // MOCK — sem endpoint ainda (GET /financeiro/dre não existe).
-    lucroDoMes: visaoGeralMock.lucroDoMes,
-    // MOCK — sem endpoint ainda (precisa juntar ContaAPagar+ContaAReceber por vencimento).
-    proximosVencimentos: visaoGeralMock.proximosVencimentos,
+    // REAL — relatorios/dre (atual + anterior) + relatorios/contas-em-aberto.
+    lucroDoMes,
+    // REAL — GET /financeiro/extrato (linhas não pagas dos próximos 7 dias).
+    proximosVencimentos,
     // REAL — GET /financeiro/consultor (insights narrados/rankeados pelo backend).
     consultor,
     sobrevivencia: { runway, breakeven, inadimplencia, radarSimples },

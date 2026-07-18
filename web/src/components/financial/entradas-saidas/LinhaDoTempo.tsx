@@ -1,6 +1,6 @@
 import { Plus } from 'lucide-react';
 
-import { SectionCard, StatusChip } from '@/components/shared';
+import { MockBadge, SectionCard, StatusChip } from '@/components/shared';
 import { formatDateShort } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
@@ -183,6 +183,10 @@ function SummaryRow({ resumoPdvMes, onVerExtratoCompleto }: { resumoPdvMes: Resu
   return (
     <tr>
       <td colSpan={6} className="px-4 py-3.5 text-center text-[12.5px] text-muted-foreground">
+        <MockBadge
+          className="mr-2 align-middle"
+          titulo="Resumo do PDV do mês ainda não é decomposto do extrato — número de exemplo."
+        />
         + {resumoPdvMes.qtdVendas} vendas menores no PDV este mês ({formatCentavosWhole(resumoPdvMes.totalCentavos)}) ·{' '}
         <a
           href="#"

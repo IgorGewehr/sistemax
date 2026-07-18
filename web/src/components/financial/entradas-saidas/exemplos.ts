@@ -1,11 +1,13 @@
 // Conteúdo ILUSTRATIVO — não vem de mock global (ver `mocks/financeiro/`), mas também não é dado
 // real: são os blocos de Entradas & Saídas que docs/wiring/financeiro-telas-restantes.md §1 marca
-// como sem read-model ainda ("Para onde foi o dinheiro" com histórico de 6 meses, o painel do
-// Super Consultor de Fornecedores com média histórica, o sparkline diário de "a receber"). Linha
-// do tempo, os 4 KPIs de topo e o bridge de competência×caixa JÁ são reais — ver `useEntradasSaidas.ts`.
+// como sem read-model ainda ("Para onde foi o dinheiro" com histórico de 6 meses, o resumo de
+// vendas do PDV no mês, o sparkline diário de "a receber") — todos marcados com `MockBadge` na UI.
+// Linha do tempo, os 4 KPIs de topo, o Super Consultor de Fornecedores e o bridge de
+// competência×caixa JÁ são reais — ver `useEntradasSaidas.ts`. `CONTAS_DISPONIVEIS_EXEMPLO` é só o
+// fallback do select de contas quando `GET /financeiro/contas-bancarias` falha (não um KPI).
 import { reais } from '@/lib/money';
 
-import type { CategoriaDespesaResumo, ConsultorFornecedoresData, ContaDisponivel, HeroSparkline, ResumoPdvMes } from './types';
+import type { CategoriaDespesaResumo, ContaDisponivel, HeroSparkline, ResumoPdvMes } from './types';
 
 export const CATEGORIAS_EXEMPLO: CategoriaDespesaResumo[] = [
   {
@@ -63,13 +65,6 @@ export const CATEGORIAS_EXEMPLO: CategoriaDespesaResumo[] = [
     maiorLancamento: { desc: 'Anúncios Instagram · 07/07', valorCentavos: reais(310) },
   },
 ];
-
-export const CONSULTOR_FORNECEDORES_EXEMPLO: ConsultorFornecedoresData = {
-  deltaPct: 42,
-  mediaHistoricaCentavos: reais(2183),
-  totalMesCentavos: reais(3100),
-  qtdPagamentos: 3,
-};
 
 export const SPARKLINE_RECEBER_EXEMPLO: HeroSparkline = {
   pathLinha: 'M0,22 L52,20 L104,24 L156,15 L208,12 L260,9',

@@ -13,26 +13,28 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { Surface } from '@/components/ui/Surface';
 import { RELATORIOS_MOCK } from '@/mocks/financeiro/relatorios';
 
-const BLOCO_LABEL: Record<'mrr' | 'aberto' | 'dreCompetencia', string> = {
+const BLOCO_LABEL: Record<'mrr' | 'aberto' | 'dreCompetencia' | 'extratoAccounts', string> = {
   mrr: 'MRR',
   aberto: 'Contas em aberto',
   dreCompetencia: 'DRE (competência)',
+  extratoAccounts: 'Contas do extrato',
 };
 
 /**
  * Página fina — só compõe as seções de `docs/ui/mockups/relatorios.html` (fonte da verdade) e
- * repassa o estado do `useRelatoriosController`. Os cards MRR, Contas em aberto e DRE (regime de
- * competência) são dado REAL — ver `useRelatoriosReais`. Regime de caixa, Pacote/Extrato por conta
- * e o histórico de exports continuam ilustrativos (`RELATORIOS_MOCK`) — sem read-model ainda
+ * repassa o estado do `useRelatoriosController`. Os cards MRR, Contas em aberto, DRE (regime de
+ * competência) e a lista de contas do "Extrato por conta" são dado REAL — ver `useRelatoriosReais`.
+ * Regime de caixa do DRE e a GERAÇÃO de pacote/extrato/histórico (PDF/Excel/ZIP, sem serviço no
+ * backend) continuam ilustrativos — marcados com `MockBadge` nos próprios cards
  * (docs/wiring/financeiro-telas-restantes.md §5).
  */
 export function Relatorios() {
   const c = useRelatoriosController(RELATORIOS_MOCK);
   const reais = useRelatoriosReais();
 
-  const carregandoReais = reais.mrr.carregando || reais.aberto.carregando || reais.dreCompetencia.carregando;
+  const carregandoReais = reais.mrr.carregando || reais.aberto.carregando || reais.dreCompetencia.carregando || reais.extratoAccounts.carregando;
 
-  const errosReais = (['mrr', 'aberto', 'dreCompetencia'] as const)
+  const errosReais = (['mrr', 'aberto', 'dreCompetencia', 'extratoAccounts'] as const)
     .filter((chave) => !reais[chave].carregando && reais[chave].erro)
     .map((chave) => ({ chave, mensagem: reais[chave].erro as string }));
 
@@ -48,8 +50,12 @@ export function Relatorios() {
           competencia: reais.dreCompetencia.dado ?? RELATORIOS_MOCK.dre.byRegime.competencia,
         },
       },
+      extrato: {
+        ...RELATORIOS_MOCK.extrato,
+        accounts: reais.extratoAccounts.dado ?? RELATORIOS_MOCK.extrato.accounts,
+      },
     }),
-    [reais.mrr.dado, reais.aberto.dado, reais.dreCompetencia.dado],
+    [reais.mrr.dado, reais.aberto.dado, reais.dreCompetencia.dado, reais.extratoAccounts.dado],
   );
 
   return (

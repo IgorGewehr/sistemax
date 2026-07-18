@@ -1,6 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { calcularConsultorFornecedores, calcularKpisAberto, deExtratoLinhas, saldoAcumuladoAte } from '@/lib/api/adapters/financeiro/entradasSaidas';
+import {
+  calcularConsultorFornecedores,
+  calcularKpisAberto,
+  deContasBancariasParaDisponiveis,
+  deExtratoLinhas,
+  saldoAcumuladoAte,
+} from '@/lib/api/adapters/financeiro/entradasSaidas';
 import { ApiError } from '@/lib/api/client';
 import { financeiroApi } from '@/lib/api/financeiro';
 import { addDays, todayIso } from '@/lib/date';
@@ -30,6 +36,7 @@ import type {
   BridgeNoteData,
   CategoriaDespesaId,
   ConsultorFornecedoresData,
+  ContaDisponivel,
   EntradasSaidasKpis,
   FiltroAtivo,
   LancamentoRow,
@@ -104,6 +111,10 @@ export function useEntradasSaidas() {
   const [kpis, setKpis] = useState<Recurso<EntradasSaidasKpis>>(inicial);
   const [bridge, setBridge] = useState<Recurso<BridgeNoteData>>(inicial);
   const [consultorFornecedores, setConsultorFornecedores] = useState<Recurso<ConsultorFornecedoresData>>(inicial);
+  // Select de contas do modal — real via `GET /financeiro/contas-bancarias` (mesmo endpoint do
+  // Bancário); cai pro exemplo ilustrativo só se a chamada falhar (não é um "número" exibido na
+  // tela, é um select de formulário — sem `MockBadge` por não ser dado analítico).
+  const [contasDisponiveis, setContasDisponiveis] = useState<ContaDisponivel[]>(CONTAS_DISPONIVEIS_EXEMPLO);
 
   const [segFiltro, setSegFiltro] = useState<SegFiltro>('tudo');
   const [filtroAtivo, setFiltroAtivo] = useState<FiltroAtivo | null>(null);
@@ -185,6 +196,15 @@ export function useEntradasSaidas() {
   useEffect(() => {
     carregarTimeline();
     carregarKpis();
+    financeiroApi
+      .contasBancarias()
+      .then((dtos) => {
+        const contas = deContasBancariasParaDisponiveis(dtos);
+        if (contas.length > 0) setContasDisponiveis(contas);
+      })
+      .catch(() => {
+        // Mantém o fallback ilustrativo — não é um KPI, é um select de formulário.
+      });
   }, [carregarTimeline, carregarKpis]);
 
   const totalDespesas = useMemo(() => totalDespesasCentavos(CATEGORIAS_EXEMPLO), []);
@@ -285,7 +305,8 @@ export function useEntradasSaidas() {
     consultorFornecedores,
     resumoPdvMes: RESUMO_PDV_MES_EXEMPLO,
     mesesHistorico: MESES_HISTORICO_EXEMPLO,
-    contasDisponiveis: CONTAS_DISPONIVEIS_EXEMPLO,
+    // REAL — GET /financeiro/contas-bancarias (fallback ilustrativo só se a chamada falhar).
+    contasDisponiveis,
     categoriasLancamentoRapido: CATEGORIAS_LANCAMENTO_RAPIDO_EXEMPLO,
 
     barras,

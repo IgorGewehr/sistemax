@@ -1,6 +1,6 @@
 import { ArrowLeft } from 'lucide-react';
 
-import { SectionCard } from '@/components/shared';
+import { MockBadge, SectionCard } from '@/components/shared';
 
 import { categoriaCorCss } from './calc';
 import { CategoriaColunas } from './CategoriaColunas';
@@ -34,6 +34,7 @@ export function GastosPorCategoria({ barras, categoriaSelecionada, drillStats, m
           </span>
         }
         hint="6 meses · sua média em tracejado"
+        actions={<MockBadge titulo="Quebra por categoria em 6 meses ainda não tem read-model — a soma do mês vem de exemplo." />}
       >
         <div className="px-3.5 pb-1">
           <CategoriaColunas categoria={categoriaSelecionada} mediaCentavos={drillStats.avg5Centavos} anomalia={drillStats.isAnomalia} meses={meses} />
@@ -53,7 +54,11 @@ export function GastosPorCategoria({ barras, categoriaSelecionada, drillStats, m
   }
 
   return (
-    <SectionCard title="Para onde foi o dinheiro" hint="clique numa categoria p/ ver 6 meses →">
+    <SectionCard
+      title="Para onde foi o dinheiro"
+      hint="clique numa categoria p/ ver 6 meses →"
+      actions={<MockBadge titulo="Quebra por categoria em 6 meses ainda não tem read-model no backend." />}
+    >
       <div className="flex flex-col gap-3 px-3.5 pb-4 pt-1">
         {barras.map((barra) => (
           <button

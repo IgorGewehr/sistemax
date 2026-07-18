@@ -1,6 +1,6 @@
 import { ArrowDownRight, ArrowUpRight } from 'lucide-react';
 
-import { KpiCard } from '@/components/shared';
+import { KpiCard, MockBadge } from '@/components/shared';
 import { InfoTooltip } from '@/components/ui/InfoTooltip';
 import { cn } from '@/lib/utils';
 
@@ -18,6 +18,10 @@ export function KpiRow({ kpis }: KpiRowProps) {
   return (
     <section className="mb-3.5 grid grid-cols-2 gap-3.5 md:grid-cols-4">
       <KpiCard hero label="A receber em aberto" value={<MoneyValue centavos={kpis.aReceberAbertoCentavos} />}>
+        <MockBadge
+          className="absolute right-3 top-3"
+          titulo="Só a linha do gráfico é ilustrativa (falta série diária de 'a receber') — o valor acima é real."
+        />
         <div className="flex items-center gap-1.5 text-[12.5px] font-semibold text-crit">
           <span className="h-[7px] w-[7px] flex-none rounded-full bg-current" />
           <MoneyValue centavos={kpis.aReceberAtrasadoCentavos} /> atrasado

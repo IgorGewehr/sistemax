@@ -1,25 +1,28 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { deConsultorDtos } from '@/lib/api/adapters/financeiro/consultor';
-import { deBreakevenDto, deInadimplenciaDto, deRadarSimplesDto, deRunwayDto } from '@/lib/api/adapters/financeiro/sobrevivencia';
 import {
-  deDisponivelDto,
-  deLucroDoMesDto,
-  deProximosVencimentosDeExtrato,
+  deAbertoResumoDto,
+  deDreResumoDto,
+  deGaugeDto,
+  deInvestimentoDto,
+  deSimplesDto,
+  deTileAssinaturasDto,
   deTimelineDto,
 } from '@/lib/api/adapters/financeiro/visaoGeral';
+import { calcularKpisAberto, deExtratoLinhas } from '@/lib/api/adapters/financeiro/entradasSaidas';
 import { ApiError } from '@/lib/api/client';
-import { financeiroApi } from '@/lib/api/financeiro';
+import { financeiroApi, type ConfiguracaoFinanceiraDto } from '@/lib/api/financeiro';
 import { addDays, endOfMonthIso, startOfMonthIso, todayIso } from '@/lib/date';
-import { visaoGeralMock } from '@/mocks/financeiro/visao-geral';
 
 import type {
-  BreakevenCardData,
-  InadimplenciaCardData,
-  RadarSimplesCardData,
-  RunwayCardData,
-} from './sobrevivencia/types';
-import type { ConsultorViewModel, DisponivelViewModel, LucroDoMesViewModel, ProximoVencimento, TimelineViewModel } from './types';
+  AbertoResumoViewModel,
+  DreResumoViewModel,
+  GaugeViewModel,
+  InvestimentoViewModel,
+  SimplesViewModel,
+  TileAssinaturasViewModel,
+  TimelineViewModel,
+} from './types';
 
 export interface Recurso<T> {
   dado: T | null;
@@ -35,97 +38,107 @@ function mensagemDeErro(e: unknown): string {
   return e instanceof ApiError ? e.message : 'Não foi possível carregar.';
 }
 
+/** "Tudo em aberto" — mesmo horizonte largo (10 anos pra frente, desde 2015) já usado pelos KPIs
+ * REAIS de Entradas & Saídas (`useEntradasSaidas.ts`) — reusar garante que "A receber"/"A pagar"
+ * aqui batem com os mesmos números que o usuário vê ao dar drill nessa tela. */
+const HORIZONTE_ABERTO_DE = '2015-01-01';
+function horizonteAbertoAte(): string {
+  return addDays(todayIso(), 365 * 10);
+}
+
+const MESES_PT_MIN = [
+  'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
+  'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro',
+];
+
+/** "2026-07-18" → "Julho 2026" — mesmo rótulo do pill de período do `PageHeader`. */
+function periodoLabelDeIso(iso: string): string {
+  const nome = MESES_PT_MIN[Number(iso.slice(5, 7)) - 1] ?? iso.slice(5, 7);
+  return `${nome.charAt(0).toUpperCase()}${nome.slice(1)} ${iso.slice(0, 4)}`;
+}
+
 /**
- * Todo o estado de dado REAL de "Visão Geral" vive aqui — mesmo padrão de `useEstoque` (F1c),
- * mas com um `Recurso<T>` por bloco em vez de um `carregando`/`erroCarregamento` únicos: um card
- * quebrado (ex.: `/financeiro/inadimplencia` fora do ar) não deve derrubar os outros.
- *
- * `lucroDoMes` (DRE mês atual + anterior, `relatorios/dre`, + `relatorios/contas-em-aberto` pro
- * "ainda por receber") e `proximosVencimentos` (`GET /financeiro/extrato`, linhas não pagas dos
- * próximos 7 dias) viraram REAIS nesta reconciliação (docs/wiring/financeiro-telas-restantes.md
- * §33) — nenhum dos dois usa mock nem precisa de `MockBadge` mais. O `consultor` (bloco ⑤) já era
- * real: `GET /financeiro/consultor`.
+ * Todo o estado de dado REAL da Visão Geral v3 vive aqui — um `Recurso<T>` por bloco (mesmo padrão
+ * de `useEstoque`/`useEntradasSaidas`): um endpoint fora do ar não derruba os outros. `gauge` junta
+ * `previsao-caixa` + `disponivel-retirada` (viram UM card no mockup); `abertoResumo` junta os dois
+ * tiles "A receber"/"A pagar" (mesma chamada de extrato); `dre` junta o tile "Resultado" e o mix
+ * das 3 correntes (mesma chamada `relatorios/dre`). `investimento` só é buscado quando
+ * `configuracao.imobilizadoRoiAtivo` está ligado — desligado, o card "some elegante" (mesmo
+ * comportamento do toggle de demo do mockup), sem 404 ruidoso no console.
  */
 export function useVisaoGeral() {
-  const [disponivel, setDisponivel] = useState<Recurso<DisponivelViewModel>>(inicial);
+  const [gauge, setGauge] = useState<Recurso<GaugeViewModel>>(inicial);
   const [timeline, setTimeline] = useState<Recurso<TimelineViewModel>>(inicial);
-  const [lucroDoMes, setLucroDoMes] = useState<Recurso<LucroDoMesViewModel>>(inicial);
-  const [proximosVencimentos, setProximosVencimentos] = useState<Recurso<ProximoVencimento[]>>(inicial);
-  const [runway, setRunway] = useState<Recurso<RunwayCardData>>(inicial);
-  const [breakeven, setBreakeven] = useState<Recurso<BreakevenCardData>>(inicial);
-  const [inadimplencia, setInadimplencia] = useState<Recurso<InadimplenciaCardData>>(inicial);
-  const [radarSimples, setRadarSimples] = useState<Recurso<RadarSimplesCardData>>(inicial);
-  const [consultor, setConsultor] = useState<Recurso<ConsultorViewModel>>(inicial);
+  const [abertoResumo, setAbertoResumo] = useState<Recurso<AbertoResumoViewModel>>(inicial);
+  const [dre, setDre] = useState<Recurso<DreResumoViewModel>>(inicial);
+  const [recorrente, setRecorrente] = useState<Recurso<TileAssinaturasViewModel>>(inicial);
+  const [radar, setRadar] = useState<Recurso<SimplesViewModel>>(inicial);
+  const [configuracao, setConfiguracao] = useState<Recurso<ConfiguracaoFinanceiraDto>>(inicial);
+  const [investimento, setInvestimento] = useState<Recurso<InvestimentoViewModel>>(inicial);
 
   const carregar = useCallback(() => {
-    setDisponivel(inicial());
+    setGauge(inicial());
     setTimeline(inicial());
-    setLucroDoMes(inicial());
-    setProximosVencimentos(inicial());
-    setRunway(inicial());
-    setBreakeven(inicial());
-    setInadimplencia(inicial());
-    setRadarSimples(inicial());
-    setConsultor(inicial());
+    setAbertoResumo(inicial());
+    setDre(inicial());
+    setRecorrente(inicial());
+    setRadar(inicial());
+    setConfiguracao(inicial());
+    setInvestimento(inicial());
+
+    Promise.all([financeiroApi.previsaoCaixa(), financeiroApi.disponivelParaRetirada()])
+      .then(([previsaoDto, disponivelDto]) => setGauge({ dado: deGaugeDto(previsaoDto, disponivelDto), erro: null, carregando: false }))
+      .catch((e: unknown) => setGauge({ dado: null, erro: mensagemDeErro(e), carregando: false }));
 
     financeiroApi
-      .disponivelParaRetirada()
-      .then((dto) => setDisponivel({ dado: deDisponivelDto(dto), erro: null, carregando: false }))
-      .catch((e) => setDisponivel({ dado: null, erro: mensagemDeErro(e), carregando: false }));
-
-    financeiroApi
-      .fluxo()
+      .fluxo(14, 30)
       .then((dto) => setTimeline({ dado: deTimelineDto(dto), erro: null, carregando: false }))
-      .catch((e) => setTimeline({ dado: null, erro: mensagemDeErro(e), carregando: false }));
+      .catch((e: unknown) => setTimeline({ dado: null, erro: mensagemDeErro(e), carregando: false }));
 
     const hoje = todayIso();
+    financeiroApi
+      .extrato(HORIZONTE_ABERTO_DE, horizonteAbertoAte())
+      .then((dto) => {
+        const linhas = deExtratoLinhas(dto.linhas);
+        setAbertoResumo({ dado: deAbertoResumoDto(calcularKpisAberto(linhas), linhas, hoje), erro: null, carregando: false });
+      })
+      .catch((e: unknown) => setAbertoResumo({ dado: null, erro: mensagemDeErro(e), carregando: false }));
+
     const mesAtual = { de: startOfMonthIso(hoje), ate: endOfMonthIso(hoje) };
     const fimDoMesAnterior = addDays(mesAtual.de, -1);
     const mesAnterior = { de: startOfMonthIso(fimDoMesAnterior), ate: fimDoMesAnterior };
 
-    Promise.all([
-      financeiroApi.relatoriosDre(mesAtual.de, mesAtual.ate),
-      financeiroApi.relatoriosDre(mesAnterior.de, mesAnterior.ate),
-      financeiroApi.relatoriosContasEmAberto(),
-    ])
-      .then(([dreAtual, dreAnterior, contasEmAberto]) => {
-        setLucroDoMes({
-          dado: deLucroDoMesDto(dreAtual, dreAnterior.resultadoOperacional.centavos, contasEmAberto),
-          erro: null,
-          carregando: false,
-        });
-      })
-      .catch((e) => setLucroDoMes({ dado: null, erro: mensagemDeErro(e), carregando: false }));
+    Promise.all([financeiroApi.relatoriosDre(mesAtual.de, mesAtual.ate), financeiroApi.relatoriosDre(mesAnterior.de, mesAnterior.ate)])
+      .then(([atual, anterior]) => setDre({ dado: deDreResumoDto(atual, anterior.resultadoOperacional.centavos), erro: null, carregando: false }))
+      .catch((e: unknown) => setDre({ dado: null, erro: mensagemDeErro(e), carregando: false }));
 
     financeiroApi
-      .extrato(hoje, addDays(hoje, 7))
-      .then((dto) => setProximosVencimentos({ dado: deProximosVencimentosDeExtrato(dto.linhas), erro: null, carregando: false }))
-      .catch((e) => setProximosVencimentos({ dado: null, erro: mensagemDeErro(e), carregando: false }));
-
-    financeiroApi
-      .previsaoCaixa()
-      .then((dto) => setRunway({ dado: deRunwayDto(dto), erro: null, carregando: false }))
-      .catch((e) => setRunway({ dado: null, erro: mensagemDeErro(e), carregando: false }));
-
-    financeiroApi
-      .pontoEquilibrio()
-      .then((dto) => setBreakeven({ dado: deBreakevenDto(dto), erro: null, carregando: false }))
-      .catch((e) => setBreakeven({ dado: null, erro: mensagemDeErro(e), carregando: false }));
-
-    financeiroApi
-      .inadimplencia()
-      .then((dto) => setInadimplencia({ dado: deInadimplenciaDto(dto), erro: null, carregando: false }))
-      .catch((e) => setInadimplencia({ dado: null, erro: mensagemDeErro(e), carregando: false }));
+      .receitaRecorrente()
+      .then((dto) => setRecorrente({ dado: deTileAssinaturasDto(dto), erro: null, carregando: false }))
+      .catch((e: unknown) => setRecorrente({ dado: null, erro: mensagemDeErro(e), carregando: false }));
 
     financeiroApi
       .radarSimples()
-      .then((dto) => setRadarSimples({ dado: deRadarSimplesDto(dto), erro: null, carregando: false }))
-      .catch((e) => setRadarSimples({ dado: null, erro: mensagemDeErro(e), carregando: false }));
+      .then((dto) => setRadar({ dado: deSimplesDto(dto), erro: null, carregando: false }))
+      .catch((e: unknown) => setRadar({ dado: null, erro: mensagemDeErro(e), carregando: false }));
 
     financeiroApi
-      .consultor()
-      .then((dto) => setConsultor({ dado: deConsultorDtos(dto), erro: null, carregando: false }))
-      .catch((e) => setConsultor({ dado: null, erro: mensagemDeErro(e), carregando: false }));
+      .configuracoes()
+      .then((cfgDto) => {
+        setConfiguracao({ dado: cfgDto, erro: null, carregando: false });
+        if (!cfgDto.imobilizadoRoiAtivo) {
+          setInvestimento({ dado: null, erro: null, carregando: false });
+          return;
+        }
+        financeiroApi
+          .roiNegocio()
+          .then((roiDto) => setInvestimento({ dado: deInvestimentoDto(roiDto), erro: null, carregando: false }))
+          .catch((e: unknown) => setInvestimento({ dado: null, erro: mensagemDeErro(e), carregando: false }));
+      })
+      .catch((e: unknown) => {
+        setConfiguracao({ dado: null, erro: mensagemDeErro(e), carregando: false });
+        setInvestimento({ dado: null, erro: null, carregando: false });
+      });
   }, []);
 
   useEffect(() => {
@@ -133,16 +146,15 @@ export function useVisaoGeral() {
   }, [carregar]);
 
   return {
-    periodoLabel: visaoGeralMock.periodoLabel,
-    disponivel,
+    periodoLabel: periodoLabelDeIso(todayIso()),
+    gauge,
     timeline,
-    // REAL — relatorios/dre (atual + anterior) + relatorios/contas-em-aberto.
-    lucroDoMes,
-    // REAL — GET /financeiro/extrato (linhas não pagas dos próximos 7 dias).
-    proximosVencimentos,
-    // REAL — GET /financeiro/consultor (insights narrados/rankeados pelo backend).
-    consultor,
-    sobrevivencia: { runway, breakeven, inadimplencia, radarSimples },
+    abertoResumo,
+    dre,
+    recorrente,
+    radar,
+    configuracao,
+    investimento,
     recarregar: carregar,
   };
 }

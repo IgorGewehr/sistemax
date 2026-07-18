@@ -1,134 +1,249 @@
 /**
- * DTO (.NET, `Money`/camelCase) → fatia do `VisaoGeralViewModel` (SDD em
- * `components/financial/visao-geral/types.ts`). Função pura, zero React — ver o padrão em
- * `docs/wiring/financeiro-api-contract.md` §9.1. Blocos com read-model real hoje: `disponivel`
- * (`QuantoSobrouDeVerdadeService`), `timeline` (`FluxoDeCaixaService`), `lucroDoMes`
- * (`DreGerencialService` + `ContasEmAbertoService`, ver docs/wiring/financeiro-telas-restantes.md)
- * e `proximosVencimentos` (reusa `GET /financeiro/extrato` — mesmo endpoint de Entradas & Saídas,
- * sem round-trip próprio).
+ * DTO (.NET, `Money`/camelCase) → view-model da Visão Geral v3 (SDD em
+ * `components/financial/visao-geral/types.ts`). Funções puras, zero React — mesmo padrão de
+ * `docs/wiring/financeiro-api-contract.md` §9.1. Reusa `calcularKpisAberto`/`deExtratoLinhas`
+ * (`adapters/financeiro/entradasSaidas.ts`) para as tiles "A receber"/"A pagar" — mesmo dataset já
+ * usado (e testado) pela tela Entradas & Saídas, números sempre consistentes entre as duas telas.
  */
-import type { DisponivelViewModel, LucroDoMesViewModel, ProximoVencimento, TimelineViewModel } from '@/components/financial/visao-geral/types';
-import type { ContasEmAbertoDto, DisponivelParaRetiradaDto, DreDto, ExtratoLinhaDto, FluxoDeCaixaDto } from '@/lib/api/financeiro';
+import type {
+  AbertoResumoViewModel,
+  CorrenteChave,
+  DreResumoViewModel,
+  GaugeViewModel,
+  InvestimentoViewModel,
+  MixViewModel,
+  SegmentoMix,
+  SemanaPagar,
+  SimplesViewModel,
+  TileAPagarViewModel,
+  TileAReceberViewModel,
+  TileAssinaturasViewModel,
+  TileResultadoViewModel,
+  TimelinePonto,
+  TimelineViewModel,
+  ZonaFolego,
+} from '@/components/financial/visao-geral/types';
+import type { KpisAbertoReal } from '@/lib/api/adapters/financeiro/entradasSaidas';
+import type {
+  CorrenteDeReceitaOrdinal,
+  DisponivelParaRetiradaDto,
+  DreDto,
+  FluxoDeCaixaDto,
+  PrevisaoDeCaixaDto,
+  RadarDoSimplesDto,
+  ReceitaRecorrenteDto,
+  RoiDoNegocioDto,
+} from '@/lib/api/financeiro';
+import type { LancamentoRow } from '@/components/financial/entradas-saidas/types';
+import { addDays } from '@/lib/date';
 
-/** "Quanto sobrou de verdade" — hoje é 30 dias fixo de contas a pagar, sem imposto (o próprio
- * XML doc do serviço .NET admite: "fórmula do MVP, REDUZIDA"). O sublabel do mockup original
- * prometia "(15 dias + imposto)" — trocado aqui pra não afirmar o que o dado não confere (ver
- * docs/wiring/financeiro-api-contract.md §3, nota de rodapé). */
-export function deDisponivelDto(dto: DisponivelParaRetiradaDto): DisponivelViewModel {
+// ─── ① Medidor de fôlego + chips (previsao-caixa + disponivel-retirada) ──────────────────────
+
+function zonaFolego(dias: number): ZonaFolego {
+  if (dias < 15) return 'crit';
+  if (dias < 30) return 'warn';
+  return 'pos';
+}
+
+const VERDICT_LABEL: Record<ZonaFolego, string> = { pos: 'Saudável', warn: 'Atenção', crit: 'Crítico' };
+
+export function deGaugeDto(previsao: PrevisaoDeCaixaDto, disponivel: DisponivelParaRetiradaDto): GaugeViewModel {
+  const dias = previsao.diasRunwayRealista ?? previsao.diasRunwayBruto;
+  const zona = dias === null ? 'warn' : zonaFolego(dias);
+  const probPct = Math.round(previsao.probabilidadeSaldoNegativoEm30Dias * 100);
+  const diasLabel = dias === null ? 'sem estimativa' : `${dias} dias`;
+
   return {
-    livreDeVerdadeCentavos: dto.podeTirar.centavos,
-    noBancoEGaveta: {
-      label: 'No banco e na gaveta hoje',
-      valorCentavos: dto.saldoEmCaixa.centavos,
-      tone: 'pos',
-      arrowLabel: 'Bancário →',
-      drill: { rota: '/financeiro/bancario', mensagem: '→ Bancário — saldo por conta (banco + gaveta)' },
-    },
-    jaTemDono: {
-      label: 'Já tem dono',
-      sublabel: '(30 dias)',
-      valorCentavos: -dto.jaTemDono.centavos,
-      tone: 'crit',
-      arrowLabel: 'E&S →',
-      drill: {
-        rota: '/financeiro/entradas-saidas',
-        mensagem: '→ Entradas & Saídas — contas a pagar nos próximos 30 dias',
-      },
+    diasFolego: dias,
+    zona,
+    verdictoLabel: dias === null ? 'Sem dado' : VERDICT_LABEL[zona],
+    probabilidadeFaltarPercent: probPct,
+    tooltip:
+      'Fôlego: quantos dias o caixa segura se nada novo entrar, já contando tudo que está agendado pra sair. ' +
+      `Verde: mais de 30 dias · âmbar: 15 a 30 · vermelho: menos de 15. Hoje: ${diasLabel} e ${probPct}% de chance de faltar caixa no mês.`,
+    emCaixaCentavos: disponivel.saldoEmCaixa.centavos,
+    podeTirarCentavos: disponivel.podeTirar.centavos,
+    drillDial: { rota: '/financeiro/fluxo-de-caixa', mensagem: '→ Fluxo de caixa — projeção dia a dia e fôlego' },
+    drillEmCaixa: { rota: '/financeiro/bancario', mensagem: '→ Bancário — saldo por conta (banco + gaveta)' },
+    drillPodeTirar: {
+      rota: '/financeiro/entradas-saidas',
+      mensagem: '→ Entradas & Saídas — o que já tem dono nos próximos dias',
     },
   };
 }
 
-/** Índice do último ponto REALIZADO (não projetado) — é "hoje" na timeline. */
-function hojeIndexDe(pontos: FluxoDeCaixaDto['pontos']): number {
-  let idx = 0;
-  for (let i = 0; i < pontos.length; i++) {
-    if (!pontos[i].projetado) idx = i;
-  }
-  return idx;
-}
+// ─── ①b Projeção do caixa (fluxo) ────────────────────────────────────────────────────────────
 
-/**
- * `eventosPorDia` fica vazio de propósito: `PontoFluxoCaixa` (.NET) não carrega descrição de
- * origem por dia (precisaria juntar com `ContaAPagar.Descricao`/`ContaAReceber.Descricao` por
- * vencimento — read-model que ainda não existe, ver contrato §3). Preencher com os textos do mock
- * ("Aluguel", "Folha de pagamento"...) por cima de datas REAIS seria inventar dado — o tooltip cai
- * pro texto genérico "Sem vencimento grande" do componente em vez de mentir uma origem.
- */
 export function deTimelineDto(dto: FluxoDeCaixaDto): TimelineViewModel {
-  const valoresDiarios = dto.pontos.map((p) => p.saldoAcumulado.centavos);
-  const datasISO = dto.pontos.map((p) => p.data);
-  const hojeIndex = hojeIndexDe(dto.pontos);
-  const mesLabel = (datasISO[hojeIndex] ?? datasISO[0] ?? '').split('-')[1] ?? '';
+  const pontos: TimelinePonto[] = dto.pontos.map((p, i) => ({
+    index: i,
+    dataIso: p.data.split('T')[0] ?? p.data,
+    saldoCentavos: p.saldoAcumulado.centavos,
+    projetado: p.projetado,
+  }));
 
-  return { valoresDiarios, hojeIndex, eventosPorDia: {}, mesLabel, datasISO };
+  let hojeIndex = 0;
+  let menorIndex = 0;
+  pontos.forEach((p, i) => {
+    if (!p.projetado) hojeIndex = i;
+    if (p.saldoCentavos < pontos[menorIndex].saldoCentavos) menorIndex = i;
+  });
+
+  return { pontos, hojeIndex, menorIndex };
 }
 
-/**
- * "Lucro do mês" (bloco ①b) — resultado de competência vem do MESMO `DreGerencialService` que
- * Entradas & Saídas/Relatórios já consomem (`atual`); o delta vs mês passado precisa de uma 2ª
- * chamada com o período anterior (`anteriorResultadoCentavos`, calculado no hook — nunca
- * duplicado aqui). `margemPorRealCentavos` ("de cada R$1 vendido, sobram R$X") é derivado de
- * `resultadoOperacional ÷ receitaBruta`, não um número separado no DTO. `aReceberCentavos` (a
- * ponte "lucro > disponível porque ainda falta receber") reusa `ContasEmAbertoService` — mesmo
- * dado que alimenta o card "Contas em aberto" de Relatórios, sem endpoint próprio.
- */
-export function deLucroDoMesDto(atual: DreDto, anteriorResultadoCentavos: number, contasEmAberto: ContasEmAbertoDto): LucroDoMesViewModel {
-  const lucroCentavos = atual.resultadoOperacional.centavos;
-  const deltaAbsCentavos = lucroCentavos - anteriorResultadoCentavos;
-  const deltaPercentual =
-    anteriorResultadoCentavos !== 0 ? Math.round((deltaAbsCentavos / Math.abs(anteriorResultadoCentavos)) * 100) : 0;
+// ─── ② Tiles "A receber"/"A pagar" (mesmo extrato de horizonte largo de Entradas & Saídas) ───
 
-  const receitaBrutaCentavos = atual.receitaBruta.centavos;
-  const margemPorRealCentavos = receitaBrutaCentavos > 0 ? Math.round((lucroCentavos / receitaBrutaCentavos) * 100) : 0;
+export function deTileAReceberDto(kpis: KpisAbertoReal): TileAReceberViewModel {
+  const total = kpis.aReceberAbertoCentavos;
+  const atrasado = kpis.aReceberAtrasadoCentavos;
+  const pctAtrasado = total > 0 ? Math.round((atrasado / total) * 100) : 0;
 
   return {
-    lucroCentavos,
-    deltaPercentual: Math.abs(deltaPercentual),
-    deltaDirecao: deltaPercentual >= 0 ? 'up' : 'down',
-    margemPorRealCentavos,
-    aReceberCentavos: contasEmAberto.receberEmAberto.centavos,
-    verDeOndeVeio: { rota: '/financeiro/entradas-saidas', mensagem: '→ Entradas & Saídas — composição do resultado do mês' },
+    totalCentavos: total,
+    atrasadoCentavos: atrasado,
+    pctEmDia: 100 - pctAtrasado,
+    pctAtrasado,
+    drill: {
+      rota: '/financeiro/entradas-saidas',
+      mensagem: '→ Entradas & Saídas — recebíveis em aberto, atrasados primeiro',
+    },
   };
 }
 
-const DIAS_SEMANA_PT = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+const MS_DIA = 86_400_000;
 
-/** "2026-07-18T00:00:00-03:00" ou "2026-07-18" → "sáb 18/07". Nunca `new Date(iso)` da string
- * inteira — extrai ano/mês/dia por componentes (determinístico, sem ambiguidade de timezone),
- * mesma diretriz de `adapters/financeiro/bancario.ts`/`entradasSaidas.ts`. */
-function dataLabelDeIso(iso: string): string {
-  const [ano, mes, dia] = iso
-    .split('T')[0]
-    .split('-')
-    .map((p) => Number(p));
-  if (!ano || !mes || !dia) return iso;
-  const data = new Date(ano, mes - 1, dia);
-  return `${DIAS_SEMANA_PT[data.getDay()]} ${String(dia).padStart(2, '0')}/${String(mes).padStart(2, '0')}`;
+/** "18–24/07" (mesmo mês) ou "29/07–04/08" (vira o mês) — janela de 7 dias a partir de `hojeIso`. */
+function labelSemana(hojeIso: string, bucketIdx: number): string {
+  const inicio = addDays(hojeIso, bucketIdx * 7);
+  const fim = addDays(hojeIso, bucketIdx * 7 + 6);
+  const [, mesInicio, diaInicio] = inicio.split('-');
+  const [, mesFim, diaFim] = fim.split('-');
+  return mesInicio === mesFim ? `${diaInicio}–${diaFim}/${mesFim}` : `${diaInicio}/${mesInicio}–${diaFim}/${mesFim}`;
 }
 
-/**
- * "Próximos 7 dias" (bloco ④) — SEM endpoint próprio: reusa `GET /financeiro/extrato` (o mesmo
- * read-model de Entradas & Saídas), filtrando as linhas ainda não pagas (previsto/atrasado) dentro
- * da janela pedida pelo hook e ordenando por data. Itemizado e 100% real — nenhum campo do mock
- * fica sem fonte.
- */
-export function deProximosVencimentosDeExtrato(dtos: ExtratoLinhaDto[]): ProximoVencimento[] {
-  return [...dtos]
-    .filter((l) => l.status !== 'pago')
-    .sort((a, b) => a.data.localeCompare(b.data))
-    .map((l) => {
-      const tone: 'pos' | 'crit' = l.tipo === 'entrada' ? 'pos' : 'crit';
-      const sinal = l.tipo === 'entrada' ? 1 : -1;
-      const dataLabel = dataLabelDeIso(l.data);
-      return {
-        dataLabel,
-        valorCentavos: sinal * l.valor.centavos,
-        tone,
-        descricao: l.descricao,
-        drill: {
-          rota: '/financeiro/entradas-saidas',
-          mensagem: `→ Entradas & Saídas — ${l.descricao}, vence ${dataLabel.split(' ')[1] ?? dataLabel}`,
-        },
-      };
-    });
+/** 4 baldes semanais (28 dias) das saídas ainda não pagas a partir de hoje — o "quando o dinheiro
+ * sai" do mockup. Atrasados (data < hoje) ficam fora do balde: já estão contados no total/maior,
+ * mas a barra é sobre o que ainda vai vencer, não sobre o passado. */
+function semanasPagar(linhas: LancamentoRow[], hojeIso: string): SemanaPagar[] {
+  const hoje = new Date(`${hojeIso}T00:00:00`).getTime();
+  const baldes = [0, 0, 0, 0];
+
+  linhas.forEach((l) => {
+    if (l.tipo !== 'saida' || l.status === 'pago') return;
+    const diff = Math.floor((new Date(`${l.data}T00:00:00`).getTime() - hoje) / MS_DIA);
+    if (diff < 0 || diff >= 28) return;
+    const idx = Math.floor(diff / 7);
+    baldes[idx] += l.valorCentavos;
+  });
+
+  const maiorBalde = Math.max(...baldes);
+  return baldes.map((valor, i) => ({
+    label: labelSemana(hojeIso, i),
+    valorCentavos: valor,
+    alturaPct: maiorBalde > 0 ? Math.round((valor / maiorBalde) * 100) : 0,
+    destaque: maiorBalde > 0 && valor === maiorBalde,
+  }));
+}
+
+export function deTileAPagarDto(kpis: KpisAbertoReal, linhas: LancamentoRow[], hojeIso: string): TileAPagarViewModel {
+  return {
+    totalCentavos: kpis.aPagarAbertoCentavos,
+    semanas: semanasPagar(linhas, hojeIso),
+    maiorLabel: kpis.aPagarMaiorLabel,
+    maiorDataLabel: kpis.aPagarMaiorData,
+    drill: { rota: '/financeiro/entradas-saidas', mensagem: '→ Entradas & Saídas — contas a pagar em aberto' },
+  };
+}
+
+export function deAbertoResumoDto(kpis: KpisAbertoReal, linhas: LancamentoRow[], hojeIso: string): AbertoResumoViewModel {
+  return { receber: deTileAReceberDto(kpis), pagar: deTileAPagarDto(kpis, linhas, hojeIso) };
+}
+
+// ─── ③ Resultado + mix das correntes (relatorios/dre) ────────────────────────────────────────
+
+export function deTileResultadoDto(atual: DreDto, anteriorResultadoCentavos: number): TileResultadoViewModel {
+  const resultado = atual.resultadoOperacional.centavos;
+  const deltaAbs = resultado - anteriorResultadoCentavos;
+  const deltaPct =
+    anteriorResultadoCentavos !== 0 ? Math.round((deltaAbs / Math.abs(anteriorResultadoCentavos)) * 100) : 0;
+  const margem = atual.receitaBruta.centavos > 0 ? Math.round((resultado / atual.receitaBruta.centavos) * 100) : 0;
+
+  return {
+    resultadoCentavos: resultado,
+    deltaPercentual: Math.abs(deltaPct),
+    deltaDirecao: deltaPct >= 0 ? 'up' : 'down',
+    margemPercent: margem,
+    drill: { rota: '/financeiro/relatorios', mensagem: '→ Relatórios — DRE do mês, aberto por corrente' },
+  };
+}
+
+/** Ordem/rótulo/cor de exibição do mix — igual ao mockup (Serviços · Assinaturas · Loja), que não
+ * é a ordem dos valores pinados de `CorrenteDeReceitaOrdinal` (0 Recorrente, 1 Servico, 2 Comercio). */
+const MIX_DISPLAY: { corrente: CorrenteDeReceitaOrdinal; label: string; chave: CorrenteChave }[] = [
+  { corrente: 1, label: 'Serviços', chave: 'serv' },
+  { corrente: 0, label: 'Assinaturas', chave: 'rec' },
+  { corrente: 2, label: 'Loja', chave: 'com' },
+];
+
+export function deMixDto(dto: DreDto): MixViewModel | null {
+  const porCorrente = dto.porCorrente ?? [];
+  const total = porCorrente.reduce((acc, p) => acc + Math.max(0, p.receitaBruta.centavos), 0);
+  if (total <= 0) return null;
+
+  const segmentos: SegmentoMix[] = MIX_DISPLAY.map(({ corrente, label, chave }) => {
+    const linha = porCorrente.find((p) => p.corrente === corrente);
+    const valor = Math.max(0, linha?.receitaBruta.centavos ?? 0);
+    return { label, chave, percent: Math.round((valor / total) * 100) };
+  }).filter((s) => s.percent > 0);
+
+  return {
+    totalCentavos: total,
+    segmentos,
+    drill: { rota: '/financeiro/relatorios', mensagem: '→ Relatórios — DRE por corrente (Serviços, Assinaturas, Loja)' },
+  };
+}
+
+export function deDreResumoDto(atual: DreDto, anteriorResultadoCentavos: number): DreResumoViewModel {
+  return { resultado: deTileResultadoDto(atual, anteriorResultadoCentavos), mix: deMixDto(atual) };
+}
+
+// ─── ④ Assinaturas/MRR (receita-recorrente) ──────────────────────────────────────────────────
+
+export function deTileAssinaturasDto(dto: ReceitaRecorrenteDto): TileAssinaturasViewModel {
+  return {
+    mrrCentavos: dto.mrr.centavos,
+    assinaturasAtivas: dto.assinaturasAtivas,
+    drill: { rota: '/financeiro/recorrentes', mensagem: '→ Recorrentes — MRR por serviço e assinaturas ativas' },
+  };
+}
+
+// ─── ROI (opt-in) e Radar do Simples ──────────────────────────────────────────────────────────
+
+export function deInvestimentoDto(dto: RoiDoNegocioDto): InvestimentoViewModel {
+  return {
+    percentRecuperado: Math.round(dto.recuperacao.percentRecuperado),
+    recuperadoCentavos: dto.recuperacao.recuperadoCentavos,
+    totalCentavos: dto.investimento.totalCentavos,
+    drill: { rota: '/financeiro/roi-negocio', mensagem: '→ Investimento & ROI — curva investido × recuperado' },
+  };
+}
+
+function distanciaLabel(mesesProjetados: number | null): string {
+  if (mesesProjetados === null) return 'sem previsão de mudança de faixa';
+  const unidade = mesesProjetados === 1 ? 'mês' : 'meses';
+  return mesesProjetados <= 2 ? `degrau perto (~${mesesProjetados} ${unidade})` : `degrau longe (~${mesesProjetados} ${unidade})`;
+}
+
+export function deSimplesDto(dto: RadarDoSimplesDto): SimplesViewModel {
+  const teto = dto.rbt12Centavos + dto.distanciaAoProximoDegrauCentavos;
+  const fillPercent = teto > 0 ? Math.min(100, Math.round((dto.rbt12Centavos / teto) * 100)) : 0;
+
+  return {
+    aliquotaPercent: dto.aliquotaEfetiva * 100,
+    faixaAtual: dto.faixaAtual,
+    fillPercent,
+    distanciaLabel: `faixa ${dto.faixaAtual} · ${distanciaLabel(dto.mesesProjetadosAteOProximoDegrau)}`,
+    drill: { rota: '/financeiro/relatorios', mensagem: '→ Relatórios — Radar do Simples (RBT12, faixa e degraus)' },
+  };
 }

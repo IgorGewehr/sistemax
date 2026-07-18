@@ -82,6 +82,12 @@ const config: Config = {
         crit: { DEFAULT: 'hsl(var(--crit))', soft: 'hsl(var(--crit-soft))' },
         faint: 'hsl(var(--faint))',
         'surface-2': 'hsl(var(--surface-2))',
+        // Mix de receita por corrente (Visão Geral v3) — categórico de verdade, nunca estado.
+        cat: {
+          serv: 'hsl(var(--cat-serv))',
+          rec: 'hsl(var(--cat-rec))',
+          com: 'hsl(var(--cat-com))',
+        },
         // Semântica financeira — reservada, nunca reusada como "série categórica".
         health: {
           critico: '#DC2626',

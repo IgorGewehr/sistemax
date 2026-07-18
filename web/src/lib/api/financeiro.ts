@@ -293,6 +293,22 @@ export interface ExtratoDto {
   kpis: ExtratoKpisDto;
 }
 
+/** Ordinal de `CorrenteDeReceita` (.NET, `Domain.Comum`) — vem como NÚMERO (mesmo motivo dos
+ * outros enums deste arquivo: nenhum `JsonStringEnumConverter` registrado). VALORES PINADOS
+ * (nunca reordenar): 0 Recorrente (MRR de assinatura), 1 Servico (OS — mão de obra + peça
+ * aplicada), 2 Comercio (venda avulsa de balcão/delivery). */
+export type CorrenteDeReceitaOrdinal = 0 | 1 | 2;
+
+/** Unit economics de UMA corrente de receita no período — `DreGerencialService.CalcularPorCorrente`.
+ * `Σ porCorrente.receitaBruta ≤ DreDto.receitaBruta` (igual quando toda receita reconhecida no
+ * período já vem tagueada com uma corrente conhecida — o caso comum). */
+export interface DrePorCorrenteDto {
+  corrente: CorrenteDeReceitaOrdinal;
+  receitaBruta: Money;
+  custoDireto: Money;
+  margem: Money;
+}
+
 /** DRE gerencial simplificado, POR COMPETÊNCIA — `DreGerencialService` (regime de caixa ainda não
  * implementado no backend, ver docs/wiring/financeiro-telas-restantes.md §5). */
 export interface DreDto {
@@ -300,6 +316,8 @@ export interface DreDto {
   custoDireto: Money;
   despesaOperacional: Money;
   resultadoOperacional: Money;
+  /** Quebra por corrente (P0-1) — usada pelo mix "De onde vem" da Visão Geral v3. */
+  porCorrente: DrePorCorrenteDto[];
 }
 
 export interface AgingBucketDto {

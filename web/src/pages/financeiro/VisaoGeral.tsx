@@ -1,142 +1,207 @@
 import { motion } from 'framer-motion';
-import { CalendarClock, Wallet } from 'lucide-react';
+import { Wallet } from 'lucide-react';
+import type { ReactNode } from 'react';
 
 import { CashTimelineSection } from '@/components/financial/visao-geral/CashTimelineSection';
-import { HeroDisponivelCard } from '@/components/financial/visao-geral/HeroDisponivelCard';
+import { GaugeCard } from '@/components/financial/visao-geral/GaugeCard';
+import { InvestimentoMiniCard } from '@/components/financial/visao-geral/InvestimentoMiniCard';
 import { LancarFab } from '@/components/financial/visao-geral/LancarFab';
-import { LucroDoMesCard } from '@/components/financial/visao-geral/LucroDoMesCard';
+import { MixCorrentesCard } from '@/components/financial/visao-geral/MixCorrentesCard';
 import { PeriodoTrigger } from '@/components/financial/visao-geral/PeriodoTrigger';
-import { ProximosVencimentosSection } from '@/components/financial/visao-geral/ProximosVencimentosSection';
-import { SobrevivenciaSection } from '@/components/financial/visao-geral/sobrevivencia/SobrevivenciaSection';
-import { SuperConsultorSection } from '@/components/financial/visao-geral/SuperConsultorSection';
+import { SimplesMiniCard } from '@/components/financial/visao-geral/SimplesMiniCard';
+import { TileAPagar } from '@/components/financial/visao-geral/TileAPagar';
+import { TileAReceber } from '@/components/financial/visao-geral/TileAReceber';
+import { TileAssinaturas } from '@/components/financial/visao-geral/TileAssinaturas';
+import { TileResultado } from '@/components/financial/visao-geral/TileResultado';
 import { useDrillNav } from '@/components/financial/visao-geral/useDrillNav';
 import { useVisaoGeral } from '@/components/financial/visao-geral/useVisaoGeral';
 import { PageHeader } from '@/components/shared';
 import { EmptyState } from '@/components/ui/EmptyState';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { Surface } from '@/components/ui/Surface';
+import { cn } from '@/lib/utils';
 
 /**
- * Visão Geral — 1:1 com `docs/ui/mockups/visao-geral.html`, com dado REAL onde já existe
- * read-model no .NET (ver `useVisaoGeral` + docs/wiring/financeiro-api-contract.md):
+ * Visão Geral v3 — 1:1 com `docs/ui/mockups/visao-geral-v3.html`: medidor de fôlego (dominante) +
+ * projeção de caixa, 4 tiles (a receber/a pagar/resultado/assinaturas), mix das 3 correntes, ROI
+ * (opt-in) e Radar do Simples. SEM Super Consultor (a v3 tirou a IA desta tela) e SEM "próximos
+ * vencimentos" da v2 — o sub de cada tile já carrega o que era essa seção. Sem título/eyebrow
+ * repetindo "Visão Geral": a aba ativa do `FinanceiroLayout` já diz isso (mesmo padrão do
+ * `PageHeader` em todas as outras telas do módulo).
  *
- * - `disponivel`  ← `GET /financeiro/disponivel-retirada` (real)
- * - `timeline`    ← `GET /financeiro/fluxo` (real)
- * - `lucroDoMes`  ← `GET /financeiro/relatorios/dre` (atual + anterior) + `relatorios/contas-em-aberto` (real)
- * - `proximosVencimentos` ← `GET /financeiro/extrato` (real — itemizado, reusa o mesmo endpoint de Entradas & Saídas)
- * - `consultor`   ← `GET /financeiro/consultor` (real — insights narrados/rankeados, Fase 2)
- * - Bloco "Sobrevivência" (novo, sem mockup próprio) ← `previsao-caixa`/`ponto-equilibrio`/
- *   `inadimplencia`/`radar-simples`, os 4 read-models da F1 que não tinham tela nenhuma.
+ * `useVisaoGeral` devolve um `Recurso<T>` por bloco — um endpoint fora do ar não derruba os
+ * outros. ROI é opt-in de verdade: desligado em Configurações, a coluna some e a fila de baixo
+ * reflui pra 2 colunas (mesmo comportamento do toggle de demo do mockup) — nunca um convite ou um
+ * toggle na própria tela (Lei 2: só o usuário liga isso, em Configurações).
  */
 export function VisaoGeral() {
   const vm = useVisaoGeral();
   const drill = useDrillNav();
 
+  const configResolved = !vm.configuracao.carregando && !vm.configuracao.erro;
+  // Otimista enquanto a config ainda carrega — evita o layout "pular" de 3 pra 2 colunas se o
+  // toggle realmente estiver ligado (o caso mais comum).
+  const roiLigado = vm.configuracao.dado?.imobilizadoRoiAtivo ?? true;
+  const mostrarColunaInvestimento = !configResolved || roiLigado;
+
   return (
     <div>
-      <PageHeader
-        subtitle="Como está o dinheiro do seu negócio — em 5 segundos."
-        actions={<PeriodoTrigger label={vm.periodoLabel} />}
-      />
+      <PageHeader subtitle="Bateu o olho, entendeu." actions={<PeriodoTrigger label={vm.periodoLabel} />} />
 
-      <div className="mb-4 grid grid-cols-1 items-stretch gap-4 min-[860px]:grid-cols-[2fr_1fr]">
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.42, delay: 0.02 }}>
-          {vm.disponivel.carregando ? (
-            <Surface padding="lg" className="h-full min-h-[220px]">
-              <Skeleton className="h-8 w-40" />
-              <Skeleton className="mt-4 h-4 w-full" />
-              <Skeleton className="mt-2 h-4 w-full" />
+      {/* ① Medidor de fôlego (dominante) + projeção do caixa */}
+      <section className="mb-4 grid grid-cols-1 items-stretch gap-4 min-[980px]:grid-cols-[340px_1fr]">
+        <Anim delay={0.02}>
+          {vm.gauge.carregando ? (
+            <Surface padding="lg" className="h-full min-h-[300px]">
+              <Skeleton className="h-3 w-32" />
+              <Skeleton className="mx-auto mt-6 h-[130px] w-[200px] rounded-full" />
+              <Skeleton className="mt-6 h-10 w-full" />
             </Surface>
-          ) : vm.disponivel.erro ? (
-            <Surface padding="lg" className="h-full min-h-[220px]">
-              <EmptyState
-                icon={<Wallet className="h-5 w-5" />}
-                title="Não deu para carregar"
-                description={vm.disponivel.erro}
-                className="border-none py-6"
-              />
+          ) : vm.gauge.erro || !vm.gauge.dado ? (
+            <Surface padding="lg" className="h-full min-h-[300px]">
+              <ErroBloco mensagem={vm.gauge.erro} />
             </Surface>
           ) : (
-            vm.disponivel.dado && <HeroDisponivelCard vm={vm.disponivel.dado} onDrill={drill} />
+            <GaugeCard vm={vm.gauge.dado} onDrill={drill} />
           )}
-        </motion.div>
+        </Anim>
 
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.42, delay: 0.06 }}>
-          {vm.lucroDoMes.carregando ? (
-            <Surface padding="lg" className="h-full min-h-[220px]">
-              <Skeleton className="h-8 w-40" />
-              <Skeleton className="mt-4 h-4 w-full" />
-              <Skeleton className="mt-2 h-4 w-full" />
+        <Anim delay={0.06}>
+          {vm.timeline.carregando ? (
+            <Surface padding="lg" className="min-h-[260px]">
+              <Skeleton className="h-4 w-56" />
+              <Skeleton className="mt-6 h-[180px] w-full" />
             </Surface>
-          ) : vm.lucroDoMes.erro || !vm.lucroDoMes.dado ? (
-            <Surface padding="lg" className="h-full min-h-[220px]">
-              <EmptyState
-                icon={<Wallet className="h-5 w-5" />}
-                title="Não deu para carregar"
-                description={vm.lucroDoMes.erro ?? ''}
-                className="border-none py-6"
-              />
+          ) : vm.timeline.erro || !vm.timeline.dado ? (
+            <Surface padding="lg" className="min-h-[260px]">
+              <ErroBloco mensagem={vm.timeline.erro} />
             </Surface>
           ) : (
-            <LucroDoMesCard vm={vm.lucroDoMes.dado} onDrill={drill} />
+            <CashTimelineSection vm={vm.timeline.dado} />
           )}
-        </motion.div>
-      </div>
+        </Anim>
+      </section>
 
-      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.42, delay: 0.1 }} className="mb-4">
-        {vm.timeline.carregando ? (
-          <Surface padding="lg" className="min-h-[260px]">
-            <Skeleton className="h-4 w-56" />
-            <Skeleton className="mt-6 h-[180px] w-full" />
-          </Surface>
-        ) : vm.timeline.erro ? (
-          <Surface padding="lg" className="min-h-[260px]">
-            <EmptyState
-              icon={<Wallet className="h-5 w-5" />}
-              title="Não deu para carregar"
-              description={vm.timeline.erro}
-              className="border-none py-6"
-            />
-          </Surface>
-        ) : (
-          vm.timeline.dado && <CashTimelineSection vm={vm.timeline.dado} />
-        )}
-      </motion.div>
+      {/* ② Tiles: a receber · a pagar · resultado · assinaturas */}
+      <Anim delay={0.1}>
+        <section className="mb-4 grid grid-cols-1 gap-3.5 sm:grid-cols-2 min-[1040px]:grid-cols-4">
+          {vm.abertoResumo.carregando ? (
+            <>
+              <TileSkeleton />
+              <TileSkeleton />
+            </>
+          ) : vm.abertoResumo.erro || !vm.abertoResumo.dado ? (
+            <>
+              <TileErroCard mensagem={vm.abertoResumo.erro} />
+              <TileErroCard mensagem={vm.abertoResumo.erro} />
+            </>
+          ) : (
+            <>
+              <TileAReceber vm={vm.abertoResumo.dado.receber} onDrill={drill} />
+              <TileAPagar vm={vm.abertoResumo.dado.pagar} onDrill={drill} />
+            </>
+          )}
 
-      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.42, delay: 0.14 }} className="mb-4">
-        {vm.proximosVencimentos.carregando ? (
-          <Surface padding="lg" className="min-h-[110px]">
-            <Skeleton className="h-4 w-40" />
-            <Skeleton className="mt-4 h-14 w-full" />
-          </Surface>
-        ) : vm.proximosVencimentos.erro ? (
-          <Surface padding="lg" className="min-h-[110px]">
-            <EmptyState
-              icon={<CalendarClock className="h-5 w-5" />}
-              title="Não deu para carregar"
-              description={vm.proximosVencimentos.erro}
-              className="border-none py-6"
-            />
-          </Surface>
-        ) : (
-          <ProximosVencimentosSection vencimentos={vm.proximosVencimentos.dado ?? []} onDrill={drill} />
-        )}
-      </motion.div>
+          {vm.dre.carregando ? (
+            <TileSkeleton />
+          ) : vm.dre.erro || !vm.dre.dado ? (
+            <TileErroCard mensagem={vm.dre.erro} />
+          ) : (
+            <TileResultado vm={vm.dre.dado.resultado} onDrill={drill} />
+          )}
 
-      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.42, delay: 0.18 }} className="mb-4">
-        <SuperConsultorSection recurso={vm.consultor} onDrill={drill} />
-      </motion.div>
+          {vm.recorrente.carregando ? (
+            <TileSkeleton />
+          ) : vm.recorrente.erro || !vm.recorrente.dado ? (
+            <TileErroCard mensagem={vm.recorrente.erro} />
+          ) : (
+            <TileAssinaturas vm={vm.recorrente.dado} onDrill={drill} />
+          )}
+        </section>
+      </Anim>
 
-      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.42, delay: 0.22 }}>
-        <SobrevivenciaSection
-          runway={vm.sobrevivencia.runway}
-          breakeven={vm.sobrevivencia.breakeven}
-          inadimplencia={vm.sobrevivencia.inadimplencia}
-          radarSimples={vm.sobrevivencia.radarSimples}
-        />
-      </motion.div>
+      {/* ③ Mix de receita · Investimento (opt-in) · Radar do Simples */}
+      <Anim delay={0.14}>
+        <section
+          className={cn(
+            'grid grid-cols-1 gap-3.5 sm:grid-cols-2',
+            mostrarColunaInvestimento ? 'min-[1040px]:grid-cols-[1.3fr_1fr_1fr]' : 'min-[1040px]:grid-cols-[1.3fr_1fr]',
+          )}
+        >
+          {vm.dre.carregando ? (
+            <TileSkeleton className="sm:col-span-2 lg:col-span-1" />
+          ) : vm.dre.erro ? (
+            <TileErroCard mensagem={vm.dre.erro} className="sm:col-span-2 lg:col-span-1" />
+          ) : vm.dre.dado?.mix ? (
+            <MixCorrentesCard vm={vm.dre.dado.mix} onDrill={drill} />
+          ) : (
+            <Surface padding="lg" className="min-h-[130px] sm:col-span-2 lg:col-span-1">
+              <EmptyState
+                icon={<Wallet className="h-5 w-5" />}
+                title="Sem receita no período"
+                description="Assim que houver receita reconhecida no mês, o mix por corrente aparece aqui."
+                className="border-none py-4"
+              />
+            </Surface>
+          )}
+
+          {mostrarColunaInvestimento &&
+            (!configResolved || vm.investimento.carregando ? (
+              <TileSkeleton />
+            ) : vm.investimento.erro ? (
+              <TileErroCard mensagem={vm.investimento.erro} />
+            ) : vm.investimento.dado ? (
+              <InvestimentoMiniCard vm={vm.investimento.dado} onDrill={drill} />
+            ) : null)}
+
+          {vm.radar.carregando ? (
+            <TileSkeleton />
+          ) : vm.radar.erro || !vm.radar.dado ? (
+            <TileErroCard mensagem={vm.radar.erro} />
+          ) : (
+            <SimplesMiniCard vm={vm.radar.dado} onDrill={drill} />
+          )}
+        </section>
+      </Anim>
 
       <LancarFab />
     </div>
+  );
+}
+
+function Anim({ delay, children }: { delay: number; children: ReactNode }) {
+  return (
+    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.42, delay }} className="h-full">
+      {children}
+    </motion.div>
+  );
+}
+
+function ErroBloco({ mensagem }: { mensagem: string | null }) {
+  return (
+    <EmptyState
+      icon={<Wallet className="h-5 w-5" />}
+      title="Não deu para carregar"
+      description={mensagem ?? 'Nada retornou do servidor.'}
+      className="border-none py-6"
+    />
+  );
+}
+
+function TileSkeleton({ className }: { className?: string }) {
+  return (
+    <Surface padding="lg" className={cn('min-h-[130px]', className)}>
+      <Skeleton className="h-3 w-20" />
+      <Skeleton className="mt-3 h-6 w-24" />
+      <Skeleton className="mt-3 h-2 w-full" />
+    </Surface>
+  );
+}
+
+function TileErroCard({ mensagem, className }: { mensagem: string | null; className?: string }) {
+  return (
+    <Surface padding="lg" className={cn('min-h-[130px]', className)}>
+      <ErroBloco mensagem={mensagem} />
+    </Surface>
   );
 }

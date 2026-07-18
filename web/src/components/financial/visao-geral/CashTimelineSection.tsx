@@ -1,10 +1,9 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 
 import { SectionCard } from '@/components/shared';
-import { cn } from '@/lib/utils';
+import { formatCentavosWhole } from '@/lib/money';
 
-import { formatCentavosWhole, formatSignedCentavosWhole } from './money';
 import { computeTimelineGeometry } from './timelineGeometry';
 import type { TimelineViewModel } from './types';
 
@@ -12,70 +11,48 @@ interface CashTimelineSectionProps {
   vm: TimelineViewModel;
 }
 
-/** "DD/MM" de um ponto — usa a data real (`datasISO`) quando ela vem da API; o mock não a
- * preenche, então cai no fallback índice+1 = dia do mês (só válido dentro de um único mês). */
-function dayLabel(index: number, mesLabel: string, datasISO?: string[]): string {
-  const iso = datasISO?.[index];
-  if (iso) {
-    const [, mes, dia] = iso.split('-');
-    return `${dia}/${mes}`;
-  }
-  return `${String(index + 1).padStart(2, '0')}/${mesLabel}`;
+/** ISO "2026-07-18" → "18/07". */
+function dayLabel(iso: string): string {
+  const [, mes, dia] = iso.split('-');
+  return dia && mes ? `${dia}/${mes}` : iso;
 }
 
 /**
- * "O caixa nos próximos 30 dias" (bloco ②, único gráfico da tela) — realizado sólido até hoje,
- * previsto tracejado depois, e um único marcador onde o saldo projetado cruza zero. SVG à mão (em
- * vez do `recharts` já usado no app) porque a fidelidade ao mockup pede um traço misto
- * sólido/tracejado com um trecho realçado e um balão de anotação no ponto exato do cruzamento —
- * a geometria vem pronta e testável de `timelineGeometry.ts`.
+ * "Caixa · próximos 30 dias" (bloco ①b, único gráfico da tela v3) — área lavada sob a curva
+ * inteira (realizado sólido até hoje, previsto tracejado depois) + o dia mais apertado destacado.
+ * 1:1 com `docs/ui/mockups/visao-geral-v3.html`. SVG à mão (não `recharts`): a fidelidade ao
+ * mockup pede um traço misto sólido/tracejado com wash de gradiente e um marcador de mínimo exato
+ * — a geometria vem pronta e testável de `timelineGeometry.ts`.
  */
 export function CashTimelineSection({ vm }: CashTimelineSectionProps) {
-  const { valoresDiarios, hojeIndex, eventosPorDia, mesLabel, datasISO } = vm;
+  const { pontos, hojeIndex, menorIndex } = vm;
+  const valoresDiarios = useMemo(() => pontos.map((p) => p.saldoCentavos), [pontos]);
   const geometry = useMemo(() => computeTimelineGeometry(valoresDiarios, hojeIndex), [valoresDiarios, hojeIndex]);
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
+  const gradId = useId();
 
-  useEffect(() => {
-    function onDocClick(e: MouseEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setActiveIndex(null);
-      }
-    }
-    document.addEventListener('click', onDocClick);
-    return () => document.removeEventListener('click', onDocClick);
-  }, []);
+  const n = pontos.length;
+  if (n === 0) {
+    return (
+      <SectionCard title="Caixa · próximos 30 dias" bodyClassName="mt-0">
+        <div className="px-[18px] pb-5 text-sm text-muted-foreground">Sem projeção de caixa disponível.</div>
+      </SectionCard>
+    );
+  }
 
-  const n = valoresDiarios.length;
-  const activePoint = activeIndex !== null ? geometry.points[activeIndex] : null;
-  const activeEvento = activeIndex !== null ? eventosPorDia[activeIndex + 1] : undefined;
-
-  const crossMarker = useMemo(() => {
-    if (geometry.crossIndex === null || geometry.crossX === null) return null;
-    const boxW = 196;
-    const boxH = 36;
-    const my = geometry.points[geometry.crossIndex].y;
-    const bx = Math.max(16, Math.min(geometry.crossX - boxW / 2, geometry.width - 16 - boxW));
-    return {
-      mx: geometry.crossX,
-      my,
-      bx,
-      by: 4,
-      boxW,
-      boxH,
-      label: dayLabel(geometry.crossIndex, mesLabel, datasISO),
-      valorCentavos: valoresDiarios[geometry.crossIndex],
-    };
-  }, [geometry, mesLabel, valoresDiarios, datasISO]);
+  const activePonto = activeIndex !== null ? pontos[activeIndex] : null;
+  const menorPonto = pontos[menorIndex];
+  const menorPoint = geometry.points[menorIndex];
+  const ultimoPoint = geometry.points[n - 1];
 
   const axisTicks = [
-    { i: 0, label: dayLabel(0, mesLabel, datasISO), anchor: 'start' as const },
+    { i: 0, label: dayLabel(pontos[0].dataIso), anchor: 'start' as const },
     { i: hojeIndex, label: 'hoje', anchor: 'middle' as const },
-    { i: n - 1, label: dayLabel(n - 1, mesLabel, datasISO), anchor: 'end' as const },
+    { i: n - 1, label: dayLabel(pontos[n - 1].dataIso), anchor: 'end' as const },
   ];
 
   return (
-    <SectionCard title="O caixa nos próximos 30 dias" hint="clique num dia → o que entra/sai nele" bodyClassName="mt-0">
+    <SectionCard title="Caixa · próximos 30 dias" hint="toque num dia" bodyClassName="mt-0">
       <div className="flex gap-4 px-[18px] pb-0.5 pt-1.5 text-xs text-muted-foreground">
         <span className="inline-flex items-center gap-1.5">
           <i className="inline-block h-[2.5px] w-4 rounded-full bg-foreground" />
@@ -87,27 +64,29 @@ export function CashTimelineSection({ vm }: CashTimelineSectionProps) {
         </span>
       </div>
 
-      <div ref={containerRef} className="relative mx-2 mb-2.5 mt-1">
+      <div className="relative mx-2 mb-2.5 mt-1">
         <svg
           viewBox={`0 0 ${geometry.width} ${geometry.height}`}
           role="img"
           aria-label="Projeção do caixa para os próximos 30 dias, com realizado e previsto"
           className="block w-full"
         >
-          <rect
-            x={16}
-            y={geometry.zeroY}
-            width={geometry.width - 32}
-            height={geometry.height - geometry.padBottom - geometry.zeroY}
-            className="fill-crit/[0.035]"
-          />
+          <defs>
+            <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0" style={{ stopColor: 'hsl(var(--pos))' }} stopOpacity={0.14} />
+              <stop offset="1" style={{ stopColor: 'hsl(var(--pos))' }} stopOpacity={0} />
+            </linearGradient>
+          </defs>
+
+          {/* Lavagem sob a curva inteira — "o rio nunca toca o fundo = tudo bem". */}
+          <path d={geometry.areaPath} fill={`url(#${gradId})`} />
+
           <line
             x1={16}
             y1={geometry.zeroY}
             x2={geometry.width - 16}
             y2={geometry.zeroY}
             strokeWidth={1}
-            strokeDasharray="2 3"
             className="stroke-border"
           />
           <text x={18} y={geometry.zeroY - 4} fontSize={9} className="fill-faint">
@@ -126,11 +105,11 @@ export function CashTimelineSection({ vm }: CashTimelineSectionProps) {
             className="stroke-muted-foreground opacity-[0.55]"
           />
 
-          <path d={geometry.solidPath} fill="none" strokeWidth={2.4} strokeLinecap="round" strokeLinejoin="round" className="stroke-foreground" />
+          <path d={geometry.solidPath} fill="none" strokeWidth={2.3} strokeLinecap="round" strokeLinejoin="round" className="stroke-foreground" />
           <path
             d={geometry.dashedPath}
             fill="none"
-            strokeWidth={2.4}
+            strokeWidth={2.3}
             strokeDasharray="1 5.5"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -148,34 +127,19 @@ export function CashTimelineSection({ vm }: CashTimelineSectionProps) {
             />
           )}
 
-          {crossMarker && (
-            <g>
-              <line
-                x1={crossMarker.mx}
-                y1={crossMarker.by + crossMarker.boxH}
-                x2={crossMarker.mx}
-                y2={crossMarker.my - 9}
-                strokeWidth={1.3}
-                strokeDasharray="2 3"
-                className="stroke-crit opacity-[0.55]"
-              />
-              <rect
-                x={crossMarker.bx}
-                y={crossMarker.by}
-                width={crossMarker.boxW}
-                height={crossMarker.boxH}
-                rx={9}
-                className="fill-crit-soft stroke-crit/[0.35]"
-              />
-              <text x={crossMarker.bx + 11} y={crossMarker.by + 15} fontSize={10.5} fontWeight={700} className="fill-crit">
-                {crossMarker.label} · aqui fica negativo
-              </text>
-              <text x={crossMarker.bx + 11} y={crossMarker.by + 29} fontSize={11.5} fontWeight={700} className="fill-crit num">
-                {formatSignedCentavosWhole(crossMarker.valorCentavos)} projetado
-              </text>
-              <circle cx={crossMarker.mx} cy={crossMarker.my} r={5} className="fill-crit stroke-card" strokeWidth={2.2} />
-            </g>
-          )}
+          {/* Único destaque fora do "hoje": o dia mais apertado da série. */}
+          <circle cx={menorPoint.x} cy={menorPoint.y} r={4.5} className="fill-warn stroke-card" strokeWidth={2.2} />
+          <text x={menorPoint.x} y={menorPoint.y + 20} fontSize={10} fontWeight={600} textAnchor="middle" className="fill-muted-foreground">
+            menor ·{' '}
+            <tspan className="num fill-foreground" fontWeight={700}>
+              {formatCentavosWhole(menorPonto.saldoCentavos)}
+            </tspan>
+          </text>
+
+          <circle cx={ultimoPoint.x} cy={ultimoPoint.y} r={3.5} className="fill-foreground stroke-card" strokeWidth={2} />
+          <text x={ultimoPoint.x} y={ultimoPoint.y - 10} fontSize={10} fontWeight={700} textAnchor="end" className="num fill-muted-foreground">
+            {formatCentavosWhole(pontos[n - 1].saldoCentavos)}
+          </text>
 
           {axisTicks.map(({ i, label, anchor }) => (
             <text
@@ -208,7 +172,7 @@ export function CashTimelineSection({ vm }: CashTimelineSectionProps) {
         </svg>
 
         <AnimatePresence>
-          {activePoint && activeIndex !== null && (
+          {activePonto && activeIndex !== null && (
             <motion.div
               key={activeIndex}
               initial={{ opacity: 0 }}
@@ -216,26 +180,20 @@ export function CashTimelineSection({ vm }: CashTimelineSectionProps) {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.15 }}
               style={{
-                left: `${(activePoint.x / geometry.width) * 100}%`,
-                top: `${(activePoint.y / geometry.height) * 100}%`,
+                left: `${(geometry.points[activeIndex].x / geometry.width) * 100}%`,
+                top: `${(geometry.points[activeIndex].y / geometry.height) * 100}%`,
                 transform: 'translate(-50%, -122%)',
               }}
               className="pointer-events-none absolute z-10 min-w-[178px] rounded-[10px] bg-foreground px-[11px] py-[9px] text-[11.5px] leading-[1.55] text-background shadow-xl"
             >
               <div className="mb-[3px] font-bold">
-                {dayLabel(activeIndex, mesLabel, datasISO)}
+                {dayLabel(activePonto.dataIso)}
                 {activeIndex === hojeIndex ? ' · hoje' : ''}
               </div>
               <div className="num opacity-90">
-                Saldo projetado: <b>{formatCentavosWhole(valoresDiarios[activeIndex])}</b>
+                Saldo: <b>{formatCentavosWhole(activePonto.saldoCentavos)}</b>
               </div>
-              {activeEvento ? (
-                <div className={cn('num mt-1 font-semibold', activeEvento.tone === 'pos' ? 'text-pos' : 'text-crit')}>
-                  {formatSignedCentavosWhole(activeEvento.deltaCentavos)} · {activeEvento.descricao}
-                </div>
-              ) : (
-                <div className="mt-1 font-normal text-faint">Sem vencimento grande — variação do dia a dia.</div>
-              )}
+              <div className="mt-1 font-normal text-faint">Dia comum — só o movimento do balcão.</div>
             </motion.div>
           )}
         </AnimatePresence>

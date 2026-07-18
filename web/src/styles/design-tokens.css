@@ -57,6 +57,13 @@
     --transition-smooth: cubic-bezier(0.4, 0, 0.2, 1);
     --transition-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
     --transition-decelerate: cubic-bezier(0, 0, 0.2, 1);
+
+    /* Trio categórico das 3 correntes de receita (Serviço/Recorrente/Comércio) — Visão Geral v3
+       (docs/ui/mockups/visao-geral-v3.html), validado CVD/contraste p/ claro e escuro. Categórico
+       de verdade (mix de receita) — não confundir com pos/warn/crit acima (estado). */
+    --cat-serv: 217 63% 49%;
+    --cat-rec: 171 88% 32%;
+    --cat-com: 33 93% 44%;
   }
 
   .dark {
@@ -100,5 +107,10 @@
     --surface-2: 218 34% 11%;
 
     --red-glow: rgba(239, 68, 68, 0.25);
+
+    /* Trio categórico — variante dark (mesmos HSL do mockup). */
+    --cat-serv: 216 67% 58%;
+    --cat-rec: 174 66% 38%;
+    --cat-com: 33 87% 44%;
   }
 }

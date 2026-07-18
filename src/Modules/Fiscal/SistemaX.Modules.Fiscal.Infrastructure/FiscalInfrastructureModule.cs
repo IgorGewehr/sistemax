@@ -44,12 +44,14 @@ public sealed class FiscalInfrastructureModule : IModule
             services.AddScoped<IDadosFiscaisProdutoCacheRepository, SqliteDadosFiscaisProdutoCacheRepository>();
             services.AddScoped<IDocumentoFiscalRepository, SqliteDocumentoFiscalRepository>();
             services.AddScoped<ISequenciaFiscalRepository, SqliteSequenciaFiscalRepository>();
+            services.AddScoped<ICartaCorrecaoFiscalRepository, SqliteCartaCorrecaoFiscalRepository>();
             // Delega para ILocalSessao (já Scoped por AddSistemaXLocalInfrastructure) — fecha o
             // gap de atomicidade número+documento descrito em EmitirDocumentoFiscalUseCase
             // (docs/fiscal/arquitetura.md §5/§7).
             services.AddScoped<IUnidadeDeTrabalhoFiscal, UnidadeDeTrabalhoFiscalSqlite>();
             services.AddModuleSchemaMigration<FiscalSchemaMigrationV1>();
             services.AddModuleSchemaMigration<FiscalSchemaMigrationV2>();
+            services.AddModuleSchemaMigration<FiscalSchemaMigrationV3>();
         }
         else
         {
@@ -62,6 +64,7 @@ public sealed class FiscalInfrastructureModule : IModule
             services.AddSingleton<IDadosFiscaisProdutoCacheRepository, InMemoryDadosFiscaisProdutoCacheRepository>();
             services.AddSingleton<IDocumentoFiscalRepository, InMemoryDocumentoFiscalRepository>();
             services.AddSingleton<ISequenciaFiscalRepository, InMemorySequenciaFiscalRepository>();
+            services.AddSingleton<ICartaCorrecaoFiscalRepository, InMemoryCartaCorrecaoFiscalRepository>();
             services.AddSingleton<IUnidadeDeTrabalhoFiscal, UnidadeDeTrabalhoFiscalEmMemoria>();
         }
 
@@ -119,5 +122,6 @@ public sealed class FiscalInfrastructureModule : IModule
         services.AddScoped<IGatewayEmissaoSefaz>(sp => sp.GetRequiredService<SefazApiGateway>());
         services.AddScoped<IGatewayCancelamentoSefaz>(sp => sp.GetRequiredService<SefazApiGateway>());
         services.AddScoped<IGatewayInutilizacaoSefaz>(sp => sp.GetRequiredService<SefazApiGateway>());
+        services.AddScoped<IGatewayCartaCorrecaoSefaz>(sp => sp.GetRequiredService<SefazApiGateway>());
     }
 }

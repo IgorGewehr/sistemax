@@ -80,6 +80,36 @@ public sealed class SqliteFornecedorRepository(ILocalSqliteConnectionFactory con
             await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
         }, ct);
 
+    public Task<IReadOnlyList<Fornecedor>> ListarAsync(string tenantId, CancellationToken ct = default)
+        => ConsultarAsync(async (connection, transaction) =>
+        {
+            await using var cmd = connection.CreateCommand();
+            cmd.Transaction = transaction;
+            cmd.CommandText =
+                """
+                SELECT id, tenant_id, documento, razao_social, nome_fantasia, status
+                FROM fornecedores
+                WHERE tenant_id = $tenantId
+                ORDER BY razao_social;
+                """;
+            cmd.Parameters.AddWithValue("$tenantId", tenantId);
+
+            var resultado = new List<Fornecedor>();
+            await using var reader = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
+            while (await reader.ReadAsync(ct).ConfigureAwait(false))
+            {
+                resultado.Add(Fornecedor.Reconstituir(
+                    id: reader.GetString(0),
+                    tenantId: reader.GetString(1),
+                    razaoSocial: reader.GetString(3),
+                    documento: reader.IsDBNull(2) ? null : reader.GetString(2),
+                    nomeFantasia: reader.IsDBNull(4) ? null : reader.GetString(4),
+                    status: (StatusFornecedor)reader.GetInt32(5)));
+            }
+
+            return (IReadOnlyList<Fornecedor>)resultado;
+        }, ct);
+
     private static async Task<Fornecedor?> LerUmAsync(SqliteCommand cmd, CancellationToken ct)
     {
         await using var reader = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);

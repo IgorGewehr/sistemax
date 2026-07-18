@@ -5,6 +5,7 @@ using SistemaX.Modules.Abstractions;
 using SistemaX.Modules.Abstractions.Consultor;
 using SistemaX.Modules.Abstractions.Runtime;
 using SistemaX.Modules.Compras.Application;
+using SistemaX.Modules.Compras.Application.Endpoints;
 using SistemaX.Modules.Compras.Infrastructure;
 using SistemaX.Modules.Estoque.Application;
 using SistemaX.Modules.Estoque.Application.Endpoints;
@@ -14,6 +15,7 @@ using SistemaX.Modules.Financeiro.Application.Endpoints;
 using SistemaX.Modules.Financeiro.Infrastructure;
 using SistemaX.Modules.Financeiro.Infrastructure.Cron;
 using SistemaX.Modules.Fiscal.Application;
+using SistemaX.Modules.Fiscal.Application.Endpoints;
 using SistemaX.Modules.Fiscal.Infrastructure;
 using SistemaX.Modules.Fiscal.Infrastructure.Cron;
 using SistemaX.Modules.Identidade.Application;
@@ -23,6 +25,7 @@ using SistemaX.Modules.Vendas.Application;
 using SistemaX.Modules.Vendas.Application.Endpoints;
 using SistemaX.Modules.Vendas.Infrastructure;
 using SistemaX.Verticals.Assistencia.Application;
+using SistemaX.Verticals.Assistencia.Application.Endpoints;
 using SistemaX.Verticals.Assistencia.Infrastructure;
 
 namespace SistemaX.Host.Desktop.Composition;
@@ -47,16 +50,24 @@ namespace SistemaX.Host.Desktop.Composition;
 /// COBERTURA DE ENDPOINTS (achado de auditoria, guard-rail pra não reabrir) — dos 11 módulos do
 /// RBAC (<c>Autorizacao.Modulo</c>: Dashboard, Vendas, Pdv, Financeiro, Estoque, Compras, Ordens,
 /// Clientes, Agenda, Fiscal, Configuracoes), Vendas/Estoque/Financeiro/Identidade (rota
-/// <c>/usuarios/*</c>, sob <c>Modulo.Configuracoes:Acao.GerenciarUsuarios</c> — ver ADR-0003) têm
-/// hoje um <c>*EndpointsModule</c> (implementa <see cref="IModuleEndpoints"/>) e portanto rota
+/// <c>/usuarios/*</c>, sob <c>Modulo.Configuracoes:Acao.GerenciarUsuarios</c> — ver ADR-0003)
+/// TINHAM um <c>*EndpointsModule</c> (implementa <see cref="IModuleEndpoints"/>) e portanto rota
 /// HTTP protegida por <c>.RequerPermissao(...)</c> (ver <c>PermissaoEndpointExtensions</c>).
-/// Compras e Fiscal já existem como módulo de domínio aqui embaixo mas SEM endpoint ainda; Pdv,
-/// Ordens, Clientes, Agenda, Dashboard e o resto de Configuracoes nem módulo de domínio têm — não
-/// são rotas desprotegidas, simplesmente não existem ainda. QUANDO qualquer um desses ganhar sua
-/// primeira rota HTTP, o `*EndpointsModule` correspondente TEM que nascer com
+/// SEGUNDA RODADA de auditoria (docs/arquitetura — exposição HTTP dos módulos "prontos-mas-não-
+/// expostos"): Compras (fornecedores + notas de compra) e Fiscal (documentos + CC-e +
+/// configuração/CSC) já tinham módulo de domínio aqui embaixo SEM endpoint — agora têm
+/// <see cref="ComprasEndpointsModule"/>/<see cref="FiscalEndpointsModule"/>. O vertical Assistência
+/// (Ordem de Serviço, RBAC <c>Modulo.Ordens</c>) também tinha domínio+casos de uso completos sem
+/// nenhuma rota — agora tem <see cref="AssistenciaEndpointsModule"/>. Pdv, Dashboard e o resto de
+/// Configuracoes continuam sem módulo de domínio (não existem ainda — não confundir com "sem
+/// endpoint"). <c>Modulo.Clientes</c>/<c>Modulo.Agenda</c> do RBAC NÃO têm módulo de domínio nem
+/// no saas-erp-irmão portado pra cá: o front (<c>web/src/pages/Clientes.tsx</c>/<c>Agenda.tsx</c>)
+/// roda inteiramente sobre mock (<c>web/src/mocks/</c>) — reportado, não inventado; portar esse
+/// domínio é trabalho de FUTURA rodada, fora do escopo desta auditoria. QUANDO qualquer módulo
+/// ganhar sua primeira rota HTTP, o `*EndpointsModule` correspondente TEM que nascer com
 /// `.RequerPermissao(Modulo.X, Acao.Y)` na mesma volta de PR — senão reabre exatamente o buraco
-/// "qualquer sessão Bearer
-/// válida chama qualquer endpoint" que motivou este arquivo (ver <c>Permissoes.cs</c> §1).
+/// "qualquer sessão Bearer válida chama qualquer endpoint" que motivou este arquivo (ver
+/// <c>Permissoes.cs</c> §1).
 /// </summary>
 public static class SistemaXHost
 {
@@ -80,13 +91,16 @@ public static class SistemaXHost
             .Adicionar(new EstoqueEndpointsModule())           // /api/estoque/*
             .Adicionar(new ComprasModule())                    // fornecedores + notas de compra
             .Adicionar(new ComprasInfrastructureModule())
+            .Adicionar(new ComprasEndpointsModule())           // /api/compras/*
             .Adicionar(new FiscalModule())                     // NF-e/NFC-e/NFS-e/MDF-e — core tributário
             .Adicionar(new FiscalInfrastructureModule())
+            .Adicionar(new FiscalEndpointsModule())            // /api/fiscal/*
             .Adicionar(new IdentidadeModule())                  // usuários reais, papel de verdade (ADR-0003)
             .Adicionar(new IdentidadeInfrastructureModule())
             .Adicionar(new IdentidadeEndpointsModule())         // /api/usuarios/*
             .Adicionar(new AssistenciaModule())                 // vertical: assistência técnica (Ordem de Serviço)
-            .Adicionar(new AssistenciaInfrastructureModule());
+            .Adicionar(new AssistenciaInfrastructureModule())
+            .Adicionar(new AssistenciaEndpointsModule());       // /api/assistencia/*
 
         registry.RegistrarTodos(services, contexto);
 

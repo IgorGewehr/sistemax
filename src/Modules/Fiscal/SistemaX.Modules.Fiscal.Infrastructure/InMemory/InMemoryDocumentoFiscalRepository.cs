@@ -24,4 +24,10 @@ public sealed class InMemoryDocumentoFiscalRepository : IDocumentoFiscalReposito
         => Task.FromResult<IReadOnlyList<DocumentoFiscal>>(_porId.Values
             .Where(d => d.TenantId == tenantId && d.Status == StatusDocumentoFiscal.NumeroAlocado && d.CriadoEm < antesDe)
             .ToList());
+
+    public Task<IReadOnlyList<DocumentoFiscal>> ListarAsync(string tenantId, StatusDocumentoFiscal? status = null, CancellationToken ct = default)
+        => Task.FromResult<IReadOnlyList<DocumentoFiscal>>(_porId.Values
+            .Where(d => d.TenantId == tenantId && (status is null || d.Status == status))
+            .OrderByDescending(d => d.CriadoEm)
+            .ToList());
 }

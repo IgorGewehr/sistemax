@@ -22,4 +22,10 @@ public sealed class InMemoryOrdemDeServicoRepository : IOrdemDeServicoRepository
         _porId[ordemDeServico.Id] = ordemDeServico;
         return Task.CompletedTask;
     }
+
+    public Task<IReadOnlyList<OrdemDeServico>> ListarAsync(string tenantId, StatusOrdemServico? status = null, CancellationToken ct = default)
+        => Task.FromResult<IReadOnlyList<OrdemDeServico>>(_porId.Values
+            .Where(os => os.TenantId == tenantId && (status is null || os.Status == status))
+            .OrderByDescending(os => os.AbertaEm)
+            .ToList());
 }

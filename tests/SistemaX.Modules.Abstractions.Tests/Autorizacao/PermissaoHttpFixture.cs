@@ -6,15 +6,24 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using SistemaX.Modules.Abstractions;
 using SistemaX.Modules.Abstractions.Consultor;
+using SistemaX.Modules.Compras.Application;
+using SistemaX.Modules.Compras.Application.Endpoints;
+using SistemaX.Modules.Compras.Infrastructure;
 using SistemaX.Modules.Estoque.Application;
 using SistemaX.Modules.Estoque.Application.Endpoints;
 using SistemaX.Modules.Estoque.Infrastructure;
 using SistemaX.Modules.Financeiro.Application;
 using SistemaX.Modules.Financeiro.Application.Endpoints;
 using SistemaX.Modules.Financeiro.Infrastructure;
+using SistemaX.Modules.Fiscal.Application;
+using SistemaX.Modules.Fiscal.Application.Endpoints;
+using SistemaX.Modules.Fiscal.Infrastructure;
 using SistemaX.Modules.Vendas.Application;
 using SistemaX.Modules.Vendas.Application.Endpoints;
 using SistemaX.Modules.Vendas.Infrastructure;
+using SistemaX.Verticals.Assistencia.Application;
+using SistemaX.Verticals.Assistencia.Application.Endpoints;
+using SistemaX.Verticals.Assistencia.Infrastructure;
 
 namespace SistemaX.Modules.Abstractions.Tests.Autorizacao;
 
@@ -46,7 +55,15 @@ public sealed class PermissaoHttpFixture : IDisposable
         var hostBuilder = new WebHostBuilder()
             .ConfigureServices(services =>
             {
-                var contexto = new ContextoDeTeste(new ConfigurationBuilder().Build());
+                // SEFAZ_AMBIENTE=mock: FiscalInfrastructureModule sempre registra o HttpClient do
+                // gateway de emissão (RegistrarGatewayDeEmissao roda independente de
+                // "persistencia") — sem isto, SefazApiGateway.ModoMock ficaria false (default
+                // "homologacao") e qualquer chamada de CC-e/emissão tentaria I/O de rede real
+                // dentro de um teste de unidade.
+                var configuracao = new ConfigurationBuilder()
+                    .AddInMemoryCollection(new Dictionary<string, string?> { ["SEFAZ_AMBIENTE"] = "mock" })
+                    .Build();
+                var contexto = new ContextoDeTeste(configuracao);
 
                 var registry = new ModuleRegistry()
                     .Adicionar(new EstoqueModule())
@@ -57,7 +74,16 @@ public sealed class PermissaoHttpFixture : IDisposable
                     .Adicionar(new VendasEndpointsModule())
                     .Adicionar(new FinanceiroModule())
                     .Adicionar(new FinanceiroInfrastructureModule())
-                    .Adicionar(new FinanceiroEndpointsModule());
+                    .Adicionar(new FinanceiroEndpointsModule())
+                    .Adicionar(new ComprasModule())
+                    .Adicionar(new ComprasInfrastructureModule())
+                    .Adicionar(new ComprasEndpointsModule())
+                    .Adicionar(new FiscalModule())
+                    .Adicionar(new FiscalInfrastructureModule())
+                    .Adicionar(new FiscalEndpointsModule())
+                    .Adicionar(new AssistenciaModule())
+                    .Adicionar(new AssistenciaInfrastructureModule())
+                    .Adicionar(new AssistenciaEndpointsModule());
 
                 registry.RegistrarTodos(services, contexto);
                 services.AddSingleton(registry);
@@ -70,6 +96,16 @@ public sealed class PermissaoHttpFixture : IDisposable
                 services.AddSingleton<IConsultorInsightCache, InMemoryConsultorInsightCache>();
                 services.AddScoped<IConsultorNarrador, NarradorTemplate>();
                 services.AddScoped<ConsultorService>();
+
+                // IIntegrationEventBus é registrado por SistemaXHost.RegistrarModulos (composition
+                // root de produção — InProcessIntegrationEventBus, que exige IIntegrationEventLedgerStore
+                // do AddSistemaXLocalInfrastructure/SQLite), nunca por um IModule individual — este
+                // fixture não monta a infraestrutura local (é só o pedaço de autorização HTTP), mas
+                // ComprasEndpointsModule/AssistenciaEndpointsModule exercitam casos de uso que
+                // publicam eventos de integração (ConfirmarRecebimentoUseCase/
+                // OrdemDeServicoFaturamentoUseCases) — um fake NO-OP é suficiente aqui, o mesmo
+                // papel do FakeIntegrationEventBus dos testes de unidade de cada módulo.
+                services.AddSingleton<IIntegrationEventBus, FakeIntegrationEventBusNoOp>();
             })
             .Configure(app =>
             {
@@ -116,5 +152,13 @@ public sealed class PermissaoHttpFixture : IDisposable
     {
         public CamadaExecucao Camada => CamadaExecucao.Pdv;
         public IConfiguration Configuracao => configuracao;
+    }
+
+    /// <summary>NO-OP — só existe para satisfazer DI dos casos de uso que publicam evento de
+    /// integração; este fixture testa autorização/rota, não propagação de evento (isso é coberto
+    /// pelos testes de unidade de cada módulo, ex.: <c>ConfirmarRecebimentoUseCaseTests</c>).</summary>
+    private sealed class FakeIntegrationEventBusNoOp : IIntegrationEventBus
+    {
+        public Task PublishAsync(IIntegrationEvent evento, CancellationToken ct = default) => Task.CompletedTask;
     }
 }

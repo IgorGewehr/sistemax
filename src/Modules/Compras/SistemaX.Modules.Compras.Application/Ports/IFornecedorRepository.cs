@@ -11,4 +11,10 @@ public interface IFornecedorRepository
     Task<Fornecedor?> ObterPorDocumentoAsync(string tenantId, string documento, CancellationToken ct = default);
 
     Task SalvarAsync(Fornecedor fornecedor, CancellationToken ct = default);
+
+    /// <summary>Read-model da tela de Fornecedores (achado de auditoria: até aqui só era possível
+    /// resolver um fornecedor já sabendo o id ou o documento, nunca listar). Nome ascendente —
+    /// convenção de cadastro (diferente das listagens de fato transacional, que ordenam por data
+    /// desc).</summary>
+    Task<IReadOnlyList<Fornecedor>> ListarAsync(string tenantId, CancellationToken ct = default);
 }

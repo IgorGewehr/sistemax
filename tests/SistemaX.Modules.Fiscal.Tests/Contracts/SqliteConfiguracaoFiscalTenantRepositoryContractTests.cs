@@ -20,6 +20,9 @@ public sealed class SqliteConfiguracaoFiscalTenantRepositoryContractTests : Conf
         using var connection = _connectionFactory.OpenConnection();
         using var transaction = connection.BeginTransaction();
         new FiscalSchemaMigrationV1().AplicarAsync(connection, transaction, CancellationToken.None).GetAwaiter().GetResult();
+        // V3 adiciona csc_id/csc_token em fiscal_configuracoes_tenant (Passo 3b) — sem ela o
+        // SELECT/INSERT de SqliteConfiguracaoFiscalTenantRepository quebra ("no column named csc_id").
+        new FiscalSchemaMigrationV3().AplicarAsync(connection, transaction, CancellationToken.None).GetAwaiter().GetResult();
         transaction.Commit();
     }
 

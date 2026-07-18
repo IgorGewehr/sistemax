@@ -85,6 +85,31 @@ public sealed class SqliteDocumentoFiscalRepository(ILocalSqliteConnectionFactor
             return (IReadOnlyList<DocumentoFiscal>)documentos;
         }, ct);
 
+    public Task<IReadOnlyList<DocumentoFiscal>> ListarAsync(string tenantId, StatusDocumentoFiscal? status = null, CancellationToken ct = default)
+        => ConsultarAsync(async (connection, transaction) =>
+        {
+            var cabecalhos = new List<DocumentoCabecalho>();
+            await using (var cmd = connection.CreateCommand())
+            {
+                cmd.Transaction = transaction;
+                cmd.CommandText = status is null
+                    ? $"SELECT {ColunasDocumento} FROM fiscal_documentos WHERE tenant_id = $tenantId ORDER BY criado_em DESC;"
+                    : $"SELECT {ColunasDocumento} FROM fiscal_documentos WHERE tenant_id = $tenantId AND status = $status ORDER BY criado_em DESC;";
+                cmd.Parameters.AddWithValue("$tenantId", tenantId);
+                if (status is not null) cmd.Parameters.AddWithValue("$status", (int)status.Value);
+
+                await using var reader = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
+                while (await reader.ReadAsync(ct).ConfigureAwait(false))
+                    cabecalhos.Add(LerCabecalho(reader));
+            }
+
+            var documentos = new List<DocumentoFiscal>(cabecalhos.Count);
+            foreach (var cabecalho in cabecalhos)
+                documentos.Add(await MontarAsync(connection, transaction, cabecalho, ct).ConfigureAwait(false));
+
+            return (IReadOnlyList<DocumentoFiscal>)documentos;
+        }, ct);
+
     public Task SalvarAsync(DocumentoFiscal documento, CancellationToken ct = default)
         => ExecutarAsync(async (connection, transaction) =>
         {

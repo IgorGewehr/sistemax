@@ -11,4 +11,9 @@ public interface INotaDeCompraRepository
     Task<NotaDeCompra?> ObterPorChaveDeAcessoAsync(string tenantId, string chaveDeAcesso, CancellationToken ct = default);
 
     Task SalvarAsync(NotaDeCompra nota, CancellationToken ct = default);
+
+    /// <summary>Read-model da tela de Notas de Compra (achado de auditoria: até aqui só era
+    /// possível resolver uma nota já sabendo o id ou a chave de acesso, nunca listar). Mais
+    /// recente primeiro por data de emissão.</summary>
+    Task<IReadOnlyList<NotaDeCompra>> ListarAsync(string tenantId, CancellationToken ct = default);
 }

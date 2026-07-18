@@ -14,4 +14,10 @@ public interface IOrdemDeServicoRepository
     Task<OrdemDeServico?> ObterPorIdAsync(string id, CancellationToken ct = default);
 
     Task SalvarAsync(OrdemDeServico ordemDeServico, CancellationToken ct = default);
+
+    /// <summary>Read-model da fila de OS (achado de auditoria: até aqui só era possível resolver
+    /// uma OS já sabendo o id, nunca listar/filtrar a fila). Mais recente primeiro
+    /// (<c>AbertaEm</c> desc) — mesma convenção das demais listagens do sistema.
+    /// <paramref name="status"/> nulo lista todos os status.</summary>
+    Task<IReadOnlyList<OrdemDeServico>> ListarAsync(string tenantId, StatusOrdemServico? status = null, CancellationToken ct = default);
 }

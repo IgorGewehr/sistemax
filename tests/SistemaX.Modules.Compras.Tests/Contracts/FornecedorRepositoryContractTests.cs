@@ -106,4 +106,23 @@ public abstract class FornecedorRepositoryContractTests
         Assert.Null(lidoB!.Documento);
         Assert.NotEqual(lidoA.Id, lidoB.Id);
     }
+
+    /// <summary>Read-model da tela de Fornecedores (achado de auditoria — ver
+    /// <c>ComprasEndpointsModule</c>): sem <c>ListarAsync</c> o front não tinha como enumerar o
+    /// cadastro, só resolvê-lo já sabendo id/documento.</summary>
+    [Fact]
+    public async Task Listar_retorna_so_fornecedores_do_tenant_ordenados_por_razao_social()
+    {
+        var repo = CriarRepositorio();
+        await repo.SalvarAsync(Fornecedor.Cadastrar(TenantA, "Zeta Distribuidora").Valor);
+        await repo.SalvarAsync(Fornecedor.Cadastrar(TenantA, "Alfa Comércio").Valor);
+        await repo.SalvarAsync(Fornecedor.Cadastrar(TenantB, "Outro Tenant Ltda").Valor);
+
+        var lista = await repo.ListarAsync(TenantA);
+
+        Assert.Equal(2, lista.Count);
+        Assert.Equal("Alfa Comércio", lista[0].RazaoSocial);
+        Assert.Equal("Zeta Distribuidora", lista[1].RazaoSocial);
+        Assert.All(lista, f => Assert.Equal(TenantA, f.TenantId));
+    }
 }

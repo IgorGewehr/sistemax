@@ -19,4 +19,10 @@ public sealed class InMemoryNotaDeCompraRepository : INotaDeCompraRepository
         _porId[nota.Id] = nota;
         return Task.CompletedTask;
     }
+
+    public Task<IReadOnlyList<NotaDeCompra>> ListarAsync(string tenantId, CancellationToken ct = default)
+        => Task.FromResult<IReadOnlyList<NotaDeCompra>>(_porId.Values
+            .Where(n => n.TenantId == tenantId)
+            .OrderByDescending(n => n.DataEmissao)
+            .ToList());
 }

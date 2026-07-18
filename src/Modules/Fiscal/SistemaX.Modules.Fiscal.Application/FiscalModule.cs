@@ -40,5 +40,6 @@ public sealed class FiscalModule : IModule
         services.AddScoped<RetransmitirDocumentosPendentesUseCase>();
         services.AddScoped<CancelarDocumentoFiscalUseCase>();
         services.AddScoped<DesistirDeNumeroUseCase>();
+        services.AddScoped<EmitirCartaCorrecaoUseCase>();
     }
 }

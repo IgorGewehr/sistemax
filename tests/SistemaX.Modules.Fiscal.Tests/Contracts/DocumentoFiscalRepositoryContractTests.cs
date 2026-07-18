@@ -110,4 +110,44 @@ public abstract class DocumentoFiscalRepositoryContractTests
         Assert.Equal("chave-acesso-teste", lido.ChaveDeAcesso);
         Assert.Equal("protocolo-teste", lido.Protocolo);
     }
+
+    /// <summary>Read-model primário da tela de Fiscal (achado de auditoria — ver
+    /// <c>FiscalEndpointsModule</c>): sem <c>ListarAsync</c> o front não tinha como enumerar
+    /// documentos, só resolvê-los um a um por id/origem.</summary>
+    [Fact]
+    public async Task Listar_retorna_so_documentos_do_tenant_mais_recente_primeiro()
+    {
+        var repo = CriarRepositorio();
+        var maisAntigo = CriarDocumentoComItem(TenantA, "venda-listar-1");
+        await repo.SalvarAsync(maisAntigo);
+        await Task.Delay(5);
+        var maisRecente = CriarDocumentoComItem(TenantA, "venda-listar-2");
+        await repo.SalvarAsync(maisRecente);
+        await repo.SalvarAsync(CriarDocumentoComItem(TenantB, "venda-listar-outro-tenant"));
+
+        var lista = await repo.ListarAsync(TenantA);
+
+        Assert.Equal(2, lista.Count);
+        Assert.Equal(maisRecente.Id, lista[0].Id);
+        Assert.Equal(maisAntigo.Id, lista[1].Id);
+        Assert.All(lista, d => Assert.Equal(TenantA, d.TenantId));
+    }
+
+    [Fact]
+    public async Task Listar_com_filtro_de_status_so_retorna_o_status_pedido()
+    {
+        var repo = CriarRepositorio();
+        var rascunho = CriarDocumentoComItem(TenantA, "venda-status-1");
+        await repo.SalvarAsync(rascunho);
+
+        var autorizado = CriarDocumentoComItem(TenantA, "venda-status-2");
+        autorizado.AlocarNumero("1", 99);
+        autorizado.RegistrarAutorizacao("chave-status", "protocolo-status", DateTimeOffset.UtcNow);
+        await repo.SalvarAsync(autorizado);
+
+        var lista = await repo.ListarAsync(TenantA, StatusDocumentoFiscal.Autorizado);
+
+        Assert.Single(lista);
+        Assert.Equal(autorizado.Id, lista[0].Id);
+    }
 }

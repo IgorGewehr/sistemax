@@ -14,14 +14,15 @@ public sealed class SqliteConfiguracaoFiscalTenantRepository(ILocalSqliteConnect
         {
             await using var cmd = connection.CreateCommand();
             cmd.Transaction = transaction;
-            cmd.CommandText = "SELECT tenant_id, regime, uf_origem, serie_nfce, serie_nfe FROM fiscal_configuracoes_tenant WHERE tenant_id = $tenantId;";
+            cmd.CommandText = "SELECT tenant_id, regime, uf_origem, serie_nfce, serie_nfe, csc_id, csc_token FROM fiscal_configuracoes_tenant WHERE tenant_id = $tenantId;";
             cmd.Parameters.AddWithValue("$tenantId", tenantId);
 
             await using var reader = await cmd.ExecuteReaderAsync(ct).ConfigureAwait(false);
             if (!await reader.ReadAsync(ct).ConfigureAwait(false)) return null;
 
             return new ConfiguracaoFiscalTenant(
-                reader.GetString(0), (RegimeTributario)reader.GetInt32(1), reader.GetString(2), reader.GetString(3), reader.GetString(4));
+                reader.GetString(0), (RegimeTributario)reader.GetInt32(1), reader.GetString(2), reader.GetString(3), reader.GetString(4),
+                reader.IsDBNull(5) ? null : reader.GetString(5), reader.IsDBNull(6) ? null : reader.GetString(6));
         }, ct);
 
     public Task SalvarAsync(ConfiguracaoFiscalTenant configuracao, CancellationToken ct = default)
@@ -31,17 +32,20 @@ public sealed class SqliteConfiguracaoFiscalTenantRepository(ILocalSqliteConnect
             cmd.Transaction = transaction;
             cmd.CommandText =
                 """
-                INSERT INTO fiscal_configuracoes_tenant (tenant_id, regime, uf_origem, serie_nfce, serie_nfe)
-                VALUES ($tenantId, $regime, $ufOrigem, $serieNfce, $serieNfe)
+                INSERT INTO fiscal_configuracoes_tenant (tenant_id, regime, uf_origem, serie_nfce, serie_nfe, csc_id, csc_token)
+                VALUES ($tenantId, $regime, $ufOrigem, $serieNfce, $serieNfe, $cscId, $cscToken)
                 ON CONFLICT(tenant_id) DO UPDATE SET
                     regime = excluded.regime, uf_origem = excluded.uf_origem,
-                    serie_nfce = excluded.serie_nfce, serie_nfe = excluded.serie_nfe;
+                    serie_nfce = excluded.serie_nfce, serie_nfe = excluded.serie_nfe,
+                    csc_id = excluded.csc_id, csc_token = excluded.csc_token;
                 """;
             cmd.Parameters.AddWithValue("$tenantId", configuracao.TenantId);
             cmd.Parameters.AddWithValue("$regime", (int)configuracao.Regime);
             cmd.Parameters.AddWithValue("$ufOrigem", configuracao.UfOrigem);
             cmd.Parameters.AddWithValue("$serieNfce", configuracao.SerieNfce);
             cmd.Parameters.AddWithValue("$serieNfe", configuracao.SerieNfe);
+            cmd.Parameters.AddWithValue("$cscId", (object?)configuracao.CscId ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("$cscToken", (object?)configuracao.CscToken ?? DBNull.Value);
             await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
         }, ct);
 }

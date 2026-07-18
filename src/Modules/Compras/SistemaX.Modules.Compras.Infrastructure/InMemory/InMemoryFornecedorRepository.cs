@@ -25,4 +25,10 @@ public sealed class InMemoryFornecedorRepository : IFornecedorRepository
         _porId[fornecedor.Id] = fornecedor;
         return Task.CompletedTask;
     }
+
+    public Task<IReadOnlyList<Fornecedor>> ListarAsync(string tenantId, CancellationToken ct = default)
+        => Task.FromResult<IReadOnlyList<Fornecedor>>(_porId.Values
+            .Where(f => f.TenantId == tenantId)
+            .OrderBy(f => f.RazaoSocial, StringComparer.OrdinalIgnoreCase)
+            .ToList());
 }

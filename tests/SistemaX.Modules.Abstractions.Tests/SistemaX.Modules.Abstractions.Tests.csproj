@@ -41,6 +41,18 @@
     <ProjectReference Include="..\..\src\Modules\Financeiro\SistemaX.Modules.Financeiro.Domain\SistemaX.Modules.Financeiro.Domain.csproj" />
     <ProjectReference Include="..\..\src\Modules\Financeiro\SistemaX.Modules.Financeiro.Application\SistemaX.Modules.Financeiro.Application.csproj" />
     <ProjectReference Include="..\..\src\Modules\Financeiro\SistemaX.Modules.Financeiro.Infrastructure\SistemaX.Modules.Financeiro.Infrastructure.csproj" />
+
+    <ProjectReference Include="..\..\src\Modules\Compras\SistemaX.Modules.Compras.Domain\SistemaX.Modules.Compras.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Compras\SistemaX.Modules.Compras.Application\SistemaX.Modules.Compras.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Compras\SistemaX.Modules.Compras.Infrastructure\SistemaX.Modules.Compras.Infrastructure.csproj" />
+
+    <ProjectReference Include="..\..\src\Modules\Fiscal\SistemaX.Modules.Fiscal.Domain\SistemaX.Modules.Fiscal.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Fiscal\SistemaX.Modules.Fiscal.Application\SistemaX.Modules.Fiscal.Application.csproj" />
+    <ProjectReference Include="..\..\src\Modules\Fiscal\SistemaX.Modules.Fiscal.Infrastructure\SistemaX.Modules.Fiscal.Infrastructure.csproj" />
+
+    <ProjectReference Include="..\..\src\Verticals\Assistencia\SistemaX.Verticals.Assistencia\SistemaX.Verticals.Assistencia.csproj" />
+    <ProjectReference Include="..\..\src\Verticals\Assistencia\SistemaX.Verticals.Assistencia.Application\SistemaX.Verticals.Assistencia.Application.csproj" />
+    <ProjectReference Include="..\..\src\Verticals\Assistencia\SistemaX.Verticals.Assistencia.Infrastructure\SistemaX.Verticals.Assistencia.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

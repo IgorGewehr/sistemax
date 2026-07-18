@@ -62,4 +62,33 @@ public abstract class ConfiguracaoFiscalTenantRepositoryContractTests
         Assert.Equal(RegimeTributario.SimplesNacional, (await repo.ObterAsync(TenantA))!.Regime);
         Assert.Equal(RegimeTributario.LucroPresumido, (await repo.ObterAsync(TenantB))!.Regime);
     }
+
+    /// <summary>Passo 3(b) — CSC (Código de Segurança do Contribuinte) precisa sobreviver ao
+    /// round-trip de persistência: sem ele a emissão de NFC-e nunca sai do papel (gap #2,
+    /// docs/fiscal/emissao-mapping.md §11).</summary>
+    [Fact]
+    public async Task Csc_e_persistido_e_lido_no_round_trip()
+    {
+        var repo = CriarRepositorio();
+        var config = ConfiguracaoFiscalTenant.Criar(
+            TenantA, RegimeTributario.SimplesNacional, "sp", cscId: "000001", cscToken: "segredo-csc").Valor;
+
+        await repo.SalvarAsync(config);
+        var lida = await repo.ObterAsync(TenantA);
+
+        Assert.Equal("000001", lida!.CscId);
+        Assert.Equal("segredo-csc", lida.CscToken);
+    }
+
+    [Fact]
+    public async Task Csc_ausente_persiste_como_null()
+    {
+        var repo = CriarRepositorio();
+        await repo.SalvarAsync(ConfiguracaoFiscalTenant.Criar(TenantA, RegimeTributario.SimplesNacional, "sp").Valor);
+
+        var lida = await repo.ObterAsync(TenantA);
+
+        Assert.Null(lida!.CscId);
+        Assert.Null(lida.CscToken);
+    }
 }

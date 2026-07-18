@@ -34,7 +34,7 @@ public sealed class SefazApiGateway(
     IDadosFiscaisProdutoCacheRepository dadosProduto,
     IReferenciaDevolucaoDocumentoFiscalRepository referenciasDevolucao,
     ILogger<SefazApiGateway> logger)
-    : IGatewayEmissaoSefaz, IGatewayCancelamentoSefaz, IGatewayInutilizacaoSefaz
+    : IGatewayEmissaoSefaz, IGatewayCancelamentoSefaz, IGatewayInutilizacaoSefaz, IGatewayCartaCorrecaoSefaz
 {
     private static readonly JsonSerializerOptions JsonOpts = new(JsonSerializerDefaults.Web)
     {
@@ -171,6 +171,31 @@ public sealed class SefazApiGateway(
         };
 
         var respostaResult = await PostComRetryAsync("/nfe/inutilizar", payload, "InutilizarNFe", ct);
+        return respostaResult.Falha ? Result.Falhar(respostaResult.Erro) : Result.Ok();
+    }
+
+    public async Task<Result> RegistrarCorrecaoAsync(
+        string tenantId, string chaveAcesso, string correcao, string ufEmitente, int sequencia, CancellationToken ct = default)
+    {
+        var opts = options.Value;
+        if (opts.ModoMock) return Result.Ok();
+
+        var certificado = await certificados.ObterAsync(tenantId, ct);
+        if (certificado is null)
+            return Result.Falhar(new Error(
+                "fiscal.cce.certificado_ausente", $"Tenant '{tenantId}' sem certificado digital configurado."));
+
+        var payload = new
+        {
+            chaveAcesso,
+            correcao,
+            sequencia,
+            ufEmitente,
+            ambiente = opts.AmbienteSefaz,
+            certificado = new { pfxBase64 = certificado.PfxBase64, password = certificado.Senha },
+        };
+
+        var respostaResult = await PostComRetryAsync("/nfe/carta-correcao", payload, "CartaCorrecaoNFe", ct);
         return respostaResult.Falha ? Result.Falhar(respostaResult.Erro) : Result.Ok();
     }
 

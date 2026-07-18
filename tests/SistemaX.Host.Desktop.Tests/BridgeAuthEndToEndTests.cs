@@ -157,7 +157,7 @@ public sealed class BridgeAuthEndToEndTests
     }
 
     [Fact]
-    public async Task Trocar_o_proprio_pin_com_pin_atual_errado_falha_com_401_e_nao_altera_o_pin()
+    public async Task Trocar_o_proprio_pin_com_pin_atual_errado_falha_com_422_e_nao_altera_o_pin()
     {
         await using var ambiente = await SubirServidorAsync(founderComPinProvisorio: true);
 
@@ -171,7 +171,9 @@ public sealed class BridgeAuthEndToEndTests
         trocaRequest.Headers.Add("Authorization", $"Bearer {token}");
         var respostaTroca = await ambiente.Client.SendAsync(trocaRequest);
 
-        Assert.Equal(HttpStatusCode.Unauthorized, respostaTroca.StatusCode);
+        // PIN atual errado é 422 (validação), NÃO 401 — senão o interceptador global de 401 do
+        // cliente web descarta a sessão e chuta o usuário pro login no meio do wizard de troca.
+        Assert.Equal(HttpStatusCode.UnprocessableEntity, respostaTroca.StatusCode);
 
         // PIN original ainda funciona e a instalação ainda pede troca.
         var (statusLoginAntigo, corpoLoginAntigo) = await LoginEDecodificarAsync(ambiente.Client, PinFounder);

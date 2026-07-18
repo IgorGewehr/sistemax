@@ -107,7 +107,10 @@ public static class BridgeEndpoints
             {
                 var statusCode = resultado.Erro.Codigo switch
                 {
-                    "auth.pin_atual_incorreto" => StatusCodes.Status401Unauthorized,
+                    // PIN atual errado é VALIDAÇÃO de campo, não sessão inválida — o Bearer continua
+                    // bom. Retornar 401 aqui fazia o cliente web (interceptador global de 401)
+                    // DESCARTAR a sessão e chutar o usuário pro login no meio do wizard de troca —
+                    // parecia "não consigo trocar o PIN". 422 mantém a sessão e mostra erro inline.
                     "usuario.pin_duplicado" => StatusCodes.Status409Conflict,
                     "usuario.nao_encontrado" => StatusCodes.Status404NotFound,
                     _ => StatusCodes.Status422UnprocessableEntity,

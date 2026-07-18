@@ -53,11 +53,11 @@ public sealed class IdentidadeBootstrapSeederTests
         var founder = (await repo.ListarAsync(BusinessId, incluirInativos: true)).Single();
 
         var trocar = new TrocarPinUseCase(repo);
-        var resultado = await trocar.ExecutarAsync(BusinessId, founder.Id, pinAtual: "1234", pinNovo: "9876");
+        var resultado = await trocar.ExecutarAsync(BusinessId, founder.Id, pinAtual: "1234", pinNovo: "7391");
 
         Assert.True(resultado.Sucesso);
         Assert.False(resultado.Valor.PinProvisorio);
-        Assert.True(resultado.Valor.VerificarPin("9876"));
+        Assert.True(resultado.Valor.VerificarPin("7391"));
 
         var lido = await repo.ObterPorIdAsync(founder.Id);
         Assert.False(lido!.PinProvisorio);

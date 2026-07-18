@@ -31,6 +31,16 @@ public sealed class TrocarPinUseCase(IUsuarioRepository usuarios)
                 "auth.pin_atual_incorreto", "PIN atual incorreto."));
         }
 
+        // Servidor é a fonte da verdade da força do PIN — o wizard no web valida igual, mas é
+        // bypassável. Recusa dígitos repetidos e sequências (0000, 1234…) para não deixar o
+        // operador trocar o "1234" provisório por outro PIN igualmente trivial.
+        if (PinTrivial.EhTrivial(pinNovo))
+        {
+            return Result.Falhar<Usuario>(new Error(
+                "auth.pin_trivial",
+                "PIN muito fácil de adivinhar — evite dígitos repetidos ou sequências (0000, 1234…)."));
+        }
+
         var ativos = await usuarios.ListarAsync(businessId, incluirInativos: false, ct).ConfigureAwait(false);
         if (ativos.Any(u => u.Id != usuario.Id && u.VerificarPin(pinNovo)))
         {

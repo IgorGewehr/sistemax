@@ -141,13 +141,13 @@ public sealed class BridgeAuthEndToEndTests
 
         using var trocaRequest = new HttpRequestMessage(HttpMethod.Post, "/api/auth/trocar-pin")
         {
-            Content = JsonContent.Create(new { pinAtual = PinFounder, pinNovo = "5678" })
+            Content = JsonContent.Create(new { pinAtual = PinFounder, pinNovo = "7391" })
         };
         trocaRequest.Headers.Add("Authorization", $"Bearer {token}");
         var respostaTroca = await ambiente.Client.SendAsync(trocaRequest);
         Assert.Equal(HttpStatusCode.OK, respostaTroca.StatusCode);
 
-        var (statusNovoLogin, corpoNovoLogin) = await LoginEDecodificarAsync(ambiente.Client, "5678");
+        var (statusNovoLogin, corpoNovoLogin) = await LoginEDecodificarAsync(ambiente.Client, "7391");
         Assert.Equal(HttpStatusCode.OK, statusNovoLogin);
         Assert.False(corpoNovoLogin.GetProperty("deveTrocarPin").GetBoolean());
 

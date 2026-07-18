@@ -34,6 +34,13 @@ public interface IIntegrationEvent
 // Valores SEMPRE em centavos-inteiros. Expandir conforme os módulos nascem.
 // ───────────────────────────────────────────────────────────────────────────────
 
+/// <summary>Uma linha de pagamento dentro de <see cref="VendaConcluida.Pagamentos"/> (P2-2,
+/// docs/financeiro/revisao-domain-fit-cnpj.md) — <see cref="Metodo"/> usa o MESMO vocabulário de
+/// <see cref="VendaConcluida.FormaPagamento"/> (rótulo livre resolvido contra
+/// <c>FormaDePagamento.ObterPorNomeAsync</c>), nunca um enum próprio: um pagamento e o "método
+/// principal" da venda precisam bater na mesma resolução de MDR/lag.</summary>
+public sealed record PagamentoIntegracao(string Metodo, long ValorCentavos);
+
 /// <summary>Venda finalizada no PDV → gera RECEITA (competência) + ENTRADA (caixa).
 /// <see cref="ClienteId"/> — companion aditivo da F0 do plano de inteligência do Financeiro
 /// (docs/financeiro/inteligencia-arquitetura.md §3.3/ADR-0005): desbloqueia coorte/LTV/RFM/
@@ -41,10 +48,20 @@ public interface IIntegrationEvent
 /// <c>Venda</c> (módulo Vendas) agora captura cliente no carrinho (<c>Venda.DefinirCliente</c>) e
 /// <c>ConcluirVendaUseCase</c> publica o valor real — continua opcional (PDV de balcão permite
 /// venda sem cliente identificado, então <c>null</c> é um valor de negócio válido, não mais um
-/// gap). Nenhum assinante atual (Financeiro) lê este campo ainda — folds da F1 o farão.</summary>
+/// gap). Nenhum assinante atual (Financeiro) lê este campo ainda — folds da F1 o farão.
+///
+/// <see cref="Pagamentos"/> (P2-2, docs/financeiro/revisao-domain-fit-cnpj.md) — campo ADITIVO,
+/// opcional: quando a venda tem split de pagamento (Vendas.Domain já suporta —
+/// <c>Venda.Pagamentos</c>), cada linha aqui é um <see cref="PagamentoIntegracao"/> com o método e
+/// o valor daquela parcela do total. <see cref="FormaPagamento"/> continua preenchido com o método
+/// PRINCIPAL (maior valor somado) para retrocompatibilidade — nenhum assinante existente (que só
+/// olha a forma principal, ex.: criação de <c>ContaAReceber</c>) quebra. <c>null</c>/vazio (o
+/// padrão, e o único caso hoje sem split real) preserva o comportamento de sempre: um único fato
+/// de recebível pelo total, na forma principal. Só <c>FatoRecebiveisProjection</c> (P2-2) lê este
+/// campo, para resolver MDR/lag POR PARCELA em vez de aplicar a taxa da forma principal ao total.</summary>
 public sealed record VendaConcluida(
     string VendaId, string TenantId, long TotalCentavos, string FormaPagamento, DateTimeOffset OcorridoEm,
-    string? ClienteId = null)
+    string? ClienteId = null, IReadOnlyList<PagamentoIntegracao>? Pagamentos = null)
     : IIntegrationEvent
 {
     public string ChaveIdempotencia => $"venda.concluida:{VendaId}";

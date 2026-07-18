@@ -1,4 +1,5 @@
 using SistemaX.Modules.Abstractions;
+using SistemaX.Modules.Financeiro.Application.Caixa;
 using SistemaX.Modules.Financeiro.Application.CasosDeUso;
 using SistemaX.Modules.Financeiro.Application.EventosDeIntegracao.Handlers;
 using SistemaX.Modules.Financeiro.Domain.Comum;
@@ -25,7 +26,7 @@ public class CaixaVsCompetenciaTests
         var diaDaVenda = new DateTimeOffset(2026, 8, 1, 12, 0, 0, TimeSpan.Zero);
         var diaDoPagamento = new DateTimeOffset(2026, 8, 31, 12, 0, 0, TimeSpan.Zero);
 
-        var vendaHandler = new VendaConcluidaHandler(contasAReceber, movimentos, lancamentos);
+        var vendaHandler = new VendaConcluidaHandler(contasAReceber, movimentos, lancamentos, new ResolvedorDePrazoDeCompensacao(new InMemoryFormaDePagamentoRepository()));
         await vendaHandler.HandleAsync(new VendaConcluida("venda-a-prazo-competencia", "business-1", 30_000, "cartao_credito", diaDaVenda));
 
         // --- Dia 01: só a visão de COMPETÊNCIA existe ---

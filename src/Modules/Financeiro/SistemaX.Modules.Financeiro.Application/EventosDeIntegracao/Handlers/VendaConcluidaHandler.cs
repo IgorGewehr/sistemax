@@ -15,11 +15,19 @@ namespace SistemaX.Modules.Financeiro.Application.EventosDeIntegracao.Handlers;
 /// pagamento liquida à vista, o <see cref="MovimentoFinanceiro"/> atômico correspondente — os
 /// dois fatos nascem no mesmo instante para venda à vista (docs/financeiro-datamodel.md §3).
 /// Idempotente por <c>SourceRef("sale", VendaId)</c> — reprocessar o mesmo evento é no-op.
+///
+/// P2-7 (docs/financeiro/revisao-domain-fit-cnpj.md) — à-vista/a-prazo e o prazo de vencimento
+/// resolvem contra a <c>FormaDePagamento</c> CADASTRADA do tenant via
+/// <see cref="ResolvedorDePrazoDeCompensacao"/> (LAR único com <c>FatoRecebiveisProjection</c>),
+/// não mais a heurística binária própria (dinheiro/pix à vista, resto D+30 fixo) que podia divergir
+/// do prazo real (débito D+1, boleto D+2). Fallback para essa heurística só quando a forma não está
+/// cadastrada (mesmo racional conservador de sempre).
 /// </summary>
 public sealed class VendaConcluidaHandler(
     IContaAReceberRepository contasAReceber,
     IMovimentoFinanceiroRepository movimentos,
-    ILancamentoContabilRepository lancamentos) : IIntegrationEventHandler<VendaConcluida>
+    ILancamentoContabilRepository lancamentos,
+    ResolvedorDePrazoDeCompensacao resolvedorDePrazo) : IIntegrationEventHandler<VendaConcluida>
 {
     public async Task HandleAsync(VendaConcluida evento, CancellationToken ct = default)
     {
@@ -28,8 +36,8 @@ public sealed class VendaConcluidaHandler(
             return; // replay do mesmo evento — idempotência
 
         var valor = new Money(evento.TotalCentavos);
-        var ehAVista = ClassificadorFormaPagamento.EhAVista(evento.FormaPagamento);
-        var vencimento = ehAVista ? evento.OcorridoEm : evento.OcorridoEm.AddDays(ClassificadorFormaPagamento.PrazoPadraoDiasAPrazo);
+        var (ehAVista, prazoDias) = await resolvedorDePrazo.ResolverAsync(evento.TenantId, evento.FormaPagamento, ct).ConfigureAwait(false);
+        var vencimento = ehAVista ? evento.OcorridoEm : evento.OcorridoEm.AddDays(prazoDias);
         var parcelas = ContaFinanceiraBase.ParcelaUnica(valor, vencimento);
 
         // Corrente: venda de balcão/produto é sempre Comercio (P0-1) — VendaConcluida hoje só

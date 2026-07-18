@@ -241,14 +241,18 @@ public sealed class FinanceiroEndpointsModule : IModule, IModuleEndpoints
             return Results.Ok(resultado);
         }).RequerPermissao(Modulo.Financeiro, Acao.Ver);
 
-        // #7 — ponto de equilíbrio vivo do mês + dia do breakeven.
+        // #7 — ponto de equilíbrio vivo do mês + dia do breakeven (+ margem de segurança/GAO/PE
+        // econômico — ideia 1 do matemonstro). `custoOportunidadeMensal` opcional: sem config de
+        // taxa de desconto cadastrada ainda (painel de ROI/imobilizado), o PE econômico degrada
+        // para o PE contábil quando omitido (default 0).
         api.MapGet("/financeiro/ponto-equilibrio", async (
             HttpContext http,
             PontoDeEquilibrioService servico,
-            CancellationToken ct) =>
+            CancellationToken ct,
+            long custoOportunidadeMensalCentavos = 0) =>
         {
             var businessId = http.ObterBusinessId();
-            var resultado = await servico.CalcularAsync(businessId, ct).ConfigureAwait(false);
+            var resultado = await servico.CalcularAsync(businessId, custoOportunidadeMensalCentavos, ct).ConfigureAwait(false);
             return Results.Ok(resultado);
         }).RequerPermissao(Modulo.Financeiro, Acao.Ver);
 
@@ -453,6 +457,42 @@ public sealed class FinanceiroEndpointsModule : IModule, IModuleEndpoints
         api.MapGet("/financeiro/relatorios/dre", async (
             HttpContext http,
             DreGerencialService servico,
+            CancellationToken ct,
+            DateOnly? de = null,
+            DateOnly? ate = null) =>
+        {
+            var businessId = http.ObterBusinessId();
+            var (desde, ateQuando) = ResolverPeriodo(de, ate);
+            var resultado = await servico
+                .CalcularAsync(businessId, desde.InicioDoDia(), ateQuando.FimDoDia(), ct)
+                .ConfigureAwait(false);
+            return Results.Ok(resultado);
+        }).RequerPermissao(Modulo.Financeiro, Acao.Ver);
+
+        // Accruals — "Lucro ≠ Caixa" (ideia 3 do matemonstro, docs/financeiro/ideias-matemonstro.md):
+        // subtrai o resultado operacional por COMPETÊNCIA (mesmo DreGerencialService acima) do
+        // fluxo de caixa OPERACIONAL do mesmo período (fato_caixa_diario, já bilateral — P1-3/Fatia
+        // 6). Accruals alto e positivo = lucro no papel sem caixa; muito negativo = pré-pagamento.
+        api.MapGet("/financeiro/relatorios/accruals", async (
+            HttpContext http,
+            AccrualsService servico,
+            CancellationToken ct,
+            DateOnly? de = null,
+            DateOnly? ate = null) =>
+        {
+            var businessId = http.ObterBusinessId();
+            var (desde, ateQuando) = ResolverPeriodo(de, ate);
+            var resultado = await servico
+                .CalcularAsync(businessId, desde.InicioDoDia(), ateQuando.FimDoDia(), ct)
+                .ConfigureAwait(false);
+            return Results.Ok(resultado);
+        }).RequerPermissao(Modulo.Financeiro, Acao.Ver);
+
+        // Concentração de receita por cliente (P2-4, docs/financeiro/revisao-domain-fit-cnpj.md) —
+        // risco de dependência de conta grande: % da receita do período que vem do maior cliente.
+        api.MapGet("/financeiro/relatorios/concentracao-clientes", async (
+            HttpContext http,
+            ConcentracaoDeReceitaService servico,
             CancellationToken ct,
             DateOnly? de = null,
             DateOnly? ate = null) =>

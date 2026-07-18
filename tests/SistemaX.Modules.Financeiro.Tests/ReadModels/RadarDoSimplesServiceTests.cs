@@ -42,11 +42,13 @@ public sealed class RadarDoSimplesServiceTests
     {
         var hoje = new DateTimeOffset(2026, 7, 15, 12, 0, 0, TimeSpan.Zero);
         var ambiente = NovoAmbiente(hoje);
-        var hojeData = DateOnly.FromDateTime(hoje.UtcDateTime);
 
-        await ambiente.FatoReceitaDiaria.AcumularAsync(BusinessId, hojeData, CorrenteDeReceita.Comercio, 10_000_00);
-        await ambiente.FatoReceitaDiaria.AcumularAsync(BusinessId, hojeData, CorrenteDeReceita.Servico, 5_000_00);
-        await ambiente.FatoReceitaDiaria.AcumularAsync(BusinessId, hojeData, CorrenteDeReceita.Recorrente, 2_000_00);
+        // P2-1: RBT12 = 12 MESES CALENDÁRIO FECHADOS anteriores ao mês corrente — a receita precisa
+        // estar num mês já fechado (junho/2026), nunca no mês corrente (julho/2026, ainda em curso).
+        var mesFechado = new DateOnly(2026, 6, 15);
+        await ambiente.FatoReceitaDiaria.AcumularAsync(BusinessId, mesFechado, CorrenteDeReceita.Comercio, 10_000_00);
+        await ambiente.FatoReceitaDiaria.AcumularAsync(BusinessId, mesFechado, CorrenteDeReceita.Servico, 5_000_00);
+        await ambiente.FatoReceitaDiaria.AcumularAsync(BusinessId, mesFechado, CorrenteDeReceita.Recorrente, 2_000_00);
 
         var resultado = await ambiente.Servico.CalcularAsync(BusinessId, AnexoSimplesNacional.I);
 
@@ -54,20 +56,39 @@ public sealed class RadarDoSimplesServiceTests
         Assert.Equal(17_000_00, resultado.Valor.Rbt12Centavos); // 10.000 + 5.000 + 2.000 — as TRÊS correntes
     }
 
+    /// <summary>Receita do mês CORRENTE (julho) dentro do horizonte de 365 dias corridos antigo NÃO
+    /// entra mais no RBT12 (P2-1) — mês em curso ainda não fechou.</summary>
     [Fact]
-    public async Task Fator_r_e_calculado_da_folha_de_doze_meses_sobre_o_rbt12()
+    public async Task Rbt12_nao_inclui_receita_do_mes_corrente_ainda_nao_fechado()
     {
         var hoje = new DateTimeOffset(2026, 7, 15, 12, 0, 0, TimeSpan.Zero);
         var ambiente = NovoAmbiente(hoje);
         var hojeData = DateOnly.FromDateTime(hoje.UtcDateTime);
 
-        // RBT12 = R$100.000,00 (Serviço); folha = R$30.000,00 -> Fator R = 30% (>= 28%).
-        await ambiente.FatoReceitaDiaria.AcumularAsync(BusinessId, hojeData, CorrenteDeReceita.Servico, 100_000_00);
+        await ambiente.FatoReceitaDiaria.AcumularAsync(BusinessId, hojeData, CorrenteDeReceita.Comercio, 10_000_00);
 
-        var parcelas = ContaFinanceiraBase.ParcelaUnica(Money.DeReais(30_000), hoje);
+        var resultado = await ambiente.Servico.CalcularAsync(BusinessId, AnexoSimplesNacional.I);
+
+        Assert.True(resultado.Sucesso);
+        Assert.Equal(0, resultado.Valor.Rbt12Centavos);
+    }
+
+    [Fact]
+    public async Task Fator_r_e_calculado_da_folha_de_doze_meses_sobre_o_rbt12()
+    {
+        var hoje = new DateTimeOffset(2026, 7, 15, 12, 0, 0, TimeSpan.Zero);
+        var ambiente = NovoAmbiente(hoje);
+
+        // RBT12 = R$100.000,00 (Serviço); folha = R$30.000,00 -> Fator R = 30% (>= 28%). Os dois
+        // numeradores precisam estar na MESMA janela de 12 meses fechados (P2-1/Fator R).
+        var mesFechado = new DateTimeOffset(2026, 6, 15, 12, 0, 0, TimeSpan.Zero);
+        var mesFechadoData = DateOnly.FromDateTime(mesFechado.UtcDateTime);
+        await ambiente.FatoReceitaDiaria.AcumularAsync(BusinessId, mesFechadoData, CorrenteDeReceita.Servico, 100_000_00);
+
+        var parcelas = ContaFinanceiraBase.ParcelaUnica(Money.DeReais(30_000), mesFechado);
         var folha = ContaAPagar.Criar(
-            BusinessId, new SourceRef("payroll", "folha-1"), "Folha 2026-07", CategoriaFinanceiraPadrao.DespesaComPessoal,
-            hoje, Money.DeReais(30_000), parcelas).Valor;
+            BusinessId, new SourceRef("payroll", "folha-1"), "Folha 2026-06", CategoriaFinanceiraPadrao.DespesaComPessoal,
+            mesFechado, Money.DeReais(30_000), parcelas).Valor;
         await ambiente.ContasAPagar.SalvarAsync(folha);
 
         var resultado = await ambiente.Servico.CalcularAsync(BusinessId, AnexoSimplesNacional.I);
@@ -83,12 +104,19 @@ public sealed class RadarDoSimplesServiceTests
         var ambiente = NovoAmbiente(hoje);
         var hojeData = DateOnly.FromDateTime(hoje.UtcDateTime);
 
+        // Receita do MÊS CORRENTE (para ReceitaMesCentavos/DAS estimado do mês)...
         await ambiente.FatoReceitaDiaria.AcumularAsync(BusinessId, hojeData, CorrenteDeReceita.Servico, 100_000_00);
 
-        var parcelas = ContaFinanceiraBase.ParcelaUnica(Money.DeReais(40_000), hoje); // Fator R = 40%
+        // ...e o MESMO valor num mês FECHADO, para alimentar RBT12/Fator R (P2-1) — sem isso o
+        // RBT12 seria 0 e o Fator R cairia no guard de "sem RBT12" (0), nunca III.
+        var mesFechado = new DateTimeOffset(2026, 6, 15, 12, 0, 0, TimeSpan.Zero);
+        var mesFechadoData = DateOnly.FromDateTime(mesFechado.UtcDateTime);
+        await ambiente.FatoReceitaDiaria.AcumularAsync(BusinessId, mesFechadoData, CorrenteDeReceita.Servico, 100_000_00);
+
+        var parcelas = ContaFinanceiraBase.ParcelaUnica(Money.DeReais(40_000), mesFechado); // Fator R = 40%
         var folha = ContaAPagar.Criar(
             BusinessId, new SourceRef("payroll", "folha-1"), "Folha", CategoriaFinanceiraPadrao.DespesaComPessoal,
-            hoje, Money.DeReais(40_000), parcelas).Valor;
+            mesFechado, Money.DeReais(40_000), parcelas).Valor;
         await ambiente.ContasAPagar.SalvarAsync(folha);
 
         var resultado = await ambiente.Servico.CalcularAsync(BusinessId, AnexoSimplesNacional.I);
@@ -109,10 +137,14 @@ public sealed class RadarDoSimplesServiceTests
 
         await ambiente.FatoReceitaDiaria.AcumularAsync(BusinessId, hojeData, CorrenteDeReceita.Servico, 100_000_00);
 
-        var parcelas = ContaFinanceiraBase.ParcelaUnica(Money.DeReais(10_000), hoje); // Fator R = 10%
+        var mesFechado = new DateTimeOffset(2026, 6, 15, 12, 0, 0, TimeSpan.Zero);
+        var mesFechadoData = DateOnly.FromDateTime(mesFechado.UtcDateTime);
+        await ambiente.FatoReceitaDiaria.AcumularAsync(BusinessId, mesFechadoData, CorrenteDeReceita.Servico, 100_000_00);
+
+        var parcelas = ContaFinanceiraBase.ParcelaUnica(Money.DeReais(10_000), mesFechado); // Fator R = 10%
         var folha = ContaAPagar.Criar(
             BusinessId, new SourceRef("payroll", "folha-1"), "Folha", CategoriaFinanceiraPadrao.DespesaComPessoal,
-            hoje, Money.DeReais(10_000), parcelas).Valor;
+            mesFechado, Money.DeReais(10_000), parcelas).Valor;
         await ambiente.ContasAPagar.SalvarAsync(folha);
 
         var resultado = await ambiente.Servico.CalcularAsync(BusinessId, AnexoSimplesNacional.I);

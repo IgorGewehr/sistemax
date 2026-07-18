@@ -140,6 +140,58 @@ public sealed class FatoRecebiveisProjectionTests
         Assert.Equal(linha.Vencimento, linha.DataLiquidacaoPrevista);
     }
 
+    /// <summary>P2-2 (docs/financeiro/revisao-domain-fit-cnpj.md) — venda com split de pagamento
+    /// (metade dinheiro, metade crédito): cada pagamento vira sua PRÓPRIA linha, com o MDR/lag da
+    /// SUA forma — nunca a taxa da forma PRINCIPAL aplicada ao total (que "emprestaria" 0% de MDR
+    /// pro crédito, ou 3,49% pro dinheiro, dependendo de qual pagamento fosse o maior).</summary>
+    [Fact]
+    public async Task VendaConcluida_ComSplitDePagamento_UmaLinhaPorPagamentoComMdrDaSuaForma()
+    {
+        var repositorio = new InMemoryFatoRecebiveisRepository();
+        var projecao = new FatoRecebiveisProjection(repositorio, await FormasDePagamentoDeMercado());
+
+        var ocorridoEm = new DateTimeOffset(2026, 3, 10, 14, 0, 0, TimeSpan.FromHours(-3));
+        var pagamentos = new[] { new PagamentoIntegracao("dinheiro", 5_000), new PagamentoIntegracao("credito", 5_000) };
+        await AplicarAsync(projecao,
+            new VendaConcluida("venda-split", TenantId, 10_000, "dinheiro", ocorridoEm, Pagamentos: pagamentos),
+            "venda.concluida:venda-split");
+
+        var linhas = await repositorio.ListarPorVencimentoAsync(TenantId, new DateOnly(2026, 3, 1), new DateOnly(2026, 3, 31));
+        Assert.Equal(2, linhas.Count);
+
+        var linhaDinheiro = linhas.Single(l => l.FormaPagamento == "dinheiro");
+        Assert.Equal(5_000, linhaDinheiro.ValorBrutoCentavos);
+        Assert.Equal(5_000, linhaDinheiro.ValorLiquidoCentavos); // dinheiro sem MDR
+        Assert.Equal(0m, linhaDinheiro.TaxaPercentualAplicada);
+
+        var linhaCredito = linhas.Single(l => l.FormaPagamento == "credito");
+        Assert.Equal(5_000, linhaCredito.ValorBrutoCentavos);
+        Assert.Equal(0.0349m, linhaCredito.TaxaPercentualAplicada);
+        Assert.Equal(5_000 - 174, linhaCredito.ValorLiquidoCentavos); // 5000*0.0349=174,5 -> arredondamento bancário pro par (174)
+
+        // Conservação: soma dos brutos das linhas bate com o total da venda.
+        Assert.Equal(10_000, linhas.Sum(l => l.ValorBrutoCentavos));
+    }
+
+    /// <summary>Com 1 pagamento só (o caso comum hoje) o comportamento é IDÊNTICO ao de sempre —
+    /// uma linha, chave <c>sale:{VendaId}</c> preservada, sem split algum.</summary>
+    [Fact]
+    public async Task VendaConcluida_ComUmSoPagamento_ComportamentoIdenticoAoDeSempre()
+    {
+        var repositorio = new InMemoryFatoRecebiveisRepository();
+        var projecao = new FatoRecebiveisProjection(repositorio, await FormasDePagamentoDeMercado());
+
+        var ocorridoEm = new DateTimeOffset(2026, 3, 10, 14, 0, 0, TimeSpan.FromHours(-3));
+        var pagamentos = new[] { new PagamentoIntegracao("credito", 10_000) };
+        await AplicarAsync(projecao,
+            new VendaConcluida("venda-um-pagamento", TenantId, 10_000, "credito", ocorridoEm, Pagamentos: pagamentos),
+            "venda.concluida:venda-um-pagamento");
+
+        var linha = Assert.Single(await repositorio.ListarPorVencimentoAsync(TenantId, new DateOnly(2026, 3, 1), new DateOnly(2026, 3, 31)));
+        Assert.Equal(10_000, linha.ValorBrutoCentavos);
+        Assert.Equal(0.0349m, linha.TaxaPercentualAplicada);
+    }
+
     [Fact]
     public async Task ResetarAsync_ZeraTudo()
     {

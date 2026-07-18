@@ -268,7 +268,15 @@ public sealed class Venda : AggregateRoot<string>
                 item.PrecoUnitario.Centavos, item.Desconto.Centavos))
             .ToArray();
 
-        Raise(new VendaConcluidaDomainEvent(Id, TenantId, Total, formaPagamentoPrincipal, itensParaEstoque, ClienteId));
+        // P2-2 (docs/financeiro/revisao-domain-fit-cnpj.md) — split de pagamento propagado
+        // ADITIVAMENTE: com um pagamento só, o Financeiro segue tratando pelo campo FormaPagamento
+        // de sempre (ver VendaConcluidaHandler); com 2+, FatoRecebiveisProjection folda um
+        // FatoRecebivel por pagamento, cada um com o MDR/lag da SUA forma.
+        var pagamentosParaIntegracao = _pagamentos
+            .Select(p => new ItemPagamentoParaIntegracao(p.Metodo.ToString(), p.Valor.Centavos))
+            .ToArray();
+
+        Raise(new VendaConcluidaDomainEvent(Id, TenantId, Total, formaPagamentoPrincipal, itensParaEstoque, ClienteId, pagamentosParaIntegracao));
 
         return Result.Ok();
     }

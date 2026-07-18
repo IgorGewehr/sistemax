@@ -36,7 +36,7 @@ public class FinanceiroConsultorFactProviderTests
         InMemoryContaAReceberRepository ContasAReceber,
         InMemoryMovimentoFinanceiroRepository Movimentos,
         InMemoryRecorrenciaRepository Recorrencias,
-        InMemoryFatoMargemProdutoRepository FatoMargemProduto,
+        InMemoryFatoCustoDiarioRepository FatoCustoDiario,
         InMemoryFatoReceitaDiariaRepository FatoReceitaDiaria,
         FakeRelogio Relogio);
 
@@ -48,11 +48,13 @@ public class FinanceiroConsultorFactProviderTests
         var contasAReceber = new InMemoryContaAReceberRepository();
         var movimentos = new InMemoryMovimentoFinanceiroRepository();
         var recorrencias = new InMemoryRecorrenciaRepository();
-        var fatoMargemProduto = new InMemoryFatoMargemProdutoRepository();
+        var fatoCustoDiario = new InMemoryFatoCustoDiarioRepository();
         var fatoReceitaDiaria = new InMemoryFatoReceitaDiariaRepository();
+        var fatoRecebiveis = new InMemoryFatoRecebiveisRepository();
 
         var previsaoDeCaixa = new PrevisaoDeCaixaService(fatoCaixaDiario, contasAReceber, contasAPagar, movimentos, new InMemoryFormaDePagamentoRepository(), relogio);
-        var pontoDeEquilibrio = new PontoDeEquilibrioService(recorrencias, fatoMargemProduto, fatoReceitaDiaria, relogio);
+        var dreGerencial = new DreGerencialService(contasAReceber, contasAPagar, fatoCustoDiario, fatoRecebiveis);
+        var pontoDeEquilibrio = new PontoDeEquilibrioService(recorrencias, fatoReceitaDiaria, dreGerencial, relogio);
         var inadimplencia = new InadimplenciaService(contasAReceber, relogio);
         var radarDoSimples = new RadarDoSimplesService(fatoReceitaDiaria, contasAPagar, new InMemoryConfiguracaoRadarSimplesRepository(), relogio);
 
@@ -62,7 +64,7 @@ public class FinanceiroConsultorFactProviderTests
 
         return new Ambiente(
             provider, fatoCaixaDiario, contasAPagar, contasAReceber, movimentos,
-            recorrencias, fatoMargemProduto, fatoReceitaDiaria, relogio);
+            recorrencias, fatoCustoDiario, fatoReceitaDiaria, relogio);
     }
 
     private static PeriodoRef Periodo(DateTimeOffset hoje) => new(BusinessId, DateOnly.FromDateTime(hoje.UtcDateTime));
@@ -169,11 +171,16 @@ public class FinanceiroConsultorFactProviderTests
             "aluguel", FrequenciaRecorrencia.Mensal, hoje.AddMonths(-6)).Valor;
         await ambiente.Recorrencias.SalvarAsync(recorrencia);
 
-        // Margem de contribuição 50%: uma venda de R$2.000,00 com custo de R$1.000,00, hoje.
+        // Margem de contribuição 50% (P1-2 — blended por mix, aqui com uma corrente só): uma venda
+        // de R$2.000,00 (ContaAReceber, corrente Comercio) com CMV real de R$1.000,00 já foldado em
+        // fato_custo_diario — o mesmo insumo que DreGerencialService.PorCorrente usa.
         var hojeData = DateOnly.FromDateTime(hoje.UtcDateTime);
-        await ambiente.FatoMargemProduto.RegistrarItensDeVendaAsync(
-            BusinessId, "venda-1", hojeData, [new ItemMargemPendente("produto-1", 200_000)]);
-        await ambiente.FatoMargemProduto.AlocarCustoDeVendaAsync(BusinessId, "venda-1", 100_000);
+        var vendaMc = ContaAReceber.Criar(
+            BusinessId, new SourceRef("teste", "venda-mc"), "Venda MC", "servicos",
+            hoje, Money.DeReais(2_000), ContaFinanceiraBase.ParcelaUnica(Money.DeReais(2_000), hoje),
+            corrente: CorrenteDeReceita.Comercio).Valor;
+        await ambiente.ContasAReceber.SalvarAsync(vendaMc);
+        await ambiente.FatoCustoDiario.AcumularAsync(BusinessId, hojeData, CorrenteDeReceita.Comercio, 100_000);
 
         // Receita diária do mês: R$2.000,00/dia nos dias 1, 2 e 3 — MC acumulada bate os
         // R$3.000,00 de custo fixo EXATAMENTE no dia 3 (1000 + 1000 + 1000 = 3000).
@@ -231,8 +238,10 @@ public class FinanceiroConsultorFactProviderTests
         var hoje = new DateTimeOffset(2026, 3, 15, 12, 0, 0, TimeSpan.Zero);
         var ambiente = NovoAmbiente(hoje);
 
-        var hojeData = DateOnly.FromDateTime(hoje.UtcDateTime);
-        await ambiente.FatoReceitaDiaria.AcumularAsync(BusinessId, hojeData, CorrenteDeReceita.Comercio, 50_000_000); // R$500.000,00
+        // P2-1: RBT12 são os 12 meses FECHADOS anteriores ao mês corrente — a receita precisa estar
+        // num mês já fechado (fevereiro/2026), não no mês corrente (março, ainda em curso).
+        var mesFechado = DateOnly.FromDateTime(hoje.AddMonths(-1).UtcDateTime);
+        await ambiente.FatoReceitaDiaria.AcumularAsync(BusinessId, mesFechado, CorrenteDeReceita.Comercio, 50_000_000); // R$500.000,00
 
         var fatos = await ambiente.Provider.ColetarAsync(Periodo(hoje));
         var radar = fatos.Single(f => f.RuleId == "fin.radar-simples");
@@ -283,13 +292,17 @@ public class FinanceiroConsultorFactProviderTests
         var fatos = await ambiente.Provider.ColetarAsync(Periodo(hoje));
         var sinal = fatos.SingleOrDefault(f => f.RuleId == "fin.conta-grande-antes-de-receber");
 
+        // P2-3: a matemática vem de SinalContaGrandeAntesDoRecebimento.Detectar — caixa PROJETADO
+        // até o vencimento da maior conta a pagar (saldo + entradas antes − saídas antes, exceto
+        // ela mesma). O recebimento de R$8.000,00 vence DEPOIS (dia 10 > dia 5) — não entra na
+        // projeção até o dia 5: caixa projetado = só o saldo (R$500,00), falta R$9.500,00.
         Assert.NotNull(sinal);
         Assert.Equal("bancario", sinal!.Tela);
         Assert.Equal("Aluguel atrasado", sinal.Facts["contaAPagarDescricao"]);
         Assert.Equal(new Money(1_000_000).Formatado(), sinal.Facts["contaAPagarValor"]);
-        Assert.Equal("Cliente XYZ", sinal.Facts["contaAReceberDescricao"]);
+        Assert.Equal(new Money(500_00).Formatado(), sinal.Facts["caixaProjetadoAteLa"]);
+        Assert.Equal(new Money(950_000).Formatado(), sinal.Facts["falta"]);
         Assert.Contains("Aluguel atrasado", sinal.TemplateFallback);
-        Assert.Contains("Cliente XYZ", sinal.TemplateFallback);
     }
 
     [Fact]
@@ -326,7 +339,9 @@ public class FinanceiroConsultorFactProviderTests
             TipoMovimentoFinanceiro.Entrada, Money.DeReais(500), hoje, new SourceRef("teste", "saldo"));
         await ambiente.Movimentos.SalvarAsync(movimentoSaldo.Valor);
 
-        // Conta a pagar vence dia 10; recebimento chega ANTES, dia 5 — não é sinal de alerta.
+        // Conta a pagar vence dia 10; recebimento chega ANTES (dia 5) E, somado ao saldo, COBRE a
+        // conta — a projeção acumulada (SinalContaGrandeAntesDoRecebimento.Detectar, P2-3) é
+        // saldo(500) + recebimento(10.000) = 10.500 >= 10.000 -> falta <= 0, não é sinal de alerta.
         var vencimentoPagar = hoje.AddDays(10);
         var parcelasPagar = ContaFinanceiraBase.ParcelaUnica(Money.DeReais(10_000), vencimentoPagar);
         var contaPagar = ContaAPagar.Criar(
@@ -334,9 +349,9 @@ public class FinanceiroConsultorFactProviderTests
         await ambiente.ContasAPagar.SalvarAsync(contaPagar);
 
         var vencimentoReceber = hoje.AddDays(5);
-        var parcelasReceber = ContaFinanceiraBase.ParcelaUnica(Money.DeReais(8_000), vencimentoReceber);
+        var parcelasReceber = ContaFinanceiraBase.ParcelaUnica(Money.DeReais(10_000), vencimentoReceber);
         var contaReceber = ContaAReceber.Criar(
-            BusinessId, new SourceRef("teste", "recebimento"), "Cliente ABC", "servicos", hoje, Money.DeReais(8_000), parcelasReceber).Valor;
+            BusinessId, new SourceRef("teste", "recebimento"), "Cliente ABC", "servicos", hoje, Money.DeReais(10_000), parcelasReceber).Valor;
         await ambiente.ContasAReceber.SalvarAsync(contaReceber);
 
         var fatos = await ambiente.Provider.ColetarAsync(Periodo(hoje));

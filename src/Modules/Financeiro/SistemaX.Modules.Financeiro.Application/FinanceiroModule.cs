@@ -42,6 +42,7 @@ public sealed class FinanceiroModule : IModule
 
     public void Registrar(IServiceCollection services, IModuleContext contexto)
     {
+        services.AddScoped<ResolvedorDePrazoDeCompensacao>();
         services.AddScoped<IIntegrationEventHandler<VendaConcluida>, VendaConcluidaHandler>();
         services.AddScoped<IIntegrationEventHandler<VendaEstornada>, VendaEstornadaHandler>();
         services.AddScoped<IIntegrationEventHandler<CompraRecebida>, CompraRecebidaHandler>();
@@ -77,6 +78,8 @@ public sealed class FinanceiroModule : IModule
 
         services.AddScoped<FluxoDeCaixaService>();
         services.AddScoped<DreGerencialService>();
+        services.AddScoped<AccrualsService>();
+        services.AddScoped<ConcentracaoDeReceitaService>();
         services.AddScoped<QuantoSobrouDeVerdadeService>();
         services.AddScoped<AlertaFinanceiroService>();
         services.AddScoped<ReceitaRecorrenteService>();

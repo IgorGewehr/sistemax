@@ -64,16 +64,29 @@ public sealed record ItemVendaParaEstoque(
     string ItemId, string ProdutoId, string Descricao, long QuantidadeMilesimos,
     long PrecoUnitarioCentavos, long DescontoCentavos);
 
+/// <summary>Linha de pagamento já convertida para o formato pobre e estável que
+/// <see cref="PagamentoIntegracao"/> (Modules.Abstractions) exige — ponte entre
+/// <see cref="PagamentoDeVenda"/> (rico, com <c>Id</c>/<c>ValorRecebido</c>/<c>Troco</c>) e o
+/// contrato de integração (P2-2, docs/financeiro/revisao-domain-fit-cnpj.md).</summary>
+public sealed record ItemPagamentoParaIntegracao(string Metodo, long ValorCentavos);
+
 /// <summary>Evento de DOMÍNIO: uma <see cref="Venda"/> foi concluída (pagamento definido, FSM em
 /// <see cref="StatusVenda.Concluida"/>). Privado ao módulo Vendas.
 ///
 /// <see cref="ClienteId"/> — FECHADO NESTA REVISÃO o gap que <c>VendaConcluida.ClienteId</c>
 /// (Modules.Abstractions) documentava: o agregado <see cref="Venda"/> agora captura o cliente do
 /// carrinho (<see cref="Venda.DefinirCliente"/>) e propaga aqui; continua opcional (PDV de balcão
-/// não exige cliente identificado).</summary>
+/// não exige cliente identificado).
+///
+/// <see cref="Pagamentos"/> — FECHADO NESTA REVISÃO (P2-2, docs/financeiro/revisao-domain-fit-cnpj.md)
+/// o gap que este arquivo documentava como "evolução proposta, não implementada": a lista completa
+/// de <see cref="PagamentoDeVenda"/> da venda (split de pagamento), traduzida para
+/// <see cref="VendaConcluida.Pagamentos"/> — só o MÉTODO+VALOR de cada linha, nunca o
+/// <c>ValorRecebido</c>/troco (irrelevante para o Financeiro resolver MDR/lag).</summary>
 public sealed record VendaConcluidaDomainEvent(
     string VendaId, string TenantId, Money Total, string FormaPagamento,
-    IReadOnlyList<ItemVendaParaEstoque> Itens, string? ClienteId = null) : DomainEvent
+    IReadOnlyList<ItemVendaParaEstoque> Itens, string? ClienteId = null,
+    IReadOnlyList<ItemPagamentoParaIntegracao>? Pagamentos = null) : DomainEvent
 {
     /// <summary>Traduz para o evento de INTEGRAÇÃO que o Financeiro assina. Note que os dois
     /// tipos carregam a mesma informação de negócio, mas <see cref="VendaConcluida"/> é o
@@ -85,7 +98,8 @@ public sealed record VendaConcluidaDomainEvent(
         TotalCentavos: Total.Centavos,
         FormaPagamento: FormaPagamento,
         OcorridoEm: OccurredOn,
-        ClienteId: ClienteId);
+        ClienteId: ClienteId,
+        Pagamentos: Pagamentos?.Select(p => new PagamentoIntegracao(p.Metodo, p.ValorCentavos)).ToArray());
 
     /// <summary>Traduz para o companion que Estoque e Fiscal assinam (handlers já existem e estão
     /// testados dos dois lados — só faltava esta torneira do lado de Vendas). Mesmo racional de

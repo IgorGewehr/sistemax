@@ -59,6 +59,44 @@ public class VendaConcluidaEventoTests
         Assert.Equal(nameof(MetodoPagamento.Pix), evento.FormaPagamento); // 120 > 30
     }
 
+    /// <summary>P2-2 (docs/financeiro/revisao-domain-fit-cnpj.md) — o evento de INTEGRAÇÃO carrega
+    /// TODOS os pagamentos do split, não só o principal, pra <c>FatoRecebiveisProjection</c> foldar
+    /// MDR/lag POR forma.</summary>
+    [Fact]
+    public void Concluir_ComSplitDePagamento_ParaEventoDeIntegracao_CarregaTodosOsPagamentos()
+    {
+        var venda = VendaTestBuilder.AbrirComItem(Money.DeReais(150));
+        venda.RegistrarPagamento(MetodoPagamento.Dinheiro, Money.DeReais(30), null, DateTimeOffset.UtcNow);
+        venda.RegistrarPagamento(MetodoPagamento.Pix, Money.DeReais(120), null, DateTimeOffset.UtcNow);
+        venda.Concluir();
+
+        var domainEvent = venda.DomainEvents.OfType<VendaConcluidaDomainEvent>().Single();
+        var eventoDeIntegracao = domainEvent.ParaEventoDeIntegracao();
+
+        Assert.NotNull(eventoDeIntegracao.Pagamentos);
+        Assert.Equal(2, eventoDeIntegracao.Pagamentos!.Count);
+        Assert.Contains(eventoDeIntegracao.Pagamentos, p => p.Metodo == nameof(MetodoPagamento.Dinheiro) && p.ValorCentavos == 3_000);
+        Assert.Contains(eventoDeIntegracao.Pagamentos, p => p.Metodo == nameof(MetodoPagamento.Pix) && p.ValorCentavos == 12_000);
+    }
+
+    /// <summary>Com 1 pagamento só, <c>Pagamentos</c> continua vindo preenchido com 1 linha (não
+    /// <c>null</c>) — quem consome já trata "1 linha" como "sem split real" (P2-2), então não há
+    /// ambiguidade em manter o campo sempre populado quando há pagamento.</summary>
+    [Fact]
+    public void Concluir_ComUmSoPagamento_ParaEventoDeIntegracao_CarregaUmaLinhaEmPagamentos()
+    {
+        var venda = VendaTestBuilder.AbrirComItem(Money.DeReais(50));
+        venda.RegistrarPagamento(MetodoPagamento.Pix, Money.DeReais(50), null, DateTimeOffset.UtcNow);
+        venda.Concluir();
+
+        var domainEvent = venda.DomainEvents.OfType<VendaConcluidaDomainEvent>().Single();
+        var eventoDeIntegracao = domainEvent.ParaEventoDeIntegracao();
+
+        var pagamento = Assert.Single(eventoDeIntegracao.Pagamentos!);
+        Assert.Equal(nameof(MetodoPagamento.Pix), pagamento.Metodo);
+        Assert.Equal(5_000, pagamento.ValorCentavos);
+    }
+
     [Fact]
     public void ClearDomainEvents_EsvaziaAListaAposPublicacao()
     {

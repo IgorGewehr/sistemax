@@ -29,6 +29,16 @@ namespace SistemaX.Modules.Financeiro.Application.Analitico;
 /// <c>FormaPagamento</c> nulo (taxa de diagnóstico a prazo de <c>OrdemDeServico.DevolverSemReparo</c>)
 /// cai no MESMO fallback conservador de sempre (0%, D+0) — nunca inventa prazo que a Assistência
 /// não informou.
+///
+/// SPLIT DE PAGAMENTO (P2-2, docs/financeiro/revisao-domain-fit-cnpj.md — FECHADO): quando
+/// <see cref="VendaConcluida.Pagamentos"/> vem com 2+ linhas (metade dinheiro, metade crédito, por
+/// exemplo), o MDR/lag antes era resolvido pela forma PRINCIPAL e aplicado ao TOTAL — uma linha
+/// paga em dinheiro (0% de taxa) "emprestava" a taxa zero pro resto pago no crédito, ou o inverso.
+/// Agora cada pagamento vira sua PRÓPRIA linha de <c>fato_recebiveis</c>, com o MDR/lag da SUA
+/// forma — <c>Σ ValorBrutoCentavos</c> das linhas continua batendo com <c>TotalCentavos</c>
+/// (conservação), mas o líquido total agora reflete a taxa correta de CADA forma, não uma média
+/// distorcida pela forma principal. Com 0 ou 1 pagamento (o caso comum hoje), o comportamento é
+/// IDÊNTICO ao de sempre — uma linha só, pela <see cref="VendaConcluida.FormaPagamento"/> principal.
 /// </summary>
 public sealed class FatoRecebiveisProjection(
     IFatoRecebiveisRepository repositorio, IFormaDePagamentoRepository formasDePagamento) : IProjection
@@ -52,7 +62,26 @@ public sealed class FatoRecebiveisProjection(
     private Task AplicarVendaConcluidaAsync(IntegrationEventLedgerEntry evento, CancellationToken ct)
     {
         var e = JsonSerializer.Deserialize<VendaConcluida>(evento.PayloadJson)!;
+
+        // P2-2 — split real (2+ pagamentos): uma linha de fato_recebiveis POR PAGAMENTO, cada uma
+        // com o MDR/lag da SUA forma. 0 ou 1 pagamento: comportamento de sempre (uma linha, forma
+        // principal, chave "sale:{VendaId}" preservada — nenhum consumidor existente quebra).
+        if (e.Pagamentos is { Count: > 1 } pagamentos)
+        {
+            return RegistrarSplitAsync(e.TenantId, e.VendaId, pagamentos, e.OcorridoEm, ct);
+        }
         return RegistrarAsync(e.TenantId, $"sale:{e.VendaId}", e.FormaPagamento, e.TotalCentavos, e.OcorridoEm, ct);
+    }
+
+    private async Task RegistrarSplitAsync(
+        string tenantId, string vendaId, IReadOnlyList<PagamentoIntegracao> pagamentos, DateTimeOffset ocorridoEm, CancellationToken ct)
+    {
+        for (var indice = 0; indice < pagamentos.Count; indice++)
+        {
+            var pagamento = pagamentos[indice];
+            await RegistrarAsync(tenantId, $"sale:{vendaId}:{indice}", pagamento.Metodo, pagamento.ValorCentavos, ocorridoEm, ct)
+                .ConfigureAwait(false);
+        }
     }
 
     private Task AplicarPedidoPagoAsync(IntegrationEventLedgerEntry evento, CancellationToken ct)

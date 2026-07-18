@@ -1,6 +1,7 @@
 using System.Globalization;
 using SistemaX.Modules.Abstractions.Consultor;
 using SistemaX.Modules.Financeiro.Application.Ports;
+using SistemaX.Modules.Financeiro.Application.Quant;
 using SistemaX.Modules.Financeiro.Application.ReadModels;
 using SistemaX.Modules.Financeiro.Domain.Comum;
 using SistemaX.Modules.Financeiro.Domain.ContasAPagarReceber;
@@ -50,7 +51,7 @@ public sealed class FinanceiroConsultorFactProvider(
         var businessId = periodo.BusinessId;
 
         var previsao = await previsaoDeCaixa.CalcularAsync(businessId, HorizonteDiasPadrao, ct).ConfigureAwait(false);
-        var breakeven = await pontoDeEquilibrio.CalcularAsync(businessId, ct).ConfigureAwait(false);
+        var breakeven = await pontoDeEquilibrio.CalcularAsync(businessId, ct: ct).ConfigureAwait(false);
         var inad = await inadimplencia.CalcularAsync(businessId, ct).ConfigureAwait(false);
         // P0-4 (docs/financeiro/revisao-domain-fit-cnpj.md): NÃO passa mais Anexo I hardcoded — o
         // Radar resolve o mix real do tenant (config real de corrente→anexo + Fator R) e o
@@ -298,15 +299,15 @@ public sealed class FinanceiroConsultorFactProvider(
     }
 
     /// <summary>
-    /// SINAL ÓBVIO citado na tarefa: "conta grande vence antes de receber X". Compara, dentro dos
-    /// próximos <see cref="HorizonteDiasPadrao"/> dias, a MAIOR parcela em aberto de
-    /// <see cref="ContaAPagar"/> contra a MAIOR parcela em aberto de <see cref="ContaAReceber"/>.
-    /// Só emite fato quando as três condições batem (senão o sinal não é "óbvio", é ruído):
-    /// 1) existe uma conta a pagar grande no horizonte;
-    /// 2) o saldo em caixa de HOJE não cobre essa conta sozinho;
-    /// 3) o maior recebimento esperado (se existir) vence DEPOIS dessa conta.
-    /// Retorna <c>null</c> (não crasha, não emite fato de "tudo bem" para isto) quando a condição
-    /// não se sustenta — é um sinal opcional, não uma métrica de dashboard sempre presente.
+    /// SINAL ÓBVIO citado na tarefa: "conta grande vence antes de receber X". P2-3
+    /// (docs/financeiro/revisao-domain-fit-cnpj.md) — a matemática mora inteira em
+    /// <see cref="SinalContaGrandeAntesDoRecebimento.Detectar"/> (projeção ACUMULADA de caixa até o
+    /// vencimento da maior conta a pagar, não só a comparação contra a maior parcela a receber que
+    /// a versão inline antiga fazia); este método só ADAPTA os ports do Financeiro (parcelas em
+    /// aberto + saldo) para o formato de insumo do Quant e traduz o <c>Resultado</c> em
+    /// <see cref="ConsultorFato"/>. Retorna <c>null</c> (não crasha, não emite fato de "tudo bem"
+    /// para isto) quando a condição não se sustenta — é um sinal opcional, não uma métrica de
+    /// dashboard sempre presente.
     /// </summary>
     private async Task<ConsultorFato?> ColetarSinalContaGrandeAntesDeReceberAsync(string businessId, CancellationToken ct)
     {
@@ -317,64 +318,62 @@ public sealed class FinanceiroConsultorFactProvider(
         var contasReceberAbertas = await contasAReceber.ListarAbertasAteAsync(businessId, horizonte, ct).ConfigureAwait(false);
         var saldoAtual = await movimentos.CalcularSaldoAsync(businessId, null, agora, ct).ConfigureAwait(false);
 
-        var maiorAPagar = MaiorParcelaAbertaNoHorizonte(contasPagarAbertas, agora, horizonte);
-        if (maiorAPagar is null || maiorAPagar.ValorRestanteCentavos <= saldoAtual.Centavos)
-        {
-            return null;
-        }
+        var descricaoPorParcelaId = new Dictionary<string, string>();
+        var parcelasAPagar = ParaParcelasAbertas(contasPagarAbertas, agora, descricaoPorParcelaId);
+        var parcelasAReceber = ParaParcelasAbertas(contasReceberAbertas, agora, descricaoPorParcelaId);
 
-        var maiorAReceber = MaiorParcelaAbertaNoHorizonte(contasReceberAbertas, agora, horizonte);
-        if (maiorAReceber is not null && maiorAReceber.Vencimento <= maiorAPagar.Vencimento)
-        {
-            return null; // o recebimento cobre (ou chega antes/junto), não é um alerta
-        }
+        var sinal = SinalContaGrandeAntesDoRecebimento.Detectar(saldoAtual.Centavos, parcelasAPagar, parcelasAReceber, HorizonteDiasPadrao);
+        if (sinal is null) return null;
 
         const string ruleId = "fin.conta-grande-antes-de-receber";
         const string tela = "bancario";
 
-        var valorAPagar = new Money(maiorAPagar.ValorRestanteCentavos).Formatado();
-        var vencAPagar = maiorAPagar.Vencimento.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture);
-        var saldo = saldoAtual.Formatado();
-        var score = Clamp0a10000(maiorAPagar.ValorRestanteCentavos / 1_000);
+        var descricaoConta = descricaoPorParcelaId.GetValueOrDefault(sinal.ParcelaId, "Conta a pagar");
+        var vencimento = agora.AddDays(sinal.DiasParaVencer).ToString("dd/MM/yyyy", CultureInfo.InvariantCulture);
+        var valorConta = new Money(sinal.ValorDaContaCentavos).Formatado();
+        var caixaProjetado = new Money(sinal.CaixaProjetadoAntesCentavos).Formatado();
+        var falta = new Money(sinal.FaltaCentavos).Formatado();
+        var score = Clamp0a10000(sinal.ValorDaContaCentavos / 1_000);
 
         var facts = new Dictionary<string, string>
         {
-            ["contaAPagarDescricao"] = maiorAPagar.Descricao,
-            ["contaAPagarValor"] = valorAPagar,
-            ["contaAPagarVencimento"] = vencAPagar,
-            ["saldoAtual"] = saldo,
+            ["contaAPagarDescricao"] = descricaoConta,
+            ["contaAPagarValor"] = valorConta,
+            ["contaAPagarVencimento"] = vencimento,
+            ["saldoAtual"] = saldoAtual.Formatado(),
+            ["caixaProjetadoAteLa"] = caixaProjetado,
+            ["falta"] = falta,
         };
 
-        string frase;
-        if (maiorAReceber is null)
-        {
-            frase = $"Atenção: a conta \"{maiorAPagar.Descricao}\" de {valorAPagar} vence em {vencAPagar} e seu saldo atual ({saldo}) não cobre esse valor — não há nenhum recebimento grande previsto antes disso.";
-        }
-        else
-        {
-            var valorAReceber = new Money(maiorAReceber.ValorRestanteCentavos).Formatado();
-            var vencAReceber = maiorAReceber.Vencimento.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture);
-            facts["contaAReceberDescricao"] = maiorAReceber.Descricao;
-            facts["contaAReceberValor"] = valorAReceber;
-            facts["contaAReceberVencimento"] = vencAReceber;
-            frase = $"Atenção: a conta \"{maiorAPagar.Descricao}\" de {valorAPagar} vence em {vencAPagar}, antes do recebimento de \"{maiorAReceber.Descricao}\" ({valorAReceber}) previsto para {vencAReceber} — seu saldo atual ({saldo}) não cobre a conta sozinho.";
-        }
+        var frase = $"Atenção: a conta \"{descricaoConta}\" de {valorConta} vence em {vencimento} — seu caixa projetado até lá ({caixaProjetado}, considerando entradas e saídas já esperadas) não cobre esse valor. Faltariam {falta}.";
 
         return new ConsultorFato(Modulo, ruleId, tela, score, facts, frase, new DrillTarget(tela));
     }
 
-    private sealed record ParcelaCandidata(string Descricao, DateTimeOffset Vencimento, long ValorRestanteCentavos);
+    /// <summary>Achata <see cref="ContaFinanceiraBase.Parcelas"/> em aberto (Aberto/Parcial/Atrasado)
+    /// dentro do horizonte pedido para o formato de insumo de
+    /// <see cref="SinalContaGrandeAntesDoRecebimento.ParcelaAberta"/> — dias já vencidos (negativos)
+    /// são CLAMPADOS a 0 (urgência máxima), exatamente como o contrato do Quant documenta. Acumula
+    /// a descrição da conta de origem em <paramref name="descricaoPorParcelaId"/> só para a
+    /// mensagem — o Quant em si não conhece descrição, só números.</summary>
+    private static IReadOnlyList<SinalContaGrandeAntesDoRecebimento.ParcelaAberta> ParaParcelasAbertas(
+        IReadOnlyList<ContaFinanceiraBase> contas, DateTimeOffset agora, IDictionary<string, string> descricaoPorParcelaId)
+    {
+        var resultado = new List<SinalContaGrandeAntesDoRecebimento.ParcelaAberta>();
+        foreach (var conta in contas)
+        {
+            foreach (var parcela in conta.Parcelas)
+            {
+                if (parcela.Status is not (StatusFinanceiro.Aberto or StatusFinanceiro.Parcial or StatusFinanceiro.Atrasado)) continue;
 
-    private static ParcelaCandidata? MaiorParcelaAbertaNoHorizonte(
-        IReadOnlyList<ContaFinanceiraBase> contas, DateTimeOffset inicio, DateTimeOffset fim)
-        => contas
-            .SelectMany(conta => conta.Parcelas
-                .Where(p => p.Status is StatusFinanceiro.Aberto or StatusFinanceiro.Parcial or StatusFinanceiro.Atrasado
-                            && p.Vencimento >= inicio && p.Vencimento <= fim)
-                .Select(p => new ParcelaCandidata(conta.Descricao, p.Vencimento, (p.Valor - p.ValorPago).Centavos)))
-            .OrderByDescending(p => p.ValorRestanteCentavos)
-            .ThenBy(p => p.Vencimento)
-            .FirstOrDefault();
+                var dias = Math.Max(0, (int)Math.Ceiling((parcela.Vencimento - agora).TotalDays));
+                var restante = (parcela.Valor - parcela.ValorPago).Centavos;
+                descricaoPorParcelaId[parcela.Id] = conta.Descricao;
+                resultado.Add(new SinalContaGrandeAntesDoRecebimento.ParcelaAberta(parcela.Id, restante, dias));
+            }
+        }
+        return resultado;
+    }
 
     private static int Clamp0a10000(long valor) => (int)Math.Clamp(valor, 0, 10_000);
 }

@@ -24,12 +24,18 @@ public sealed record RadarDoSimplesResultado(
 /// Orquestra <see cref="RadarDoSimplesNacional"/> sobre <c>fato_receita_diaria</c> — catálogo #4 do
 /// plano de inteligência do Financeiro (docs/financeiro/inteligencia-arquitetura.md/ADR-0005).
 ///
-/// RBT12 (receita bruta dos últimos 12 meses) = soma de <c>fato_receita_diaria</c> nos 365 dias
-/// anteriores a hoje, de TODAS as correntes (Comercio/Servico/Recorrente) — P0-4
-/// (docs/financeiro/revisao-domain-fit-cnpj.md): antes só via receita de venda/pedido/OS; agora
+/// RBT12 (receita bruta dos últimos 12 meses) = soma de <c>fato_receita_diaria</c> nos
+/// <see cref="MesesParaTendencia"/> MESES CALENDÁRIO FECHADOS anteriores ao mês corrente (P2-1,
+/// docs/financeiro/revisao-domain-fit-cnpj.md — LC 123/2006 art. 3º §1º: "receita bruta acumulada
+/// nos 12 meses ANTERIORES ao mês do período de apuração"), de TODAS as correntes
+/// (Comercio/Servico/Recorrente) — P0-4: antes só via receita de venda/pedido/OS; agora
 /// <c>CobrancaDeAssinaturaGerada</c> também folda ali, fechando o gap de assinatura nunca entrar
-/// no RBT12. A projeção de cruzamento usa os últimos
-/// <see cref="MesesParaTendencia"/> totais MENSAIS FECHADOS (a janela real do RBT12 — P1-1).
+/// no RBT12. BUG ANTIGO (P2-1): somava 365 dias corridos TERMINANDO HOJE — incluía o mês corrente
+/// (ainda não fechado) e fazia o RBT12 oscilar dia a dia dentro do próprio mês, e não bater com a
+/// definição legal de "meses fechados". A janela agora é EXATAMENTE a mesma que a projeção de
+/// cruzamento de faixa (P1-1) já rolava — <see cref="CarregarReceitaMensalRecenteAsync"/> é
+/// reusada como fonte ÚNICA dos dois números, nunca duas definições de "12 meses" divergentes no
+/// mesmo read-model.
 ///
 /// P0-4 — MULTI-ANEXO: <see cref="AnexoSimplesNacional.I"/> (Comércio), <see cref="AnexoSimplesNacional.III"/>
 /// e <see cref="AnexoSimplesNacional.V"/> (Serviço, decidido pelo Fator R — ver <see cref="FatorR"/>)
@@ -58,18 +64,19 @@ public sealed class RadarDoSimplesService(
         }
 
         var hoje = DateOnly.FromDateTime(relogio.Agora().UtcDateTime);
-        var rbt12Inicio = hoje.AddDays(-365);
+        var inicioDoMesCorrente = new DateOnly(hoje.Year, hoje.Month, 1);
 
-        // RBT12 (P0-4): soma de TODAS as correntes presentes na janela — inclui assinatura desde
-        // que CobrancaDeAssinaturaGerada passou a foldar em fato_receita_diaria.
-        var receitaUltimos12Meses = await fatoReceitaDiaria.ListarAsync(businessId, rbt12Inicio, hoje, ct).ConfigureAwait(false);
-        var rbt12 = receitaUltimos12Meses.Sum(f => f.ReceitaCentavos);
+        // RBT12 (P2-1) = soma dos MesesParaTendencia meses calendário FECHADOS — a mesma janela e
+        // a mesma consulta que a projeção de cruzamento de faixa (P1-1) já carrega; somar aqui de
+        // novo é a definição legal em si, não uma segunda fonte de verdade.
+        var receitaMensalRecente = await CarregarReceitaMensalRecenteAsync(businessId, hoje, ct).ConfigureAwait(false);
+        var rbt12 = receitaMensalRecente.Sum();
 
-        var folhaDozeMeses = await CarregarFolhaDozeMesesAsync(
-            businessId, new DateTimeOffset(rbt12Inicio.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero), relogio.Agora(), ct).ConfigureAwait(false);
+        var inicioJanelaFechada = new DateTimeOffset(inicioDoMesCorrente.AddMonths(-MesesParaTendencia).ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
+        var fimJanelaFechada = new DateTimeOffset(inicioDoMesCorrente.AddDays(-1).ToDateTime(TimeOnly.MaxValue), TimeSpan.Zero);
+        var folhaDozeMeses = await CarregarFolhaDozeMesesAsync(businessId, inicioJanelaFechada, fimJanelaFechada, ct).ConfigureAwait(false);
         var fatorR = FatorR.Calcular(folhaDozeMeses, rbt12);
 
-        var receitaMensalRecente = await CarregarReceitaMensalRecenteAsync(businessId, hoje, ct).ConfigureAwait(false);
         var receitaMesPorCorrente = await CarregarReceitaDoMesPorCorrenteAsync(businessId, hoje, ct).ConfigureAwait(false);
 
         var mapeamento = await configuracaoRadar.ObterAsync(businessId, ct).ConfigureAwait(false) ?? MapeamentoCorrenteAnexoPadrao.Obter();

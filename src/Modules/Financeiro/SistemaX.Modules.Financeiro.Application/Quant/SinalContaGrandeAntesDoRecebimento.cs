@@ -15,6 +15,12 @@ namespace SistemaX.Modules.Financeiro.Application.Quant;
 /// P5/P50/P95 de <see cref="BandasDeFluxoDeCaixa"/>: aqui é um fato determinístico único (sem
 /// bootstrap, sem incerteza) — o objetivo é o alerta pontual e explicável, não a distribuição de
 /// probabilidade.
+///
+/// P2-3 (docs/financeiro/revisao-domain-fit-cnpj.md) — consumida por
+/// <c>Consultor/FinanceiroConsultorFactProvider.ColetarSinalContaGrandeAntesDeReceberAsync</c>, que
+/// antes reimplementava uma heurística mais fraca inline (comparava só a MAIOR parcela a receber,
+/// não a projeção ACUMULADA de caixa até o vencimento). Este é o único consumidor — não é mais
+/// dead code de design.
 /// </summary>
 public static class SinalContaGrandeAntesDoRecebimento
 {
@@ -25,6 +31,7 @@ public static class SinalContaGrandeAntesDoRecebimento
     public sealed record ParcelaAberta(string Id, long ValorCentavos, int DiasParaVencer);
 
     public sealed record Resultado(
+        string ParcelaId,
         long ValorDaContaCentavos,
         int DiasParaVencer,
         long CaixaProjetadoAntesCentavos,
@@ -62,7 +69,7 @@ public static class SinalContaGrandeAntesDoRecebimento
         var falta = maiorConta.ValorCentavos - caixaProjetadoAntes;
 
         return falta > 0
-            ? new Resultado(maiorConta.ValorCentavos, maiorConta.DiasParaVencer, caixaProjetadoAntes, falta)
+            ? new Resultado(maiorConta.Id, maiorConta.ValorCentavos, maiorConta.DiasParaVencer, caixaProjetadoAntes, falta)
             : null;
     }
 }

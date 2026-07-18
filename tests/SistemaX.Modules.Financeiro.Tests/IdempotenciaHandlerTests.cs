@@ -1,4 +1,5 @@
 using SistemaX.Modules.Abstractions;
+using SistemaX.Modules.Financeiro.Application.Caixa;
 using SistemaX.Modules.Financeiro.Application.CasosDeUso;
 using SistemaX.Modules.Financeiro.Application.EventosDeIntegracao.Handlers;
 using SistemaX.Modules.Financeiro.Domain.Comum;
@@ -21,7 +22,7 @@ public class IdempotenciaHandlerTests
         var contasAReceber = new InMemoryContaAReceberRepository();
         var movimentos = new InMemoryMovimentoFinanceiroRepository();
         var lancamentos = new InMemoryLancamentoContabilRepository();
-        var handler = new VendaConcluidaHandler(contasAReceber, movimentos, lancamentos);
+        var handler = new VendaConcluidaHandler(contasAReceber, movimentos, lancamentos, new ResolvedorDePrazoDeCompensacao(new InMemoryFormaDePagamentoRepository()));
 
         var evento = new VendaConcluida("venda-idempotente-1", "business-1", 15_000, "dinheiro", DateTimeOffset.UtcNow);
 
@@ -45,7 +46,7 @@ public class IdempotenciaHandlerTests
         var contasAReceber = new InMemoryContaAReceberRepository();
         var movimentos = new InMemoryMovimentoFinanceiroRepository();
         var lancamentos = new InMemoryLancamentoContabilRepository();
-        var handler = new VendaConcluidaHandler(contasAReceber, movimentos, lancamentos);
+        var handler = new VendaConcluidaHandler(contasAReceber, movimentos, lancamentos, new ResolvedorDePrazoDeCompensacao(new InMemoryFormaDePagamentoRepository()));
 
         var evento = new VendaConcluida("venda-a-prazo-1", "business-1", 20_000, "cartao_credito", DateTimeOffset.UtcNow);
         await handler.HandleAsync(evento);
@@ -83,7 +84,7 @@ public class IdempotenciaHandlerTests
         var movimentos = new InMemoryMovimentoFinanceiroRepository();
         var lancamentos = new InMemoryLancamentoContabilRepository();
 
-        var vendaHandler = new VendaConcluidaHandler(contasAReceber, movimentos, lancamentos);
+        var vendaHandler = new VendaConcluidaHandler(contasAReceber, movimentos, lancamentos, new ResolvedorDePrazoDeCompensacao(new InMemoryFormaDePagamentoRepository()));
         var estornoHandler = new VendaEstornadaHandler(contasAReceber, movimentos, new EstornarMovimentoUseCase(movimentos, lancamentos));
 
         var vendaEvento = new VendaConcluida("venda-estornada-1", "business-1", 10_000, "pix", DateTimeOffset.UtcNow);
@@ -162,7 +163,7 @@ public class IdempotenciaHandlerTests
         var movimentos = new InMemoryMovimentoFinanceiroRepository();
         var lancamentos = new InMemoryLancamentoContabilRepository();
 
-        var vendaHandler = new VendaConcluidaHandler(contasAReceber, movimentos, lancamentos);
+        var vendaHandler = new VendaConcluidaHandler(contasAReceber, movimentos, lancamentos, new ResolvedorDePrazoDeCompensacao(new InMemoryFormaDePagamentoRepository()));
         await vendaHandler.HandleAsync(new VendaConcluida("venda-a-prazo-baixa", "business-1", 12_000, "boleto", DateTimeOffset.UtcNow));
 
         var conta = await contasAReceber.BuscarPorOrigemAsync("business-1", "sale:venda-a-prazo-baixa");

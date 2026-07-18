@@ -1,0 +1,721 @@
+<style>
+  :root {
+    /* Neutros/marca herdados dos tokens do app (saas-erp) — mesma paleta dos mockups aprovados */
+    --bg: 210 40% 98%;
+    --surface: 0 0% 100%;
+    --surface-2: 210 40% 96.5%;
+    --fg: 222 47% 11%;
+    --muted: 215 16% 47%;
+    --faint: 215 20% 65%;
+    --border: 214 32% 90%;
+    --primary: 0 72% 51%;
+    --primary-soft: 0 72% 96%;
+    --pos: 152 58% 40%;
+    --pos-soft: 152 55% 94%;
+    --warn: 32 90% 44%;
+    --warn-soft: 38 92% 94%;
+    --crit: 349 78% 48%;
+    --crit-soft: 349 80% 96%;
+    --ring: 0 72% 51%;
+    --shadow: 220 40% 20%;
+    --mono: "SF Mono", ui-monospace, "JetBrains Mono", "Cascadia Code", Menlo, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  }
+  :root[data-theme="light"] {
+    --bg: 210 40% 98%; --surface: 0 0% 100%; --surface-2: 210 40% 96.5%;
+    --fg: 222 47% 11%; --muted: 215 16% 47%; --faint: 215 20% 65%; --border: 214 32% 90%;
+    --primary: 0 72% 51%; --primary-soft: 0 72% 96%; --pos: 152 58% 40%; --pos-soft: 152 55% 94%;
+    --warn: 32 90% 44%; --warn-soft: 38 92% 94%; --crit: 349 78% 48%; --crit-soft: 349 80% 96%; --shadow: 220 40% 20%;
+  }
+  :root[data-theme="dark"] {
+    --bg: 222 47% 5%; --surface: 220 40% 7.5%; --surface-2: 218 34% 11%;
+    --fg: 210 40% 96%; --muted: 215 20% 60%; --faint: 215 18% 42%; --border: 215 25% 16%;
+    --primary: 0 72% 58%; --primary-soft: 0 45% 13%; --pos: 152 55% 50%; --pos-soft: 152 40% 12%;
+    --warn: 38 92% 55%; --warn-soft: 36 45% 13%; --crit: 350 85% 62%; --crit-soft: 349 45% 14%; --shadow: 222 60% 2%;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: hsl(var(--bg)); color: hsl(var(--fg));
+    font-family: var(--sans); -webkit-font-smoothing: antialiased;
+    font-size: 14px; line-height: 1.5;
+  }
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .eyebrow { text-transform: uppercase; letter-spacing: 0.08em; font-size: 11px; font-weight: 600; color: hsl(var(--muted)); }
+  .text-crit { color: hsl(var(--crit)); }
+  .text-pos { color: hsl(var(--pos)); }
+  .text-warn { color: hsl(var(--warn)); }
+  .text-muted { color: hsl(var(--muted)); }
+
+  /* ---- App shell ---- */
+  .app { display: grid; grid-template-columns: 60px 1fr; min-height: 100vh; }
+  .rail {
+    background: hsl(var(--surface)); border-right: 1px solid hsl(var(--border));
+    display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 0;
+  }
+  .rail .logo {
+    width: 34px; height: 34px; border-radius: 10px; margin-bottom: 10px;
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(0 72% 40%));
+    display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 15px;
+    box-shadow: 0 4px 14px hsl(var(--primary) / 0.4);
+  }
+  .rail button {
+    width: 40px; height: 40px; border-radius: 11px; border: 0; background: transparent;
+    color: hsl(var(--faint)); cursor: pointer; display: grid; place-items: center; transition: .15s;
+  }
+  .rail button svg { width: 20px; height: 20px; }
+  .rail button:hover { background: hsl(var(--surface-2)); color: hsl(var(--fg)); }
+  .rail button.active { background: hsl(var(--primary-soft)); color: hsl(var(--primary)); }
+  .rail .spacer { flex: 1; }
+
+  .main { min-width: 0; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 26px 32px 90px; }
+
+  /* ---- Header ---- */
+  header.page { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 22px; flex-wrap: wrap; }
+  header.page h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; margin: 4px 0 2px; text-wrap: balance; }
+  header.page .sub { color: hsl(var(--muted)); font-size: 13.5px; }
+  .head-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .period { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border: 1px solid hsl(var(--border));
+    border-radius: 10px; background: hsl(var(--surface)); font-weight: 600; font-size: 13px; cursor: pointer; }
+  .period:hover { background: hsl(var(--surface-2)); }
+  .btn-primary {
+    display: inline-flex; align-items: center; gap: 7px; padding: 9px 15px; border-radius: 10px; border: 0;
+    background: hsl(var(--primary)); color: #fff; font-weight: 600; font-size: 13.5px; cursor: pointer;
+    box-shadow: 0 4px 14px hsl(var(--primary) / 0.35); transition: transform .12s, filter .12s;
+  }
+  .btn-primary:hover { filter: brightness(1.06); transform: translateY(-1px); }
+  .btn-primary.sm { padding: 7px 12px; font-size: 12.5px; box-shadow: none; }
+  .btn-ghost { padding: 8px 11px; border-radius: 10px; border: 1px solid hsl(var(--border)); background: hsl(var(--surface));
+    color: hsl(var(--fg)); cursor: pointer; font-size: 13px; display: inline-flex; gap: 6px; align-items: center; }
+  .btn-ghost:hover { background: hsl(var(--surface-2)); }
+
+  /* Toggle opt-in "Análise por Projeto" */
+  .optin { display: inline-flex; align-items: center; gap: 9px; padding: 7px 12px; border: 1px solid hsl(var(--pos) / 0.4);
+    border-radius: 10px; background: hsl(var(--pos-soft)); font-size: 12.5px; font-weight: 600; color: hsl(var(--pos)); cursor: pointer; }
+  .optin .sw { width: 30px; height: 18px; border-radius: 999px; background: hsl(var(--pos)); position: relative; flex: none; }
+  .optin .sw::after { content: ""; position: absolute; top: 2px; right: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; }
+
+  /* ---- Cards ---- */
+  .card { background: hsl(var(--surface)); border: 1px solid hsl(var(--border)); border-radius: 16px;
+    box-shadow: 0 1px 2px hsl(var(--shadow) / 0.06), 0 8px 24px -18px hsl(var(--shadow) / 0.5); }
+  .card h2.sec { font-size: 13px; font-weight: 700; letter-spacing: -0.01em; padding: 16px 18px 2px; margin: 0; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .card h2.sec .hint { font-weight: 500; font-size: 12px; color: hsl(var(--muted)); }
+
+  /* Tabs do Financeiro */
+  .tabs { display: flex; gap: 2px; border-bottom: 1px solid hsl(var(--border)); margin-bottom: 18px; overflow-x: auto; }
+  .tab { padding: 10px 14px; font-size: 13.5px; font-weight: 600; color: hsl(var(--muted)); border: 0; background: none; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; transition: .15s; }
+  .tab:hover { color: hsl(var(--fg)); }
+  .tab.active { color: hsl(var(--primary)); border-bottom-color: hsl(var(--primary)); }
+
+  /* Info tooltip (ⓘ) — CSS only */
+  .info-ic { position: relative; display: inline-flex; width: 15px; height: 15px; border-radius: 50%;
+    background: hsl(var(--surface-2)); color: hsl(var(--muted)); font-size: 10px; align-items: center; justify-content: center;
+    cursor: help; margin-left: 5px; vertical-align: middle; }
+  .info-ic:hover::after, .info-ic:focus-visible::after {
+    content: attr(data-tip); position: absolute; bottom: 130%; left: 50%; transform: translateX(-50%);
+    width: 226px; background: hsl(var(--fg)); color: hsl(var(--bg)); font-size: 11.5px; font-weight: 500;
+    padding: 9px 11px; border-radius: 9px; line-height: 1.45; z-index: 8; text-transform: none; letter-spacing: normal;
+    box-shadow: 0 10px 26px hsl(var(--shadow) / 0.35); }
+  .info-ic:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+
+  /* ---- Seletor de projeto ---- */
+  .projbar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 18px; }
+  .projpick { text-align: left; border: 1px solid hsl(var(--border)); background: hsl(var(--surface)); border-radius: 14px;
+    padding: 14px 16px; cursor: pointer; transition: transform .12s, box-shadow .12s, border-color .12s; position: relative;
+    display: flex; flex-direction: column; gap: 2px; font: inherit; color: inherit; }
+  .projpick:hover { transform: translateY(-2px); box-shadow: 0 10px 24px -16px hsl(var(--shadow) / 0.6); }
+  .projpick:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+  .projpick.active { border-color: hsl(var(--primary) / 0.55);
+    background: linear-gradient(hsl(var(--surface)), hsl(var(--surface))) padding-box, linear-gradient(130deg, hsl(var(--primary) / 0.4), hsl(var(--border) / 0.2)) border-box;
+    border: 1px solid transparent; box-shadow: 0 6px 18px -12px hsl(var(--primary) / 0.5); }
+  .projpick .pname { font-weight: 700; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+  .projpick .pdot { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+  .projpick .ptag { font-size: 11.5px; color: hsl(var(--muted)); }
+  .projpick .pmrr { margin-top: 9px; font-size: 20px; font-weight: 700; letter-spacing: -0.02em; }
+  .projpick .pfoot { font-size: 11.5px; color: hsl(var(--muted)); margin-top: 1px; }
+
+  /* ---- KPI row ---- */
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 16px; }
+  .kpi { padding: 16px 18px; position: relative; overflow: hidden; }
+  .kpi .lbl { display: flex; align-items: center; gap: 6px; }
+  .kpi .val { font-size: 27px; font-weight: 700; margin-top: 10px; letter-spacing: -0.02em; }
+  .kpi .val small { font-size: 15px; font-weight: 600; color: hsl(var(--muted)); }
+  .kpi .delta { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; font-weight: 600; margin-top: 7px; }
+  .kpi .foot { font-size: 12px; color: hsl(var(--muted)); margin-top: 3px; }
+  .kpi.hero::after { content: ""; position: absolute; inset: 0; background: radial-gradient(120% 90% at 100% 0, hsl(var(--primary) / 0.10), transparent 60%); pointer-events: none; }
+  .spark { margin-top: 10px; height: 34px; width: 100%; display: block; }
+
+  /* ---- 2-col ---- */
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; align-items: stretch; }
+
+  /* Stat tiles */
+  .stats { padding: 14px 18px 18px; display: flex; flex-direction: column; gap: 11px; }
+  .stat { padding: 12px 14px; border-radius: 12px; background: hsl(var(--surface-2)); }
+  .stat .k { font-size: 12px; color: hsl(var(--muted)); font-weight: 600; }
+  .stat .v { font-size: 22px; font-weight: 700; margin-top: 4px; letter-spacing: -0.02em; }
+  .stat .v small { font-size: 13px; font-weight: 600; color: hsl(var(--muted)); }
+  .stat .s { font-size: 12px; color: hsl(var(--faint)); margin-top: 2px; }
+  .stat.pos .v { color: hsl(var(--pos)); }
+  .card-note { font-size: 12px; color: hsl(var(--muted)); line-height: 1.55; padding: 0 18px 16px; display: flex; gap: 8px; align-items: flex-start; }
+  .card-note svg { color: hsl(var(--primary)); flex: none; margin-top: 1px; width: 14px; height: 14px; }
+  .card-note b { color: hsl(var(--fg)); font-weight: 700; }
+
+  /* ---- Decomp / drow (margem em camadas, subtração do Aevo) ---- */
+  .decomp { padding: 8px 18px 16px; }
+  .drow { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 14px;
+    padding: 11px 10px; border-radius: 11px; }
+  .drow + .drow { border-top: 1px dashed hsl(var(--border)); }
+  .drow .dlabel { font-size: 13.5px; font-weight: 500; color: hsl(var(--fg)); }
+  .drow .dlabel .dsub { font-weight: 400; color: hsl(var(--muted)); font-size: 12px; }
+  .drow .dval { font-size: 15px; font-weight: 700; text-align: right; }
+  .drow .dval.pos { color: hsl(var(--pos)); }
+  .drow .dval.crit { color: hsl(var(--crit)); }
+  .drow.total { margin-top: 4px; padding-top: 13px; border-top: 1px solid hsl(var(--border));
+    background: hsl(var(--pos-soft) / 0.5); }
+  .drow.total .dlabel { font-weight: 700; font-size: 14px; }
+  .drow.total .dval { font-size: 20px; }
+  .drow.total .dpct { display: block; font-size: 11.5px; font-weight: 600; color: hsl(var(--muted)); }
+
+  /* ---- Capacidade das licenças ---- */
+  .lic-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; padding: 6px 18px 4px; }
+  .lic { border-radius: 12px; border: 1.5px solid hsl(var(--border)); padding: 14px 8px 12px; text-align: center; background: hsl(var(--surface-2)); }
+  .lic .lic-ic { width: 26px; height: 26px; margin: 0 auto 7px; border-radius: 8px; display: grid; place-items: center; }
+  .lic .lic-ic svg { width: 15px; height: 15px; }
+  .lic .licn { font-size: 11px; font-weight: 700; }
+  .lic .lics { font-size: 10.5px; margin-top: 3px; color: hsl(var(--muted)); line-height: 1.3; }
+  .lic.used { border-color: hsl(var(--pos) / 0.5); background: hsl(var(--pos-soft)); }
+  .lic.used .lic-ic { background: hsl(var(--pos) / 0.16); color: hsl(var(--pos)); }
+  .lic.used .licn { color: hsl(var(--pos)); }
+  .lic.idle { border-style: dashed; }
+  .lic.idle .lic-ic { background: hsl(var(--surface)); color: hsl(var(--faint)); }
+  .lic.idle .licn { color: hsl(var(--muted)); }
+  .util-line { display: flex; align-items: center; gap: 14px; padding: 14px 18px 4px; flex-wrap: wrap; }
+  .util-bar { flex: 1; min-width: 140px; height: 10px; border-radius: 6px; background: hsl(var(--surface-2)); overflow: hidden; }
+  .util-bar .fill { height: 100%; border-radius: 6px; background: hsl(var(--pos)); }
+  .util-line .ub-lbl { font-size: 12.5px; font-weight: 600; }
+  .util-line .ub-ocio { font-size: 12.5px; font-weight: 700; color: hsl(var(--warn)); }
+
+  /* ---- Super Consultor ---- */
+  .consultor { display: flex; gap: 14px; padding: 16px 18px; align-items: flex-start;
+    background:
+      linear-gradient(hsl(var(--surface)), hsl(var(--surface))) padding-box,
+      linear-gradient(120deg, hsl(var(--primary) / 0.5), hsl(var(--border) / 0.2)) border-box;
+    border: 1px solid transparent; border-radius: 16px; margin-bottom: 16px; }
+  .consultor .icon { flex: none; width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center;
+    background: hsl(var(--primary-soft)); color: hsl(var(--primary)); }
+  .consultor .icon svg { width: 20px; height: 20px; }
+  .consultor .chead { display: flex; align-items: center; gap: 8px; margin: 1px 0 5px; }
+  .consultor h3 { margin: 0; font-size: 13px; letter-spacing: -0.01em; }
+  .consultor .ro { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: hsl(var(--muted));
+    background: hsl(var(--surface-2)); padding: 2px 7px; border-radius: 999px; }
+  .consultor p { margin: 0; font-size: 13.5px; line-height: 1.6; color: hsl(var(--fg)); }
+  .consultor b { font-weight: 700; }
+  .consultor .money-bad { color: hsl(var(--crit)); font-weight: 700; }
+  .consultor .money-good { color: hsl(var(--pos)); font-weight: 700; }
+  .consultor-actions { display: flex; align-items: center; gap: 16px; margin-top: 12px; flex-wrap: wrap; }
+  .link-toggle { border: 0; background: none; color: hsl(var(--primary)); font-weight: 600; font-size: 12.5px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
+  .link-toggle .chev { display: inline-block; transition: transform .18s; }
+  .link-toggle[aria-expanded="true"] .chev { transform: rotate(180deg); }
+  .calc-detail { max-height: 0; overflow: hidden; opacity: 0; transition: max-height .25s ease, opacity .2s ease, margin-top .25s ease; }
+  .calc-detail.open { max-height: 260px; opacity: 1; margin-top: 12px; }
+  .calc-row { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; padding: 7px 10px; border-radius: 9px; background: hsl(var(--surface-2)); margin-bottom: 6px; }
+  .calc-row.crit .num { color: hsl(var(--crit)); font-weight: 700; }
+  .calc-row.pos .num { color: hsl(var(--pos)); font-weight: 700; }
+  .calc-note { font-size: 12px; color: hsl(var(--muted)); line-height: 1.55; padding: 2px 2px 0; }
+
+  .theme-toggle { position: fixed; top: 14px; right: 16px; z-index: 10; }
+
+  /* Entrada suave */
+  .fade-in { animation: fadeUp .42s ease both; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+  /* Toast */
+  .toast { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(12px); background: hsl(var(--fg));
+    color: hsl(var(--bg)); padding: 11px 18px; border-radius: 12px; font-size: 13px; font-weight: 500; max-width: 90vw;
+    box-shadow: 0 14px 32px hsl(var(--shadow) / 0.4); opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 20; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  @media (max-width: 860px) {
+    .app { grid-template-columns: 0 1fr; }
+    .rail { display: none; }
+    .wrap { padding: 22px 16px 90px; }
+    .kpis { grid-template-columns: repeat(2, 1fr); }
+    .grid2 { grid-template-columns: 1fr; }
+    .projbar { grid-template-columns: 1fr; }
+    .lic-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<button class="btn-ghost theme-toggle" onclick="(function(){var r=document.documentElement;var d=(r.getAttribute('data-theme')|| (matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'))==='dark';r.setAttribute('data-theme',d?'light':'dark');})()">◐ tema</button>
+
+<div class="app">
+  <nav class="rail" aria-label="Navegação">
+    <div class="logo">S</div>
+    <button title="Início"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10.5 12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1z"/></svg></button>
+    <button class="active" title="Financeiro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg></button>
+    <button title="Vendas / PDV"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2 3h3l2.4 12.5a1 1 0 0 0 1 .8h9.2a1 1 0 0 0 1-.8L21 7H6"/></svg></button>
+    <button title="Estoque"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/></svg></button>
+    <button title="Clientes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M17 5.5a3 3 0 0 1 0 5.6M22 20a6 6 0 0 0-4-5.7"/></svg></button>
+    <div class="spacer"></div>
+    <button title="Ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 2h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12a7 7 0 0 0 .1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 22h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6A7 7 0 0 0 19 12z"/></svg></button>
+  </nav>
+
+  <main class="main">
+    <div class="wrap">
+      <header class="page">
+        <div>
+          <div class="eyebrow">Financeiro · Projetos</div>
+          <h1>Projetos</h1>
+          <div class="sub">Unit economics por linha de produto — o que cada projeto ganha, custa e devolve.</div>
+        </div>
+        <div class="head-actions">
+          <button class="optin" onclick="toast('Toggle opt-in — desligado, nenhum campo de projeto aparece e o DRE volta byte-idêntico ao de hoje.')" title="Análise por Projeto está ativa neste tenant">
+            <span class="sw"></span> Análise por Projeto · Ativa
+          </button>
+          <div class="period" onclick="toast('Trocar a janela recarregaria as métricas do projeto no novo período.')">Janela · jan–jul 2026
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+          </div>
+        </div>
+      </header>
+
+      <nav class="tabs" aria-label="Seções do Financeiro">
+        <button class="tab" data-tabnav="Visão geral">Visão geral</button>
+        <button class="tab" data-tabnav="Entradas & saídas">Entradas &amp; saídas</button>
+        <button class="tab" data-tabnav="Recorrentes">Recorrentes</button>
+        <button class="tab active">Projetos</button>
+        <button class="tab" data-tabnav="Bancário">Bancário</button>
+        <button class="tab" data-tabnav="Fluxo de caixa">Fluxo de caixa</button>
+        <button class="tab" data-tabnav="Relatórios">Relatórios</button>
+      </nav>
+
+      <!-- Seletor de projeto -->
+      <div class="projbar">
+        <button class="projpick active" data-proj="digisat">
+          <span class="pname"><span class="pdot" style="background:hsl(var(--primary))"></span>DigiSat</span>
+          <span class="ptag">Revenda de licenças de software</span>
+          <span class="pmrr num">R$ 280<small style="font-size:13px;color:hsl(var(--muted));font-weight:600">/mês</small></span>
+          <span class="pfoot">1 assinatura · 5 licenças (1 usada)</span>
+        </button>
+        <button class="projpick" data-proj="aevo">
+          <span class="pname"><span class="pdot" style="background:hsl(var(--pos))"></span>Aevo</span>
+          <span class="ptag">Automação WhatsApp + IA</span>
+          <span class="pmrr num">R$ 1.200<small style="font-size:13px;color:hsl(var(--muted));font-weight:600">/mês</small></span>
+          <span class="pfoot">2 assinaturas · custo de IA R$ 340/mês</span>
+        </button>
+        <button class="projpick" data-proj="servicepro">
+          <span class="pname"><span class="pdot" style="background:hsl(215 60% 55%)"></span>ServicePro</span>
+          <span class="ptag">SaaS próprio de gestão</span>
+          <span class="pmrr num">R$ 1.047<small style="font-size:13px;color:hsl(var(--muted));font-weight:600">/mês</small></span>
+          <span class="pfoot">3 assinaturas · infra R$ 180/mês</span>
+        </button>
+      </div>
+
+      <!-- ============================ PAINEL: DIGISAT ============================ -->
+      <div class="panel" id="panel-digisat">
+        <section class="kpis">
+          <div class="card kpi hero fade-in">
+            <div class="lbl eyebrow">MRR · receita recorrente</div>
+            <div class="val num">R$ 280<small>/mês</small></div>
+            <div class="foot">1 assinatura ativa · ticket <span class="num">R$ 280</span> · há 7 meses</div>
+            <svg class="spark" viewBox="0 0 260 34" preserveAspectRatio="none" aria-hidden="true">
+              <defs><linearGradient id="gDigi" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="hsl(var(--primary))" stop-opacity="0.28"/><stop offset="1" stop-color="hsl(var(--primary))" stop-opacity="0"/></linearGradient></defs>
+              <path d="M0,24 L43,24 L86,24 L108,13 L151,13 L194,13 L260,13" fill="none" stroke="hsl(var(--primary))" stroke-width="2" stroke-linecap="round"/>
+              <path d="M0,24 L43,24 L86,24 L108,13 L151,13 L194,13 L260,13 L260,34 L0,34 Z" fill="url(#gDigi)"/>
+              <circle cx="260" cy="13" r="3" fill="hsl(var(--primary))"/>
+            </svg>
+          </div>
+          <div class="card kpi fade-in">
+            <div class="lbl eyebrow">Margem de contribuição <span class="info-ic" tabindex="0" data-tip="MC2 (cheia) = receita − amortização da licença. Não há custo variável, então a margem cheia já é o resultado por cliente.">ⓘ</span></div>
+            <div class="val num">R$ 88<small>/mês</small></div>
+            <div class="delta text-pos">31,6% da receita</div>
+            <div class="foot">depois de amortizar a licença <span class="num">(R$ 191,53)</span></div>
+          </div>
+          <div class="card kpi fade-in">
+            <div class="lbl eyebrow">Utilização das licenças</div>
+            <div class="val num">20<small>%</small></div>
+            <div class="delta text-warn">1 de 5 licenças em uso</div>
+            <div class="foot">ociosidade custa <span class="num">R$ 153</span>/mês</div>
+          </div>
+          <div class="card kpi fade-in">
+            <div class="lbl eyebrow">Payback por licença <span class="info-ic" tabindex="0" data-tip="Custo por licença (R$ 1.379,00) ÷ margem por assinatura (R$ 280). Cada licença vendida se paga em ~4,9 meses.">ⓘ</span></div>
+            <div class="val num">4,9<small> meses</small></div>
+            <div class="delta text-pos">por licença vendida</div>
+            <div class="foot"><span class="num">R$ 1.379</span> ÷ <span class="num">R$ 280</span>/mês</div>
+          </div>
+        </section>
+
+        <section class="grid2">
+          <div class="card fade-in">
+            <h2 class="sec">Capacidade — 5 licenças de 3 anos <span class="hint">1 usada · 4 paradas</span></h2>
+            <div class="lic-grid">
+              <div class="lic used">
+                <div class="lic-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6 9 17l-5-5"/></svg></div>
+                <div class="licn">Em uso</div>
+                <div class="lics">Distribuidora<br>Norte</div>
+              </div>
+              <div class="lic idle">
+                <div class="lic-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg></div>
+                <div class="licn">Ociosa</div>
+                <div class="lics">R$ 38/mês<br>parada</div>
+              </div>
+              <div class="lic idle">
+                <div class="lic-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg></div>
+                <div class="licn">Ociosa</div>
+                <div class="lics">R$ 38/mês<br>parada</div>
+              </div>
+              <div class="lic idle">
+                <div class="lic-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg></div>
+                <div class="licn">Ociosa</div>
+                <div class="lics">R$ 38/mês<br>parada</div>
+              </div>
+              <div class="lic idle">
+                <div class="lic-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/></svg></div>
+                <div class="licn">Ociosa</div>
+                <div class="lics">R$ 38/mês<br>parada</div>
+              </div>
+            </div>
+            <div class="util-line">
+              <span class="ub-lbl num">20%</span>
+              <div class="util-bar"><div class="fill" style="width:20%"></div></div>
+              <span class="ub-ocio num">ociosidade R$ 153/mês</span>
+            </div>
+            <div class="card-note">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-5M12 8h.01"/></svg>
+              <span>A amortização corre sobre as <b>5 licenças</b>, use ou não — licença parada também queima dinheiro. A ociosidade é exibida, nunca abatida.</span>
+            </div>
+          </div>
+
+          <div class="card fade-in">
+            <h2 class="sec">Investimento &amp; amortização <span class="hint">caixa ≠ competência</span></h2>
+            <div class="stats">
+              <div class="stat">
+                <div class="k">Compra — trilho de caixa</div>
+                <div class="v num">R$ 6.895</div>
+                <div class="s">7× R$ 985 · 5 licenças de 3 anos</div>
+              </div>
+              <div class="stat">
+                <div class="k">Amortização — trilho de competência</div>
+                <div class="v num">R$ 191,53<small>/mês</small></div>
+                <div class="s">R$ 6.895 ÷ 36 meses (linear, centavo-exato)</div>
+              </div>
+              <div class="stat">
+                <div class="k">Custo por licença</div>
+                <div class="v num">R$ 1.379,00</div>
+                <div class="s">R$ 6.895 rateado entre as 5 licenças</div>
+              </div>
+            </div>
+            <div class="card-note">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-5M12 8h.01"/></svg>
+              <span>Comprar capacidade é <b>troca de ativo</b>: a despesa nasce mês a mês com o uso, não de uma vez na compra. O caixa paga em 7 parcelas; o resultado sente R$ 191,53/mês por 36 meses.</span>
+            </div>
+          </div>
+        </section>
+
+        <section class="grid2">
+          <div class="card fade-in">
+            <h2 class="sec">Margem em camadas <span class="hint">receita → custo específico → resultado</span></h2>
+            <div class="decomp">
+              <div class="drow">
+                <span class="dlabel">Receita do mês <span class="dsub">(MRR · 1 assinatura)</span></span>
+                <span class="dval num">R$ 280</span>
+              </div>
+              <div class="drow">
+                <span class="dlabel">MC1 · variável <span class="dsub">sem custo variável</span></span>
+                <span class="dval num pos">R$ 280</span>
+              </div>
+              <div class="drow">
+                <span class="dlabel">(−) Amortização da licença <span class="dsub">R$ 6.895 ÷ 36</span></span>
+                <span class="dval num crit">−R$ 191,53</span>
+              </div>
+              <div class="drow total">
+                <span class="dlabel">MC2 · margem cheia<span class="dpct">o projeto paga a capacidade que comprei?</span></span>
+                <span class="dval num pos">R$ 88,47<span class="dpct">31,6% da receita</span></span>
+              </div>
+            </div>
+            <div class="card-note">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-5M12 8h.01"/></svg>
+              <span>MC3 (gerencial) não aparece: <b>nenhum tempo de suporte foi lançado</b> nesta janela. Custo/hora é opcional — o dono decidiu sem ele por ora.</span>
+            </div>
+          </div>
+
+          <div class="card fade-in">
+            <h2 class="sec">Retenção, LTV &amp; ROI <span class="hint">honesto quando o dado não existe</span></h2>
+            <div class="stats">
+              <div class="stat">
+                <div class="k">Churn na janela (7 meses)</div>
+                <div class="v num">0,0<small>%</small></div>
+                <div class="s">nenhum cancelamento · assinatura intacta</div>
+              </div>
+              <div class="stat">
+                <div class="k">LTV estimado <span class="info-ic" tabindex="0" data-tip="Com churn = 0 na janela, a vida esperada é indefinida. Em vez de inventar um número, mostramos o piso já realizado.">ⓘ</span></div>
+                <div class="v">indefinido <small class="num">· piso R$ 1.960</small></div>
+                <div class="s">churn 0 → o LTV já é ≥ margem acumulada</div>
+              </div>
+              <div class="stat pos">
+                <div class="k">ROI da licença · vida de 36 meses</div>
+                <div class="v num">+46,2%</div>
+                <div class="s">com 1 cliente (R$ 10.080 − R$ 6.895) · +631% com as 5</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div class="consultor fade-in">
+          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 0 0-4 12.7V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.3A7 7 0 0 0 12 2z"/><path d="M9 21h6"/></svg></div>
+          <div style="flex:1; min-width:0;">
+            <div class="chead"><h3>Super Consultor</h3><span class="ro">somente leitura</span></div>
+            <p>A DigiSat recupera o investimento em <b>~4,9 meses por licença</b> vendida. Hoje <b>4 das 5 licenças estão paradas</b>, custando <span class="money-bad">R$ 153/mês</span> — mas cada novo cliente aqui é <b>margem quase pura</b>: R$ 280 de receita para R$ 0 de custo variável. Vender as 4 licenças ociosas levaria a margem cheia de <b class="num">R$ 88</b> para <span class="money-good">R$ 1.208</span>/mês.</p>
+            <div class="consultor-actions">
+              <button class="link-toggle" aria-expanded="false" data-calc="digisat">Ver como calculamos <span class="chev">⌄</span></button>
+            </div>
+            <div class="calc-detail" data-calcbody="digisat">
+              <div class="calc-row"><span>Custo por licença (R$ 6.895 ÷ 5)</span><span class="num">R$ 1.379,00</span></div>
+              <div class="calc-row pos"><span>Margem por assinatura (MC1)</span><span class="num">R$ 280,00</span></div>
+              <div class="calc-row"><span>Payback por licença (1.379 ÷ 280)</span><span class="num">4,9 meses</span></div>
+              <div class="calc-row crit"><span>Ociosidade (R$ 191,53 × 80%)</span><span class="num">R$ 153,22</span></div>
+              <div class="calc-note">Observação, não instrução: o Consultor explica os números — nunca cobra, envia ou altera nada. A decisão de vender as licenças é sua.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================ PAINEL: AEVO ============================ -->
+      <div class="panel" id="panel-aevo" style="display:none">
+        <section class="kpis">
+          <div class="card kpi hero fade-in">
+            <div class="lbl eyebrow">MRR · receita recorrente</div>
+            <div class="val num">R$ 1.200<small>/mês</small></div>
+            <div class="foot">2 assinaturas · ticket médio <span class="num">R$ 600</span></div>
+            <svg class="spark" viewBox="0 0 260 34" preserveAspectRatio="none" aria-hidden="true">
+              <defs><linearGradient id="gAevo" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="hsl(var(--primary))" stop-opacity="0.28"/><stop offset="1" stop-color="hsl(var(--primary))" stop-opacity="0"/></linearGradient></defs>
+              <path d="M0,28 L52,24 L104,20 L156,15 L208,12 L260,9" fill="none" stroke="hsl(var(--primary))" stroke-width="2" stroke-linecap="round"/>
+              <path d="M0,28 L52,24 L104,20 L156,15 L208,12 L260,9 L260,34 L0,34 Z" fill="url(#gAevo)"/>
+              <circle cx="260" cy="9" r="3" fill="hsl(var(--primary))"/>
+            </svg>
+          </div>
+          <div class="card kpi fade-in">
+            <div class="lbl eyebrow">Custo de IA recorrente <span class="info-ic" tabindex="0" data-tip="Recorrência a pagar tagueada no projeto: chamadas de API de IA + infraestrutura. Cai no Aevo todo mês, sem digitação extra.">ⓘ</span></div>
+            <div class="val num">R$ 340<small>/mês</small></div>
+            <div class="delta text-crit">28% da receita</div>
+            <div class="foot">API de IA + infraestrutura</div>
+          </div>
+          <div class="card kpi fade-in">
+            <div class="lbl eyebrow">Margem do Aevo</div>
+            <div class="val num">R$ 860<small>/mês</small></div>
+            <div class="delta text-pos">71,7% da receita</div>
+            <div class="foot"><span class="num">R$ 1.200</span> − <span class="num">R$ 340</span> de IA</div>
+          </div>
+          <div class="card kpi fade-in">
+            <div class="lbl eyebrow">Valor estimado · ARR</div>
+            <div class="val num">R$ 14.400</div>
+            <div class="delta text-muted">MRR × 12</div>
+            <div class="foot">margem anual ≈ <span class="num">R$ 10.320</span></div>
+          </div>
+        </section>
+
+        <section class="grid2">
+          <div class="card fade-in">
+            <h2 class="sec">Margem do Aevo <span class="hint">a subtração, mês a mês</span></h2>
+            <div class="decomp">
+              <div class="drow">
+                <span class="dlabel">Receita do mês <span class="dsub">(MRR · 2 assinaturas)</span></span>
+                <span class="dval num pos">R$ 1.200</span>
+              </div>
+              <div class="drow">
+                <span class="dlabel">(−) Custo de IA recorrente <span class="dsub">API + infra</span></span>
+                <span class="dval num crit">−R$ 340</span>
+              </div>
+              <div class="drow total">
+                <span class="dlabel">Margem de contribuição<span class="dpct">o que sobra depois do custo específico</span></span>
+                <span class="dval num pos">R$ 860<span class="dpct">71,7% da receita</span></span>
+              </div>
+            </div>
+            <div class="card-note">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-5M12 8h.01"/></svg>
+              <span>O custo de IA é <b>variável</b>: sobe com o volume de mensagens. Diferente da DigiSat (custo fixo amortizado), aqui a margem se move com o uso.</span>
+            </div>
+          </div>
+
+          <div class="card fade-in">
+            <h2 class="sec">A carteira do Aevo <span class="hint">assinaturas + custo unitário</span></h2>
+            <div class="stats">
+              <div class="stat">
+                <div class="k">Assinaturas ativas</div>
+                <div class="v num">2 <small>· ticket R$ 600</small></div>
+                <div class="s">automação WhatsApp com IA</div>
+              </div>
+              <div class="stat pos">
+                <div class="k">Margem por cliente</div>
+                <div class="v num">R$ 430<small>/mês</small></div>
+                <div class="s">R$ 860 ÷ 2 assinaturas</div>
+              </div>
+              <div class="stat">
+                <div class="k">Peso do custo de IA</div>
+                <div class="v num">28<small>%</small></div>
+                <div class="s">R$ 170 de IA por cliente — indexar ao consumo</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div class="consultor fade-in">
+          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 0 0-4 12.7V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.3A7 7 0 0 0 12 2z"/><path d="M9 21h6"/></svg></div>
+          <div style="flex:1; min-width:0;">
+            <div class="chead"><h3>Super Consultor</h3><span class="ro">somente leitura</span></div>
+            <p>O Aevo entrega <span class="money-good">R$ 860</span> de margem sobre R$ 1.200 de MRR. O custo de IA (<b class="num">R$ 340</b>) consome <b>28% da receita</b> e cresce com o uso — se o volume dobrar sem reajuste, a margem cai para <span class="money-bad">~57%</span>. O modelo é saudável; o preço é que precisa indexar o consumo de IA.</p>
+            <div class="consultor-actions">
+              <button class="link-toggle" aria-expanded="false" data-calc="aevo">Ver como calculamos <span class="chev">⌄</span></button>
+            </div>
+            <div class="calc-detail" data-calcbody="aevo">
+              <div class="calc-row pos"><span>Receita (MRR)</span><span class="num">R$ 1.200</span></div>
+              <div class="calc-row crit"><span>Custo de IA recorrente</span><span class="num">−R$ 340</span></div>
+              <div class="calc-row pos"><span>Margem = 1.200 − 340</span><span class="num">R$ 860 (71,7%)</span></div>
+              <div class="calc-note">Cenário de volume dobrado: custo de IA → R$ 680, margem → R$ 520 (43,3% do MRR atual, ou ~57% se o preço subir junto). Observação, não ação.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================ PAINEL: SERVICEPRO ============================ -->
+      <div class="panel" id="panel-servicepro" style="display:none">
+        <section class="kpis">
+          <div class="card kpi hero fade-in">
+            <div class="lbl eyebrow">MRR · receita recorrente</div>
+            <div class="val num">R$ 1.047<small>/mês</small></div>
+            <div class="foot">3 assinaturas · ticket <span class="num">R$ 349</span></div>
+            <svg class="spark" viewBox="0 0 260 34" preserveAspectRatio="none" aria-hidden="true">
+              <defs><linearGradient id="gServ" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="hsl(var(--primary))" stop-opacity="0.28"/><stop offset="1" stop-color="hsl(var(--primary))" stop-opacity="0"/></linearGradient></defs>
+              <path d="M0,24 L52,20 L104,16 L156,15 L208,14 L260,13" fill="none" stroke="hsl(var(--primary))" stroke-width="2" stroke-linecap="round"/>
+              <path d="M0,24 L52,20 L104,16 L156,15 L208,14 L260,13 L260,34 L0,34 Z" fill="url(#gServ)"/>
+              <circle cx="260" cy="13" r="3" fill="hsl(var(--primary))"/>
+            </svg>
+          </div>
+          <div class="card kpi fade-in">
+            <div class="lbl eyebrow">Custo direto</div>
+            <div class="val num">R$ 180<small>/mês</small></div>
+            <div class="delta text-crit">17,2% da receita</div>
+            <div class="foot">hospedagem + infraestrutura</div>
+          </div>
+          <div class="card kpi fade-in">
+            <div class="lbl eyebrow">Margem do ServicePro</div>
+            <div class="val num">R$ 867<small>/mês</small></div>
+            <div class="delta text-pos">82,8% da receita</div>
+            <div class="foot">a maior margem % da carteira</div>
+          </div>
+          <div class="card kpi fade-in">
+            <div class="lbl eyebrow">Valor estimado · ARR</div>
+            <div class="val num">R$ 12.564</div>
+            <div class="delta text-muted">MRR × 12</div>
+            <div class="foot">margem anual ≈ <span class="num">R$ 10.404</span></div>
+          </div>
+        </section>
+
+        <section class="grid2">
+          <div class="card fade-in">
+            <h2 class="sec">Margem do ServicePro <span class="hint">a subtração, mês a mês</span></h2>
+            <div class="decomp">
+              <div class="drow">
+                <span class="dlabel">Receita do mês <span class="dsub">(MRR · 3 assinaturas)</span></span>
+                <span class="dval num pos">R$ 1.047</span>
+              </div>
+              <div class="drow">
+                <span class="dlabel">(−) Custo direto <span class="dsub">hospedagem + infra</span></span>
+                <span class="dval num crit">−R$ 180</span>
+              </div>
+              <div class="drow total">
+                <span class="dlabel">Margem de contribuição<span class="dpct">quase 100% até o próximo degrau de infra</span></span>
+                <span class="dval num pos">R$ 867<span class="dpct">82,8% da receita</span></span>
+              </div>
+            </div>
+            <div class="card-note">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-5M12 8h.01"/></svg>
+              <span>Infra é <b>custo de plataforma</b>, quase fixo: cada novo assinante entra com margem próxima de 100% até o próximo degrau de servidor.</span>
+            </div>
+          </div>
+
+          <div class="card fade-in">
+            <h2 class="sec">A carteira do ServicePro <span class="hint">assinaturas + custo unitário</span></h2>
+            <div class="stats">
+              <div class="stat">
+                <div class="k">Assinaturas ativas</div>
+                <div class="v num">3 <small>· ticket R$ 349</small></div>
+                <div class="s">SaaS próprio de gestão</div>
+              </div>
+              <div class="stat pos">
+                <div class="k">Margem por cliente</div>
+                <div class="v num">R$ 289<small>/mês</small></div>
+                <div class="s">R$ 867 ÷ 3 assinaturas</div>
+              </div>
+              <div class="stat">
+                <div class="k">Custo de infra por cliente</div>
+                <div class="v num">R$ 60<small>/mês</small></div>
+                <div class="s">diluído — cai a cada novo assinante</div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <div class="consultor fade-in">
+          <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 0 0-4 12.7V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.3A7 7 0 0 0 12 2z"/><path d="M9 21h6"/></svg></div>
+          <div style="flex:1; min-width:0;">
+            <div class="chead"><h3>Super Consultor</h3><span class="ro">somente leitura</span></div>
+            <p>O ServicePro tem a <b>maior margem percentual da carteira (82,8%)</b> — <span class="money-good">R$ 867</span> sobre R$ 1.047. Com 3 clientes e infra quase fixa de <b class="num">R$ 180</b>, cada novo assinante é praticamente 100% margem até o próximo degrau de servidor. É o projeto onde escalar custa menos.</p>
+            <div class="consultor-actions">
+              <button class="link-toggle" aria-expanded="false" data-calc="servicepro">Ver como calculamos <span class="chev">⌄</span></button>
+            </div>
+            <div class="calc-detail" data-calcbody="servicepro">
+              <div class="calc-row pos"><span>Receita (MRR · 3 assinaturas)</span><span class="num">R$ 1.047</span></div>
+              <div class="calc-row crit"><span>Custo direto (infra)</span><span class="num">−R$ 180</span></div>
+              <div class="calc-row pos"><span>Margem = 1.047 − 180</span><span class="num">R$ 867 (82,8%)</span></div>
+              <div class="calc-note">4º assinante ao mesmo custo de infra: margem → R$ 1.216 (87% do novo MRR). Observação, não ação.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  function toast(msg) {
+    var t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(t._h);
+    t._h = setTimeout(function () { t.classList.remove('show'); }, 2600);
+  }
+
+  // Tabs fora do escopo → só apontam
+  document.querySelectorAll('[data-tabnav]').forEach(function (el) {
+    el.addEventListener('click', function () {
+      toast('Abriria a aba "' + el.dataset.tabnav + '" (fora do escopo deste mockup — só Projetos está implementada)');
+    });
+  });
+
+  // Seletor de projeto
+  var picks = document.querySelectorAll('.projpick');
+  var panels = document.querySelectorAll('.panel');
+  picks.forEach(function (p) {
+    p.addEventListener('click', function () {
+      picks.forEach(function (x) { x.classList.toggle('active', x === p); });
+      panels.forEach(function (pn) { pn.style.display = pn.id === 'panel-' + p.dataset.proj ? '' : 'none'; });
+      // reanima os blocos do painel ativo
+      var active = document.getElementById('panel-' + p.dataset.proj);
+      active.querySelectorAll('.fade-in').forEach(function (el) { el.style.animation = 'none'; void el.offsetWidth; el.style.animation = ''; });
+    });
+  });
+
+  // Super Consultor — "ver como calculamos" (read-only)
+  document.querySelectorAll('.link-toggle').forEach(function (btn) {
+    btn.addEventListener('click', function () {
+      var body = document.querySelector('[data-calcbody="' + btn.dataset.calc + '"]');
+      var open = body.classList.toggle('open');
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+  });
+</script>

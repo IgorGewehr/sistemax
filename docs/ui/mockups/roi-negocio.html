@@ -1,0 +1,561 @@
+<style>
+  :root {
+    /* Neutros/marca herdados dos tokens do app (saas-erp) — mesma paleta dos mockups aprovados */
+    --bg: 210 40% 98%;
+    --surface: 0 0% 100%;
+    --surface-2: 210 40% 96.5%;
+    --fg: 222 47% 11%;
+    --muted: 215 16% 47%;
+    --faint: 215 20% 65%;
+    --border: 214 32% 90%;
+    --primary: 0 72% 51%;
+    --primary-soft: 0 72% 96%;
+    --pos: 152 58% 40%;
+    --pos-soft: 152 55% 94%;
+    --warn: 32 90% 44%;
+    --warn-soft: 38 92% 94%;
+    --crit: 349 78% 48%;
+    --crit-soft: 349 80% 96%;
+    --ring: 0 72% 51%;
+    --shadow: 220 40% 20%;
+    --mono: "SF Mono", ui-monospace, "JetBrains Mono", "Cascadia Code", Menlo, monospace;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
+  }
+  :root[data-theme="light"] {
+    --bg: 210 40% 98%; --surface: 0 0% 100%; --surface-2: 210 40% 96.5%;
+    --fg: 222 47% 11%; --muted: 215 16% 47%; --faint: 215 20% 65%; --border: 214 32% 90%;
+    --primary: 0 72% 51%; --primary-soft: 0 72% 96%; --pos: 152 58% 40%; --pos-soft: 152 55% 94%;
+    --warn: 32 90% 44%; --warn-soft: 38 92% 94%; --crit: 349 78% 48%; --crit-soft: 349 80% 96%; --shadow: 220 40% 20%;
+  }
+  :root[data-theme="dark"] {
+    --bg: 222 47% 5%; --surface: 220 40% 7.5%; --surface-2: 218 34% 11%;
+    --fg: 210 40% 96%; --muted: 215 20% 60%; --faint: 215 18% 42%; --border: 215 25% 16%;
+    --primary: 0 72% 58%; --primary-soft: 0 45% 13%; --pos: 152 55% 50%; --pos-soft: 152 40% 12%;
+    --warn: 38 92% 55%; --warn-soft: 36 45% 13%; --crit: 350 85% 62%; --crit-soft: 349 45% 14%; --shadow: 222 60% 2%;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: hsl(var(--bg)); color: hsl(var(--fg));
+    font-family: var(--sans); -webkit-font-smoothing: antialiased;
+    font-size: 14px; line-height: 1.5;
+  }
+  .num { font-family: var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+  .eyebrow { text-transform: uppercase; letter-spacing: 0.08em; font-size: 11px; font-weight: 600; color: hsl(var(--muted)); }
+  .text-crit { color: hsl(var(--crit)); }
+  .text-pos { color: hsl(var(--pos)); }
+  .text-warn { color: hsl(var(--warn)); }
+  .text-muted { color: hsl(var(--muted)); }
+
+  /* ---- App shell ---- */
+  .app { display: grid; grid-template-columns: 60px 1fr; min-height: 100vh; }
+  .rail {
+    background: hsl(var(--surface)); border-right: 1px solid hsl(var(--border));
+    display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 0;
+  }
+  .rail .logo {
+    width: 34px; height: 34px; border-radius: 10px; margin-bottom: 10px;
+    background: linear-gradient(135deg, hsl(var(--primary)), hsl(0 72% 40%));
+    display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 15px;
+    box-shadow: 0 4px 14px hsl(var(--primary) / 0.4);
+  }
+  .rail button {
+    width: 40px; height: 40px; border-radius: 11px; border: 0; background: transparent;
+    color: hsl(var(--faint)); cursor: pointer; display: grid; place-items: center; transition: .15s;
+  }
+  .rail button svg { width: 20px; height: 20px; }
+  .rail button:hover { background: hsl(var(--surface-2)); color: hsl(var(--fg)); }
+  .rail button.active { background: hsl(var(--primary-soft)); color: hsl(var(--primary)); }
+  .rail .spacer { flex: 1; }
+
+  .main { min-width: 0; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 26px 32px 90px; }
+
+  /* ---- Header ---- */
+  header.page { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 22px; flex-wrap: wrap; }
+  header.page h1 { font-size: 24px; font-weight: 700; letter-spacing: -0.02em; margin: 4px 0 2px; text-wrap: balance; }
+  header.page .sub { color: hsl(var(--muted)); font-size: 13.5px; }
+  .head-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .period { display: flex; align-items: center; gap: 8px; padding: 8px 12px; border: 1px solid hsl(var(--border));
+    border-radius: 10px; background: hsl(var(--surface)); font-weight: 600; font-size: 13px; cursor: pointer; }
+  .period:hover { background: hsl(var(--surface-2)); }
+  .btn-primary {
+    display: inline-flex; align-items: center; gap: 7px; padding: 9px 15px; border-radius: 10px; border: 0;
+    background: hsl(var(--primary)); color: #fff; font-weight: 600; font-size: 13.5px; cursor: pointer;
+    box-shadow: 0 4px 14px hsl(var(--primary) / 0.35); transition: transform .12s, filter .12s;
+  }
+  .btn-primary:hover { filter: brightness(1.06); transform: translateY(-1px); }
+  .btn-ghost { padding: 8px 11px; border-radius: 10px; border: 1px solid hsl(var(--border)); background: hsl(var(--surface));
+    color: hsl(var(--fg)); cursor: pointer; font-size: 13px; display: inline-flex; gap: 6px; align-items: center; }
+  .btn-ghost:hover { background: hsl(var(--surface-2)); }
+
+  .optin { display: inline-flex; align-items: center; gap: 9px; padding: 7px 12px; border: 1px solid hsl(var(--pos) / 0.4);
+    border-radius: 10px; background: hsl(var(--pos-soft)); font-size: 12.5px; font-weight: 600; color: hsl(var(--pos)); cursor: pointer; }
+  .optin .sw { width: 30px; height: 18px; border-radius: 999px; background: hsl(var(--pos)); position: relative; flex: none; }
+  .optin .sw::after { content: ""; position: absolute; top: 2px; right: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; }
+
+  /* ---- Cards ---- */
+  .card { background: hsl(var(--surface)); border: 1px solid hsl(var(--border)); border-radius: 16px;
+    box-shadow: 0 1px 2px hsl(var(--shadow) / 0.06), 0 8px 24px -18px hsl(var(--shadow) / 0.5); }
+  .card h2.sec { font-size: 13px; font-weight: 700; letter-spacing: -0.01em; padding: 16px 18px 2px; margin: 0; display: flex; justify-content: space-between; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .card h2.sec .hint { font-weight: 500; font-size: 12px; color: hsl(var(--muted)); }
+
+  /* Tabs do Financeiro */
+  .tabs { display: flex; gap: 2px; border-bottom: 1px solid hsl(var(--border)); margin-bottom: 18px; overflow-x: auto; }
+  .tab { padding: 10px 14px; font-size: 13.5px; font-weight: 600; color: hsl(var(--muted)); border: 0; background: none; cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; transition: .15s; }
+  .tab:hover { color: hsl(var(--fg)); }
+  .tab.active { color: hsl(var(--primary)); border-bottom-color: hsl(var(--primary)); }
+
+  /* Info tooltip (ⓘ) — CSS only */
+  .info-ic { position: relative; display: inline-flex; width: 15px; height: 15px; border-radius: 50%;
+    background: hsl(var(--surface-2)); color: hsl(var(--muted)); font-size: 10px; align-items: center; justify-content: center;
+    cursor: help; margin-left: 5px; vertical-align: middle; }
+  .info-ic:hover::after, .info-ic:focus-visible::after {
+    content: attr(data-tip); position: absolute; bottom: 130%; left: 50%; transform: translateX(-50%);
+    width: 226px; background: hsl(var(--fg)); color: hsl(var(--bg)); font-size: 11.5px; font-weight: 500;
+    padding: 9px 11px; border-radius: 9px; line-height: 1.45; z-index: 8; text-transform: none; letter-spacing: normal;
+    box-shadow: 0 10px 26px hsl(var(--shadow) / 0.35); }
+  .info-ic:focus-visible { outline: 2px solid hsl(var(--ring)); outline-offset: 2px; }
+
+  /* ---- KPI grid (6 → 3 col) ---- */
+  .kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 16px; }
+  .kpi { padding: 16px 18px; position: relative; overflow: hidden; }
+  .kpi .lbl { display: flex; align-items: center; gap: 6px; }
+  .kpi .val { font-size: 26px; font-weight: 700; margin-top: 10px; letter-spacing: -0.02em; }
+  .kpi .val small { font-size: 14px; font-weight: 600; color: hsl(var(--muted)); }
+  .kpi .delta { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; font-weight: 600; margin-top: 7px; }
+  .kpi .foot { font-size: 12px; color: hsl(var(--muted)); margin-top: 3px; }
+  .kpi.hero::after { content: ""; position: absolute; inset: 0; background: radial-gradient(120% 90% at 100% 0, hsl(var(--primary) / 0.10), transparent 60%); pointer-events: none; }
+
+  /* ---- Gráfico de ROI ---- */
+  .roi-card { margin-bottom: 16px; padding-bottom: 6px; }
+  .inline-legend { display: flex; gap: 16px; padding: 6px 18px 2px; font-size: 12px; color: hsl(var(--muted)); flex-wrap: wrap; }
+  .inline-legend .lg { display: inline-flex; align-items: center; gap: 6px; }
+  .li-solid { width: 16px; height: 2.5px; background: hsl(var(--primary)); display: inline-block; border-radius: 2px; }
+  .li-dash { width: 16px; height: 0; border-top: 2.5px dashed hsl(var(--primary) / 0.8); display: inline-block; }
+  .li-flat { width: 16px; height: 0; border-top: 2px dashed hsl(var(--fg) / 0.55); display: inline-block; }
+  .li-gap { width: 12px; height: 10px; border-radius: 3px; background: hsl(var(--crit) / 0.15); display: inline-block; }
+  .chart-inner { position: relative; margin: 4px 8px 10px; }
+  .chart-inner svg { width: 100%; height: auto; display: block; }
+
+  /* ---- 2-col ---- */
+  .grid2 { display: grid; grid-template-columns: 1.3fr 1fr; gap: 16px; margin-bottom: 16px; align-items: stretch; }
+
+  /* Table (imobilizado) */
+  .tbl-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; min-width: 720px; }
+  thead th { text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: hsl(var(--muted));
+    font-weight: 600; padding: 12px 16px; border-bottom: 1px solid hsl(var(--border)); }
+  thead th.r, tbody td.r { text-align: right; }
+  tbody td { padding: 13px 16px; border-bottom: 1px solid hsl(var(--border) / 0.6); font-size: 13.5px; }
+  tbody tr:hover { background: hsl(var(--surface-2) / 0.6); }
+  tfoot td { padding: 13px 16px; font-size: 13.5px; font-weight: 700; border-top: 1px solid hsl(var(--border)); }
+  tfoot td.r { text-align: right; }
+  .soft-dot { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
+  .dot { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+  .cli { color: hsl(var(--muted)); font-size: 12.5px; }
+  .chip { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 999px; font-size: 11.5px; font-weight: 600; white-space: nowrap; }
+  .chip::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .chip.ativa { color: hsl(var(--pos)); background: hsl(var(--pos-soft)); }
+
+  /* Aportes */
+  .aporte-list { padding: 6px 18px 16px; display: flex; flex-direction: column; gap: 8px; }
+  .aporte { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px;
+    border-radius: 12px; background: hsl(var(--surface-2)); }
+  .aporte .ai { display: flex; align-items: center; gap: 11px; min-width: 0; }
+  .aporte .aic { width: 32px; height: 32px; border-radius: 9px; background: hsl(var(--pos) / 0.14); color: hsl(var(--pos)); display: grid; place-items: center; flex: none; }
+  .aporte .aic svg { width: 16px; height: 16px; }
+  .aporte .an { font-weight: 600; font-size: 13px; }
+  .aporte .ad { font-size: 11.5px; color: hsl(var(--muted)); margin-top: 1px; }
+  .aporte .av { font-weight: 700; font-size: 15px; color: hsl(var(--pos)); white-space: nowrap; }
+  .aporte-total { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px 2px; font-size: 13px; }
+  .aporte-total .k { color: hsl(var(--muted)); font-weight: 600; }
+  .aporte-total .v { font-weight: 700; font-size: 17px; }
+  .card-note { font-size: 12px; color: hsl(var(--muted)); line-height: 1.55; padding: 4px 18px 14px; display: flex; gap: 8px; align-items: flex-start; }
+  .card-note svg { color: hsl(var(--primary)); flex: none; margin-top: 1px; width: 14px; height: 14px; }
+  .card-note b { color: hsl(var(--fg)); font-weight: 700; }
+
+  /* ---- Super Consultor ---- */
+  .consultor { display: flex; gap: 14px; padding: 16px 18px; align-items: flex-start;
+    background:
+      linear-gradient(hsl(var(--surface)), hsl(var(--surface))) padding-box,
+      linear-gradient(120deg, hsl(var(--primary) / 0.5), hsl(var(--border) / 0.2)) border-box;
+    border: 1px solid transparent; border-radius: 16px; }
+  .consultor .icon { flex: none; width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center;
+    background: hsl(var(--primary-soft)); color: hsl(var(--primary)); }
+  .consultor .icon svg { width: 20px; height: 20px; }
+  .consultor .chead { display: flex; align-items: center; gap: 8px; margin: 1px 0 5px; }
+  .consultor h3 { margin: 0; font-size: 13px; letter-spacing: -0.01em; }
+  .consultor .ro { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: hsl(var(--muted));
+    background: hsl(var(--surface-2)); padding: 2px 7px; border-radius: 999px; }
+  .consultor p { margin: 0; font-size: 13.5px; line-height: 1.6; color: hsl(var(--fg)); }
+  .consultor b { font-weight: 700; }
+  .consultor .money-bad { color: hsl(var(--crit)); font-weight: 700; }
+  .consultor .money-good { color: hsl(var(--pos)); font-weight: 700; }
+  .consultor-actions { display: flex; align-items: center; gap: 16px; margin-top: 12px; flex-wrap: wrap; }
+  .link-toggle { border: 0; background: none; color: hsl(var(--primary)); font-weight: 600; font-size: 12.5px; cursor: pointer; display: inline-flex; align-items: center; gap: 4px; }
+  .link-toggle .chev { display: inline-block; transition: transform .18s; }
+  .link-toggle[aria-expanded="true"] .chev { transform: rotate(180deg); }
+  .calc-detail { max-height: 0; overflow: hidden; opacity: 0; transition: max-height .28s ease, opacity .2s ease, margin-top .28s ease; }
+  .calc-detail.open { max-height: 300px; opacity: 1; margin-top: 12px; }
+  .calc-row { display: flex; justify-content: space-between; gap: 12px; font-size: 13px; padding: 7px 10px; border-radius: 9px; background: hsl(var(--surface-2)); margin-bottom: 6px; }
+  .calc-row.crit .num { color: hsl(var(--crit)); font-weight: 700; }
+  .calc-row.pos .num { color: hsl(var(--pos)); font-weight: 700; }
+  .calc-note { font-size: 12px; color: hsl(var(--muted)); line-height: 1.55; padding: 2px 2px 0; }
+
+  .theme-toggle { position: fixed; top: 14px; right: 16px; z-index: 10; }
+
+  .fade-in { animation: fadeUp .42s ease both; }
+  @keyframes fadeUp { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+  .toast { position: fixed; left: 50%; bottom: 26px; transform: translateX(-50%) translateY(12px); background: hsl(var(--fg));
+    color: hsl(var(--bg)); padding: 11px 18px; border-radius: 12px; font-size: 13px; font-weight: 500; max-width: 90vw;
+    box-shadow: 0 14px 32px hsl(var(--shadow) / 0.4); opacity: 0; pointer-events: none; transition: opacity .2s, transform .2s; z-index: 20; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  @media (max-width: 980px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 860px) {
+    .app { grid-template-columns: 0 1fr; }
+    .rail { display: none; }
+    .wrap { padding: 22px 16px 90px; }
+    .grid2 { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 560px) { .kpis { grid-template-columns: 1fr; } }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+
+<button class="btn-ghost theme-toggle" onclick="(function(){var r=document.documentElement;var d=(r.getAttribute('data-theme')|| (matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'))==='dark';r.setAttribute('data-theme',d?'light':'dark');})()">◐ tema</button>
+
+<div class="app">
+  <nav class="rail" aria-label="Navegação">
+    <div class="logo">S</div>
+    <button title="Início"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 10.5 12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-7h-6v7H4a1 1 0 0 1-1-1z"/></svg></button>
+    <button class="active" title="Financeiro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 3 3 5-6"/></svg></button>
+    <button title="Vendas / PDV"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="20" r="1.4"/><circle cx="18" cy="20" r="1.4"/><path d="M2 3h3l2.4 12.5a1 1 0 0 0 1 .8h9.2a1 1 0 0 0 1-.8L21 7H6"/></svg></button>
+    <button title="Estoque"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/></svg></button>
+    <button title="Clientes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.2"/><path d="M2.5 20a6.5 6.5 0 0 1 13 0M17 5.5a3 3 0 0 1 0 5.6M22 20a6 6 0 0 0-4-5.7"/></svg></button>
+    <div class="spacer"></div>
+    <button title="Ajustes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7 7 0 0 0-2-1.2L14 2h-4l-.5 2.6a7 7 0 0 0-2 1.2l-2.4-1-2 3.4 2 1.6A7 7 0 0 0 5 12a7 7 0 0 0 .1 1.2l-2 1.6 2 3.4 2.4-1a7 7 0 0 0 2 1.2L10 22h4l.5-2.6a7 7 0 0 0 2-1.2l2.4 1 2-3.4-2-1.6A7 7 0 0 0 19 12z"/></svg></button>
+  </nav>
+
+  <main class="main">
+    <div class="wrap">
+      <header class="page">
+        <div>
+          <div class="eyebrow">Financeiro · Investimento &amp; ROI</div>
+          <h1>Investimento &amp; ROI</h1>
+          <div class="sub">Quanto entrou de investimento, quanto o negócio devolveu — e em quantos meses ele se paga.</div>
+        </div>
+        <div class="head-actions">
+          <button class="optin" onclick="toast('Toggle opt-in — desligado, nenhum pixel de Imobilizado/ROI aparece e o DRE volta byte-idêntico ao de hoje.')" title="Imobilizado & ROI está ativo neste tenant">
+            <span class="sw"></span> Imobilizado &amp; ROI · Ativo
+          </button>
+          <div class="period" onclick="toast('Trocar o marco recalcularia payback, TIR e a curva a partir do novo início.')">Desde a abertura · set/2025
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m6 9 6 6 6-6"/></svg>
+          </div>
+        </div>
+      </header>
+
+      <nav class="tabs" aria-label="Seções do Financeiro">
+        <button class="tab" data-tabnav="Visão geral">Visão geral</button>
+        <button class="tab" data-tabnav="Entradas & saídas">Entradas &amp; saídas</button>
+        <button class="tab" data-tabnav="Recorrentes">Recorrentes</button>
+        <button class="tab" data-tabnav="Bancário">Bancário</button>
+        <button class="tab" data-tabnav="Fluxo de caixa">Fluxo de caixa</button>
+        <button class="tab active">Investimento &amp; ROI</button>
+        <button class="tab" data-tabnav="Relatórios">Relatórios</button>
+      </nav>
+
+      <!-- KPIs (6) -->
+      <section class="kpis">
+        <div class="card kpi hero fade-in">
+          <div class="lbl eyebrow">Total investido</div>
+          <div class="val num">R$ 75.800</div>
+          <div class="foot">R$ 55.800 em bens + R$ 20.000 de aportes</div>
+        </div>
+        <div class="card kpi fade-in">
+          <div class="lbl eyebrow">Payback simples <span class="info-ic" tabindex="0" data-tip="Primeiro mês em que o caixa acumulado do negócio volta a ficar ≥ 0, tendo ficado negativo antes. Pergunta de caixa, por natureza.">ⓘ</span></div>
+          <div class="val num">mês 16</div>
+          <div class="delta text-muted">previsto · jan/2027</div>
+          <div class="foot">o buraco de −R$ 55.800 se fecha</div>
+        </div>
+        <div class="card kpi fade-in">
+          <div class="lbl eyebrow">Payback descontado <span class="info-ic" tabindex="0" data-tip="Mesmo cruzamento, mas trazendo cada fluxo a valor presente pela taxa de 12% a.a. (custo de oportunidade). Sempre ≥ o simples.">ⓘ</span></div>
+          <div class="val num">mês 18</div>
+          <div class="delta text-muted">a 12% a.a. · mar/2027</div>
+          <div class="foot">2 meses a mais que o simples</div>
+        </div>
+        <div class="card kpi fade-in">
+          <div class="lbl eyebrow">TIR anualizada <span class="info-ic" tabindex="0" data-tip="Taxa que zera o VPL do fluxo do negócio (bisseção). Acima do seu custo de oportunidade = o investimento vale a pena.">ⓘ</span></div>
+          <div class="val num">44,2<small>% a.a.</small></div>
+          <div class="delta text-pos">3,1% ao mês</div>
+          <div class="foot">supera a taxa de 12% a.a.</div>
+        </div>
+        <div class="card kpi fade-in">
+          <div class="lbl eyebrow">Faltam para o ROI completo</div>
+          <div class="val num">6 <small>meses</small></div>
+          <div class="delta text-warn">R$ 31.800 a recuperar</div>
+          <div class="foot">no ritmo de +R$ 6.000/mês de caixa</div>
+        </div>
+        <div class="card kpi fade-in">
+          <div class="lbl eyebrow">ROI acumulado · caixa <span class="info-ic" tabindex="0" data-tip="100 × acumulado líquido ÷ total investido. Negativo enquanto o negócio ainda escava o buraco do investimento inicial.">ⓘ</span></div>
+          <div class="val num text-warn">−42<small>%</small></div>
+          <div class="delta text-pos">já recuperou 58% do investido</div>
+          <div class="foot">R$ 44.000 de R$ 75.800 de volta</div>
+        </div>
+      </section>
+
+      <!-- Gráfico: investido acumulado × recuperado, com cruzamento (payback) -->
+      <div class="card roi-card fade-in">
+        <h2 class="sec">Investido × recuperado — quando o negócio se paga <span class="hint">o cruzamento é o payback</span></h2>
+        <div class="inline-legend">
+          <span class="lg"><i class="li-solid"></i>caixa recuperado (realizado)</span>
+          <span class="lg"><i class="li-dash"></i>recuperado (previsto)</span>
+          <span class="lg"><i class="li-flat"></i>total investido</span>
+          <span class="lg"><i class="li-gap"></i>falta recuperar</span>
+        </div>
+        <div class="chart-inner" id="chartInner"></div>
+      </div>
+
+      <!-- Registro de imobilizado + Aportes -->
+      <section class="grid2">
+        <div class="card fade-in">
+          <h2 class="sec">Registro de imobilizado <span class="hint">5 bens · depreciação linear</span></h2>
+          <div class="tbl-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Bem</th>
+                  <th class="r">Custo</th>
+                  <th>Aquisição</th>
+                  <th class="r">Vida útil</th>
+                  <th class="r">Depr./mês</th>
+                  <th class="r">Valor contábil</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><span class="soft-dot"><span class="dot" style="background:hsl(var(--primary))"></span>Reforma da loja</span><div class="cli">Reforma</div></td>
+                  <td class="r num">R$ 25.000</td>
+                  <td class="num">10/09/25</td>
+                  <td class="r num">60 m</td>
+                  <td class="r num">R$ 416,67</td>
+                  <td class="r num">R$ 20.833</td>
+                </tr>
+                <tr>
+                  <td><span class="soft-dot"><span class="dot" style="background:hsl(215 60% 55%)"></span>Bancada &amp; equipamentos</span><div class="cli">Equipamento</div></td>
+                  <td class="r num">R$ 12.000</td>
+                  <td class="num">12/09/25</td>
+                  <td class="r num">60 m</td>
+                  <td class="r num">R$ 200,00</td>
+                  <td class="r num">R$ 10.000</td>
+                </tr>
+                <tr>
+                  <td><span class="soft-dot"><span class="dot" style="background:hsl(var(--warn))"></span>Móveis da loja</span><div class="cli">Móveis</div></td>
+                  <td class="r num">R$ 8.000</td>
+                  <td class="num">15/09/25</td>
+                  <td class="r num">120 m</td>
+                  <td class="r num">R$ 66,67</td>
+                  <td class="r num">R$ 7.333</td>
+                </tr>
+                <tr>
+                  <td><span class="soft-dot"><span class="dot" style="background:hsl(var(--pos))"></span>Placa &amp; comunicação visual</span><div class="cli">Comunicação visual</div></td>
+                  <td class="r num">R$ 4.800</td>
+                  <td class="num">20/09/25</td>
+                  <td class="r num">48 m</td>
+                  <td class="r num">R$ 100,00</td>
+                  <td class="r num">R$ 3.800</td>
+                </tr>
+                <tr>
+                  <td><span class="soft-dot"><span class="dot" style="background:hsl(268 50% 58%)"></span>Computador</span><div class="cli">Computador</div></td>
+                  <td class="r num">R$ 6.000</td>
+                  <td class="num">25/09/25</td>
+                  <td class="r num">60 m</td>
+                  <td class="r num">R$ 100,00</td>
+                  <td class="r num">R$ 5.000</td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td>Total · 5 bens</td>
+                  <td class="r num">R$ 55.800</td>
+                  <td></td>
+                  <td></td>
+                  <td class="r num">R$ 883,34</td>
+                  <td class="r num">R$ 46.967</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          <div class="card-note">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-5M12 8h.01"/></svg>
+            <span>A compra não vira despesa de uma vez: entra no balanço e o DRE sente <b>R$ 883,34/mês</b> de depreciação. Valor contábil = custo − depreciação acumulada (10 meses).</span>
+          </div>
+        </div>
+
+        <div class="card fade-in">
+          <h2 class="sec">Aportes de capital de giro <span class="hint">funding, não retorno</span></h2>
+          <div class="aporte-list">
+            <div class="aporte">
+              <div class="ai">
+                <div class="aic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7-7 7 7"/></svg></div>
+                <div>
+                  <div class="an">Capital de giro inicial</div>
+                  <div class="ad">01/09/2025 · abertura</div>
+                </div>
+              </div>
+              <div class="av num">R$ 15.000</div>
+            </div>
+            <div class="aporte">
+              <div class="ai">
+                <div class="aic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12l7-7 7 7"/></svg></div>
+                <div>
+                  <div class="an">Reforço de caixa</div>
+                  <div class="ad">05/01/2026 · cobertura de folha</div>
+                </div>
+              </div>
+              <div class="av num">R$ 5.000</div>
+            </div>
+          </div>
+          <div class="aporte-total">
+            <span class="k">Total aportado</span>
+            <span class="v num">R$ 20.000</span>
+          </div>
+          <div class="card-note">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-5M12 8h.01"/></svg>
+            <span>Aporte é <b>funding</b>, não receita: entra no total investido e no denominador do ROI, nunca no fluxo que paga o negócio. O giro queimado até hoje foi R$ 12.000 — dentro dos R$ 20.000 aportados.</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Super Consultor (read-only) -->
+      <div class="consultor fade-in">
+        <div class="icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a7 7 0 0 0-4 12.7V17a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1v-2.3A7 7 0 0 0 12 2z"/><path d="M9 21h6"/></svg></div>
+        <div style="flex:1; min-width:0;">
+          <div class="chead"><h3>Super Consultor</h3><span class="ro">somente leitura</span></div>
+          <p>No ritmo atual (<b class="num">+R$ 6.000</b>/mês de caixa), o negócio recupera os <b>R$ 75.800</b> investidos em <span class="money-good">~6 meses</span> — o payback completo cai em <b>jan/2027</b>. A <b>TIR de 44,2% a.a.</b> supera com folga o custo de oportunidade de 12%: a estrutura já se paga. A depreciação come <span class="money-bad">R$ 883/mês</span> do resultado, mas o caixa operacional cobre isso quase 7×.</p>
+          <div class="consultor-actions">
+            <button class="link-toggle" aria-expanded="false" id="calcToggle">Ver como calculamos <span class="chev">⌄</span></button>
+          </div>
+          <div class="calc-detail" id="calcDetail">
+            <div class="calc-row"><span>Total investido (bens R$ 55.800 + aportes R$ 20.000)</span><span class="num">R$ 75.800</span></div>
+            <div class="calc-row pos"><span>Já recuperado (aportes + caixa operacional)</span><span class="num">R$ 44.000</span></div>
+            <div class="calc-row crit"><span>Falta recuperar</span><span class="num">R$ 31.800</span></div>
+            <div class="calc-row"><span>Cruza zero em (R$ 31.800 ÷ R$ 6.000/mês)</span><span class="num">~6 meses · mês 16</span></div>
+            <div class="calc-note">O aporte não move a data do payback (ele entra dos dois lados e se cancela) — só muda o denominador do ROI%. Observação, não instrução: o Consultor explica, nunca investe nem move dinheiro por você.</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  function toast(msg) {
+    var t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(t._h);
+    t._h = setTimeout(function () { t.classList.remove('show'); }, 2600);
+  }
+  function brl(n) { return 'R$ ' + Math.round(Math.abs(n)).toLocaleString('pt-BR'); }
+
+  document.querySelectorAll('[data-tabnav]').forEach(function (el) {
+    el.addEventListener('click', function () {
+      toast('Abriria a aba "' + el.dataset.tabnav + '" (fora do escopo deste mockup — só Investimento & ROI está implementada)');
+    });
+  });
+
+  // Super Consultor — "ver como calculamos" (read-only)
+  (function () {
+    var btn = document.getElementById('calcToggle');
+    var detail = document.getElementById('calcDetail');
+    btn.addEventListener('click', function () {
+      var open = detail.classList.toggle('open');
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+  })();
+
+  // ---- Curva de ROI: investido acumulado (flat) × caixa recuperado (sobe e cruza) ----
+  (function () {
+    // m0 = set/2025 (abertura). Hoje = jul/2026 (mês 10). Payback previsto no mês 16 (jan/2027).
+    var invested = 75800;
+    var recovered = [20000, 17000, 14000, 11000, 8000, 14000, 20000, 26000, 32000, 38000, 44000, 50000, 56000, 62000, 68000, 74000, 80000];
+    var n = recovered.length;              // 17 pontos (m0..m16)
+    var todayIdx = 10;                     // jul/2026
+    var idxAll = [];
+    for (var i = 0; i < n; i++) idxAll.push(i);
+
+    var W = 900, H = 250, padL = 16, padR = 16, padTop = 46, padBottom = 30;
+    var plotW = W - padL - padR, plotH = H - padTop - padBottom;
+    var minV = 0, maxV = 84000;
+    var xFor = function (i) { return padL + i * (plotW / (n - 1)); };
+    var yFor = function (v) { return padTop + (maxV - v) / (maxV - minV) * plotH; };
+    var yInvest = yFor(invested);
+
+    // Cruzamento: recuperado atinge o investido entre os pontos 15 e 16
+    var crossIdx = null, crossX = null;
+    for (var k = todayIdx; k < n - 1; k++) {
+      if (recovered[k] < invested && recovered[k + 1] >= invested) {
+        var frac = (invested - recovered[k]) / (recovered[k + 1] - recovered[k]);
+        crossX = xFor(k) + frac * (xFor(k + 1) - xFor(k));
+        crossIdx = k + 1;
+        break;
+      }
+    }
+
+    function pathFor(idxs) {
+      return idxs.map(function (i, j) { return (j === 0 ? 'M' : 'L') + xFor(i).toFixed(1) + ',' + yFor(recovered[i]).toFixed(1); }).join(' ');
+    }
+    var solidPath = pathFor(idxAll.slice(0, todayIdx + 1));
+    var dashPath = pathFor(idxAll.slice(todayIdx));
+
+    var svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Investido acumulado versus caixa recuperado, com o mês de payback destacado">';
+
+    // Área "falta recuperar" (entre investido no topo e recuperado embaixo), até o cruzamento
+    if (crossX != null) {
+      var g = 'M ' + xFor(0).toFixed(1) + ',' + yInvest.toFixed(1) + ' L ' + crossX.toFixed(1) + ',' + yInvest.toFixed(1) + ' ';
+      for (var b = crossIdx - 1; b >= 0; b--) g += 'L ' + xFor(b).toFixed(1) + ',' + yFor(recovered[b]).toFixed(1) + ' ';
+      g += 'Z';
+      svg += '<path d="' + g + '" fill="hsl(var(--crit) / 0.13)"/>';
+    }
+
+    // Linha do investido (flat, tracejada)
+    svg += '<line x1="' + padL + '" y1="' + yInvest.toFixed(1) + '" x2="' + (W - padR) + '" y2="' + yInvest.toFixed(1) + '" stroke="hsl(var(--fg) / 0.55)" stroke-width="2" stroke-dasharray="5 4"/>';
+    svg += '<text x="' + (padL + 4) + '" y="' + (yInvest - 7).toFixed(1) + '" font-size="10.5" font-weight="700" fill="hsl(var(--fg) / 0.7)" font-family="var(--sans)">Investido R$ 75.800</text>';
+
+    // Linha "hoje"
+    var todayX = xFor(todayIdx);
+    svg += '<line x1="' + todayX.toFixed(1) + '" y1="' + (padTop - 8) + '" x2="' + todayX.toFixed(1) + '" y2="' + (H - padBottom) + '" stroke="hsl(var(--muted))" stroke-width="1" stroke-dasharray="2 3" opacity="0.55"/>';
+
+    // Recuperado: realizado sólido + previsto tracejado
+    svg += '<path d="' + solidPath + '" fill="none" stroke="hsl(var(--primary))" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/>';
+    svg += '<path d="' + dashPath + '" fill="none" stroke="hsl(var(--primary))" stroke-width="2.6" stroke-dasharray="1 5.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"/>';
+
+    // Marcador de cruzamento (payback) + callout
+    if (crossX != null) {
+      var boxW = 208, boxH = 36;
+      var bx = crossX - boxW / 2; bx = Math.max(padL, Math.min(bx, W - padR - boxW));
+      var by = 4;
+      svg += '<line x1="' + crossX.toFixed(1) + '" y1="' + (by + boxH).toFixed(1) + '" x2="' + crossX.toFixed(1) + '" y2="' + yInvest.toFixed(1) + '" stroke="hsl(var(--pos))" stroke-width="1.3" stroke-dasharray="2 3" opacity="0.6"/>';
+      svg += '<rect x="' + bx.toFixed(1) + '" y="' + by + '" width="' + boxW + '" height="' + boxH + '" rx="9" fill="hsl(var(--pos-soft))" stroke="hsl(var(--pos) / 0.4)"/>';
+      svg += '<text x="' + (bx + 12).toFixed(1) + '" y="' + (by + 15) + '" font-size="10.5" font-weight="700" fill="hsl(var(--pos))" font-family="var(--sans)">mês 16 · jan/2027 · ROI completo</text>';
+      svg += '<text x="' + (bx + 12).toFixed(1) + '" y="' + (by + 29) + '" font-size="11.5" font-weight="700" fill="hsl(var(--pos))" font-family="var(--mono)">R$ 75.800 recuperados</text>';
+      svg += '<circle cx="' + crossX.toFixed(1) + '" cy="' + yInvest.toFixed(1) + '" r="5.5" fill="hsl(var(--pos))" stroke="hsl(var(--surface))" stroke-width="2.4"/>';
+    }
+
+    // Ponto "hoje" no recuperado
+    svg += '<circle cx="' + todayX.toFixed(1) + '" cy="' + yFor(recovered[todayIdx]).toFixed(1) + '" r="4.5" fill="hsl(var(--primary))" stroke="hsl(var(--surface))" stroke-width="2.2"/>';
+
+    // Rótulos de eixo X
+    [[0, 'set/25', 'start'], [todayIdx, 'hoje · jul/26', 'middle'], [n - 1, 'jan/27', 'end']].forEach(function (t) {
+      svg += '<text x="' + xFor(t[0]).toFixed(1) + '" y="' + (H - padBottom + 16) + '" font-size="10" fill="hsl(var(--muted))" text-anchor="' + t[2] + '" font-family="var(--sans)">' + t[1] + '</text>';
+    });
+
+    svg += '</svg>';
+    document.getElementById('chartInner').innerHTML = svg;
+  })();
+</script>

@@ -89,6 +89,14 @@ public sealed class FinanceiroModule : IModule
         services.AddScoped<ExcluirApontamentoUseCase>();
         services.AddScoped<ResumoDeTempoService>();
 
+        // Imobilizado + Painel de ROI do negócio (docs/financeiro/design-imobilizado-roi.md) —
+        // o Imobilizado tangível REUSA CriarAtivoDeCapitalUseCase/BaixarAtivoDeCapitalUseCase acima
+        // (mesmo agregado, §2.2 "um handler só, dois gates" — ver ExecutarImobilizadoAsync).
+        // AporteDeCapital é a única entidade nova (leve, fora da partida dobrada).
+        services.AddScoped<RegistrarAporteDeCapitalUseCase>();
+        services.AddScoped<ExcluirAporteDeCapitalUseCase>();
+        services.AddScoped<RoiDoNegocioService>();
+
         // Motor de recorrência (geração de contas/cobranças)
         services.AddScoped<GerarContasRecorrentesUseCase>();
         services.AddScoped<GerarCobrancasAssinaturasUseCase>();

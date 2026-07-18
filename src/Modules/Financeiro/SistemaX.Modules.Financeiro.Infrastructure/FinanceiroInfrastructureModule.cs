@@ -160,6 +160,15 @@ public sealed class FinanceiroInfrastructureModule : IModule
             // + replay via reset do cursor de projeção.
             services.AddModuleSchemaMigration<FinanceiroSchemaMigrationV37>();
             services.AddModuleSchemaMigration<FinanceiroSchemaMigrationV38>();
+
+            // Imobilizado + Painel de ROI do negócio (docs/financeiro/design-imobilizado-roi.md) —
+            // V39 (o SEGUNDO toggle opt-in, independente de analise_por_projeto_ativa) + V40
+            // (aportes_de_capital, o registro leve de capital de giro/investimento inicial, FORA
+            // da partida dobrada). Nenhuma tabela nova para o imobilizado em si — reusa
+            // ativos_de_capital/AtivoDeCapitalRepository (Natureza.Tangivel), já registrado acima.
+            services.AddScoped<IAporteDeCapitalRepository, SqliteAporteDeCapitalRepository>();
+            services.AddModuleSchemaMigration<FinanceiroSchemaMigrationV39>();
+            services.AddModuleSchemaMigration<FinanceiroSchemaMigrationV40>();
         }
         else
         {
@@ -187,6 +196,7 @@ public sealed class FinanceiroInfrastructureModule : IModule
             services.AddSingleton<IConfiguracaoFinanceiraTenantRepository, InMemoryConfiguracaoFinanceiraTenantRepository>();
             services.AddSingleton<IAtivoDeCapitalRepository, InMemoryAtivoDeCapitalRepository>();
             services.AddSingleton<IApontamentoDeTempoRepository, InMemoryApontamentoDeTempoRepository>();
+            services.AddSingleton<IAporteDeCapitalRepository, InMemoryAporteDeCapitalRepository>();
         }
 
         // Projeções (IProjection) — Scoped em ambos os modos: o repo por trás pode ser Scoped

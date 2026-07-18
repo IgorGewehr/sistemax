@@ -78,6 +78,18 @@ public sealed class SqliteContaAPagarRepository(ILocalSqliteConnectionFactory co
             return (IReadOnlyList<ContaAPagar>)contas;
         }, ct);
 
+    public Task<IReadOnlyList<ContaAPagar>> ListarPorCategoriaAsync(string businessId, string categoriaId, CancellationToken ct = default)
+        => ConsultarAsync(async (connection, transaction) =>
+        {
+            var contas = await LerContasAsync(connection, transaction, "WHERE business_id = $biz AND categoria_id = $categoria",
+                cmd =>
+                {
+                    cmd.Parameters.AddWithValue("$biz", businessId);
+                    cmd.Parameters.AddWithValue("$categoria", categoriaId);
+                }, ct).ConfigureAwait(false);
+            return (IReadOnlyList<ContaAPagar>)contas;
+        }, ct);
+
     public Task SalvarAsync(ContaAPagar conta, CancellationToken ct = default)
         => ExecutarAsync(async (connection, transaction) =>
         {

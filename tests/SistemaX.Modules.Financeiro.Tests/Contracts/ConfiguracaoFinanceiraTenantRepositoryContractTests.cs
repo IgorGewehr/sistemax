@@ -58,4 +58,39 @@ public abstract class ConfiguracaoFinanceiraTenantRepositoryContractTests
         Assert.True((await repo.ObterAsync(TenantA))!.AnalisePorProjetoAtiva);
         Assert.False((await repo.ObterAsync(TenantB))!.AnalisePorProjetoAtiva);
     }
+
+    /// <summary>Imobilizado/ROI (docs/financeiro/design-imobilizado-roi.md §2.1) — o SEGUNDO toggle
+    /// independente sobrevive ao roundtrip, junto da taxa de desconto (bps) e do override de
+    /// <c>InicioOperacao</c>.</summary>
+    [Fact]
+    public async Task Salvar_e_obter_persiste_os_campos_de_imobilizado_e_roi()
+    {
+        var repo = CriarRepositorio();
+        var config = ConfiguracaoFinanceiraTenant.Criar(
+            TenantA, imobilizadoRoiAtivo: true, taxaDescontoAnualBps: 1200, inicioOperacao: new DateOnly(2026, 7, 1)).Valor;
+
+        await repo.SalvarAsync(config);
+        var lida = await repo.ObterAsync(TenantA);
+
+        Assert.NotNull(lida);
+        Assert.True(lida!.ImobilizadoRoiAtivo);
+        Assert.Equal(1200, lida.TaxaDescontoAnualBps);
+        Assert.Equal(new DateOnly(2026, 7, 1), lida.InicioOperacao);
+    }
+
+    /// <summary>Os dois toggles são INDEPENDENTES (design §2.1) — ligar um não liga o outro.</summary>
+    [Fact]
+    public async Task ImobilizadoRoiAtivo_e_AnalisePorProjetoAtiva_sao_independentes()
+    {
+        var repo = CriarRepositorio();
+        var config = ConfiguracaoFinanceiraTenant.Criar(TenantA, analisePorProjetoAtiva: true, imobilizadoRoiAtivo: false).Valor;
+
+        await repo.SalvarAsync(config);
+        var lida = await repo.ObterAsync(TenantA);
+
+        Assert.True(lida!.AnalisePorProjetoAtiva);
+        Assert.False(lida.ImobilizadoRoiAtivo);
+        Assert.Null(lida.TaxaDescontoAnualBps);
+        Assert.Null(lida.InicioOperacao);
+    }
 }

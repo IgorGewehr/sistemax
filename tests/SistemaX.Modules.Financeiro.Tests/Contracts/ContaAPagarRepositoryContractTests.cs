@@ -16,11 +16,11 @@ public abstract class ContaAPagarRepositoryContractTests
 
     private static ContaAPagar CriarConta(
         string businessId, string origemId, Money valor, DateTimeOffset dataCompetencia, DateTimeOffset vencimento,
-        string? fornecedorId = null, CorrenteDeReceita? corrente = null)
+        string? fornecedorId = null, CorrenteDeReceita? corrente = null, string categoriaId = "fornecedores")
     {
         var sourceRef = new SourceRef("compras", origemId);
         var parcelas = ContaFinanceiraBase.ParcelaUnica(valor, vencimento);
-        return ContaAPagar.Criar(businessId, sourceRef, "Conta de teste", "fornecedores", dataCompetencia, valor, parcelas, fornecedorId: fornecedorId, corrente: corrente).Valor;
+        return ContaAPagar.Criar(businessId, sourceRef, "Conta de teste", categoriaId, dataCompetencia, valor, parcelas, fornecedorId: fornecedorId, corrente: corrente).Valor;
     }
 
     [Fact]
@@ -154,5 +154,40 @@ public abstract class ContaAPagarRepositoryContractTests
 
         Assert.Contains(lista, c => c.Id == vencendoDentro.Id);
         Assert.DoesNotContain(lista, c => c.Id == vencendoDepois.Id);
+    }
+
+    /// <summary>Imobilizado/Painel de ROI (docs/financeiro/design-imobilizado-roi.md §7.0/§12 I3) —
+    /// retorna TODAS as contas da categoria, independente de status (liquidada ou não) ou
+    /// competência — <c>RoiDoNegocioService</c> precisa ver as parcelas JÁ PAGAS também.</summary>
+    [Fact]
+    public async Task ListarPorCategoriaAsync_retorna_contas_da_categoria_pagas_e_em_aberto()
+    {
+        var repo = CriarRepositorio();
+        var daCategoria = CriarConta(
+            BusinessA, "origem-ativo-1", Money.DeReais(1_000), DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddDays(30), categoriaId: "ativo-de-capital");
+        daCategoria.RegistrarLiquidacaoParcela(daCategoria.Parcelas[0].Id, Money.DeReais(1_000), DateTimeOffset.UtcNow, "pix");
+        var outraCategoria = CriarConta(BusinessA, "origem-outra-1", Money.DeReais(500), DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddDays(30));
+
+        await repo.SalvarAsync(daCategoria);
+        await repo.SalvarAsync(outraCategoria);
+
+        var lista = await repo.ListarPorCategoriaAsync(BusinessA, "ativo-de-capital");
+
+        Assert.Contains(lista, c => c.Id == daCategoria.Id);
+        Assert.DoesNotContain(lista, c => c.Id == outraCategoria.Id);
+        Assert.Equal(StatusFinanceiro.Pago, lista.Single(c => c.Id == daCategoria.Id).Status);
+    }
+
+    [Fact]
+    public async Task ListarPorCategoriaAsync_nao_retorna_de_outro_tenant()
+    {
+        var repo = CriarRepositorio();
+        var conta = CriarConta(
+            BusinessA, "origem-ativo-2", Money.DeReais(1_000), DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddDays(30), categoriaId: "ativo-de-capital");
+        await repo.SalvarAsync(conta);
+
+        var lista = await repo.ListarPorCategoriaAsync(BusinessB, "ativo-de-capital");
+
+        Assert.DoesNotContain(lista, c => c.Id == conta.Id);
     }
 }

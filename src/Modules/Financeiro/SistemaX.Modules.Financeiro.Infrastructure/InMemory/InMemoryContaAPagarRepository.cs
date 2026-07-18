@@ -32,4 +32,9 @@ public sealed class InMemoryContaAPagarRepository : IContaAPagarRepository
             .Where(c => c.Parcelas.Any(p => p.Status is Domain.Comum.StatusFinanceiro.Aberto or Domain.Comum.StatusFinanceiro.Parcial or Domain.Comum.StatusFinanceiro.Atrasado)
                         && c.Parcelas.Any(p => p.Vencimento <= referencia))
             .ToList());
+
+    public Task<IReadOnlyList<ContaAPagar>> ListarPorCategoriaAsync(string businessId, string categoriaId, CancellationToken ct = default)
+        => Task.FromResult<IReadOnlyList<ContaAPagar>>(_porId.Values
+            .Where(c => c.BusinessId == businessId && c.CategoriaId == categoriaId)
+            .ToList());
 }

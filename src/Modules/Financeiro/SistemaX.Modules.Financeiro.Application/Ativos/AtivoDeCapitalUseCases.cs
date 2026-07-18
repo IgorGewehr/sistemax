@@ -1,3 +1,4 @@
+using SistemaX.Modules.Financeiro.Application.Configuracao;
 using SistemaX.Modules.Financeiro.Application.Ports;
 using SistemaX.Modules.Financeiro.Application.Projetos;
 using SistemaX.Modules.Financeiro.Domain.Ativos;
@@ -41,11 +42,31 @@ public sealed class CriarAtivoDeCapitalUseCase(
     IAtivoDeCapitalRepository ativos, IContaAPagarRepository contasAPagar, ILancamentoContabilRepository lancamentos,
     IConfiguracaoFinanceiraTenantRepository configuracoes, IRelogio relogio)
 {
+    /// <summary>Alias da Análise por Projeto (design-pai §8.3) — <c>POST /financeiro/ativos</c>,
+    /// gate <c>AnalisePorProjetoGuard</c>.</summary>
     public async Task<Result<AtivoDeCapital>> ExecutarAsync(CriarAtivoDeCapitalComando comando, CancellationToken ct = default)
     {
         var gating = await AnalisePorProjetoGuard.ExigirAtivaAsync(comando.BusinessId, configuracoes, ct).ConfigureAwait(false);
         if (gating.Falha) return Result.Falhar<AtivoDeCapital>(gating.Erro);
 
+        return await ExecutarCoreAsync(comando, ct).ConfigureAwait(false);
+    }
+
+    /// <summary>Alias do Imobilizado (docs/financeiro/design-imobilizado-roi.md §2.2/§8.1) —
+    /// <c>POST /financeiro/imobilizado</c>, gate <c>FinanceiroOptInGuard.ExigirImobilizadoRoiAsync</c>
+    /// (o SEGUNDO toggle, independente). "Um handler só, dois gates" (§8.1): a criação em si (Domain
+    /// + ContaAPagar opcional + lançamento contábil) é IDÊNTICA — <see cref="ExecutarCoreAsync"/> —
+    /// só o portão de entrada muda.</summary>
+    public async Task<Result<AtivoDeCapital>> ExecutarImobilizadoAsync(CriarAtivoDeCapitalComando comando, CancellationToken ct = default)
+    {
+        var gating = await FinanceiroOptInGuard.ExigirImobilizadoRoiAsync(comando.BusinessId, configuracoes, ct).ConfigureAwait(false);
+        if (gating.Falha) return Result.Falhar<AtivoDeCapital>(gating.Erro);
+
+        return await ExecutarCoreAsync(comando, ct).ConfigureAwait(false);
+    }
+
+    private async Task<Result<AtivoDeCapital>> ExecutarCoreAsync(CriarAtivoDeCapitalComando comando, CancellationToken ct)
+    {
         var agora = relogio.Agora();
         var inicioDepreciacao = comando.InicioDepreciacao ?? comando.DataAquisicao;
 

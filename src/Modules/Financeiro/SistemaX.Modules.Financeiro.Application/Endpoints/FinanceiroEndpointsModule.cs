@@ -8,6 +8,7 @@ using SistemaX.Modules.Abstractions.Consultor;
 using SistemaX.Modules.Financeiro.Application.Ativos;
 using SistemaX.Modules.Financeiro.Application.Caixa;
 using SistemaX.Modules.Financeiro.Application.CasosDeUso;
+using SistemaX.Modules.Financeiro.Application.Configuracao;
 using SistemaX.Modules.Financeiro.Application.Ports;
 using SistemaX.Modules.Financeiro.Application.Projetos;
 using SistemaX.Modules.Financeiro.Application.Quant;
@@ -73,12 +74,17 @@ public sealed record SangriaRequest(string SessaoId, long ValorCentavos, string 
 
 public sealed record FecharCaixaRequest(string SessaoId, long ContadoCentavos);
 
-/// <summary>DTO de fio de <see cref="ConfiguracaoFinanceiraTenant"/> — o shape exato de
-/// docs/financeiro/design-analise-por-projeto.md §8.1.</summary>
-public sealed record ConfiguracaoFinanceiraDto(bool AnalisePorProjetoAtiva, long? CustoHoraPadraoCentavos, bool TempoEntraNoDre)
+/// <summary>DTO de fio de <see cref="ConfiguracaoFinanceiraTenant"/> — o shape de
+/// docs/financeiro/design-analise-por-projeto.md §8.1, estendido pelos 3 campos do SEGUNDO toggle
+/// (docs/financeiro/design-imobilizado-roi.md §8.3): <c>ImobilizadoRoiAtivo</c>,
+/// <c>TaxaDescontoAnualBps</c> (null = payback descontado omitido — nunca um default silencioso) e
+/// <c>InicioOperacao</c> (override do marco <c>m0</c> do ROI).</summary>
+public sealed record ConfiguracaoFinanceiraDto(
+    bool AnalisePorProjetoAtiva, long? CustoHoraPadraoCentavos, bool TempoEntraNoDre,
+    bool ImobilizadoRoiAtivo = false, int? TaxaDescontoAnualBps = null, DateOnly? InicioOperacao = null)
 {
     public static ConfiguracaoFinanceiraDto DeDominio(ConfiguracaoFinanceiraTenant c)
-        => new(c.AnalisePorProjetoAtiva, c.CustoHoraPadraoCentavos, c.TempoEntraNoDre);
+        => new(c.AnalisePorProjetoAtiva, c.CustoHoraPadraoCentavos, c.TempoEntraNoDre, c.ImobilizadoRoiAtivo, c.TaxaDescontoAnualBps, c.InicioOperacao);
 }
 
 public sealed record CriarProjetoRequest(string Nome, string? Descricao = null);
@@ -98,6 +104,10 @@ public sealed record CriarAtivoDeCapitalRequest(
     string? ProjetoId = null, IReadOnlyCollection<ParcelaInvestimentoRequest>? Parcelas = null, string? ContaAPagarId = null);
 
 public sealed record BaixarAtivoDeCapitalRequest(string Motivo, DateOnly Competencia);
+
+/// <summary>Request de fio de <c>AporteDeCapital</c> (docs/financeiro/design-imobilizado-roi.md
+/// §8.2) — valor+data+descrição, o gesto de um campo.</summary>
+public sealed record RegistrarAporteDeCapitalRequest(long ValorCentavos, DateOnly Data, string Descricao);
 
 /// <summary>Request de fio de <c>ApontamentoDeTempo</c> (design §8.4) — <c>custoCentavos</c> nunca
 /// vem do cliente (sempre derivado/resolvido no servidor — nesta fatia, sempre <c>null</c>).</summary>
@@ -752,7 +762,9 @@ public sealed class FinanceiroEndpointsModule : IModule, IModuleEndpoints
             CancellationToken ct) =>
         {
             var businessId = http.ObterBusinessId();
-            var resultado = ConfiguracaoFinanceiraTenant.Criar(businessId, corpo.AnalisePorProjetoAtiva, corpo.CustoHoraPadraoCentavos, corpo.TempoEntraNoDre);
+            var resultado = ConfiguracaoFinanceiraTenant.Criar(
+                businessId, corpo.AnalisePorProjetoAtiva, corpo.CustoHoraPadraoCentavos, corpo.TempoEntraNoDre,
+                corpo.ImobilizadoRoiAtivo, corpo.TaxaDescontoAnualBps, corpo.InicioOperacao);
             if (resultado.Falha) return resultado.Erro.ParaRespostaHttp();
 
             await repositorio.SalvarAsync(resultado.Valor, ct).ConfigureAwait(false);
@@ -897,6 +909,119 @@ public sealed class FinanceiroEndpointsModule : IModule, IModuleEndpoints
             var resultado = await useCase.ExecutarAsync(new BaixarAtivoDeCapitalComando(businessId, id, corpo.Motivo, corpo.Competencia), ct).ConfigureAwait(false);
             return resultado.Sucesso ? Results.Ok(AtivoDeCapitalDto.DeDominio(resultado.Valor)) : resultado.Erro.ParaRespostaHttp();
         }).RequerPermissao(Modulo.Financeiro, Acao.Editar);
+
+        // IMOBILIZADO + PAINEL DE ROI DO NEGÓCIO (docs/financeiro/design-imobilizado-roi.md) — o
+        // SEGUNDO toggle opt-in (imobilizadoRoiAtivo), independente do de Análise por Projeto (§2.1).
+        // O Imobilizado REUSA o MESMO agregado AtivoDeCapital/AtivoDeCapitalDto de cima (natureza
+        // Tangível + categorias equipamento/moveis/placa/reforma/computador) — "um handler só, dois
+        // gates" (§8.1): CriarAtivoDeCapitalUseCase.ExecutarImobilizadoAsync troca só o gate.
+        // Desligado (default): GET /financeiro/imobilizado e GET /financeiro/aportes devolvem []
+        // (§2.2 — nunca 404/erro); GET /financeiro/roi-negocio devolve 404 (é um painel, não uma
+        // listagem); qualquer escrita → 422 financeiro.imobilizado.desativado.
+
+        api.MapGet("/financeiro/imobilizado", async (
+            HttpContext http,
+            IAtivoDeCapitalRepository repositorio,
+            IConfiguracaoFinanceiraTenantRepository configuracoes,
+            CancellationToken ct) =>
+        {
+            var businessId = http.ObterBusinessId();
+            var gating = await FinanceiroOptInGuard.ExigirImobilizadoRoiAsync(businessId, configuracoes, ct).ConfigureAwait(false);
+            if (gating.Falha) return Results.Ok(Array.Empty<AtivoDeCapitalDto>());
+
+            var ativos = await repositorio.ListarAsync(businessId, ct: ct).ConfigureAwait(false);
+            return Results.Ok(ativos.Select(AtivoDeCapitalDto.DeDominio));
+        }).RequerPermissao(Modulo.Financeiro, Acao.Ver);
+
+        api.MapPost("/financeiro/imobilizado", async (
+            HttpContext http,
+            CriarAtivoDeCapitalRequest corpo,
+            CriarAtivoDeCapitalUseCase useCase,
+            CancellationToken ct) =>
+        {
+            var businessId = http.ObterBusinessId();
+
+            if (!Enum.TryParse<NaturezaAtivo>(corpo.Natureza, ignoreCase: true, out var natureza))
+                return Results.ValidationProblem(new Dictionary<string, string[]> { ["natureza"] = [$"Natureza '{corpo.Natureza}' inválida."] });
+            if (!Enum.TryParse<CategoriaAtivo>(corpo.Categoria, ignoreCase: true, out var categoria))
+                return Results.ValidationProblem(new Dictionary<string, string[]> { ["categoria"] = [$"Categoria '{corpo.Categoria}' inválida."] });
+
+            var parcelas = corpo.Parcelas?.Select(p => new ParcelaInvestimento(p.Vencimento, p.ValorCentavos)).ToList();
+            var comando = new CriarAtivoDeCapitalComando(
+                businessId, corpo.Nome, natureza, categoria, corpo.CustoAquisicaoCentavos, corpo.DataAquisicao, corpo.VidaUtilMeses,
+                corpo.ValorResidualCentavos, corpo.InicioDepreciacao, corpo.QuantidadeUnidades, corpo.ProjetoId, parcelas, corpo.ContaAPagarId);
+
+            var resultado = await useCase.ExecutarImobilizadoAsync(comando, ct).ConfigureAwait(false);
+            return resultado.Sucesso ? Results.Ok(AtivoDeCapitalDto.DeDominio(resultado.Valor)) : resultado.Erro.ParaRespostaHttp();
+        }).RequerPermissao(Modulo.Financeiro, Acao.Editar);
+
+        api.MapPost("/financeiro/imobilizado/{id}/baixar", async (
+            HttpContext http,
+            string id,
+            BaixarAtivoDeCapitalRequest corpo,
+            BaixarAtivoDeCapitalUseCase useCase,
+            IConfiguracaoFinanceiraTenantRepository configuracoes,
+            CancellationToken ct) =>
+        {
+            var businessId = http.ObterBusinessId();
+            var gating = await FinanceiroOptInGuard.ExigirImobilizadoRoiAsync(businessId, configuracoes, ct).ConfigureAwait(false);
+            if (gating.Falha) return gating.Erro.ParaRespostaHttp();
+
+            var resultado = await useCase.ExecutarAsync(new BaixarAtivoDeCapitalComando(businessId, id, corpo.Motivo, corpo.Competencia), ct).ConfigureAwait(false);
+            return resultado.Sucesso ? Results.Ok(AtivoDeCapitalDto.DeDominio(resultado.Valor)) : resultado.Erro.ParaRespostaHttp();
+        }).RequerPermissao(Modulo.Financeiro, Acao.Editar);
+
+        // Aportes de capital (§3.3/§8.2) — capital de giro/investimento inicial, FORA da partida
+        // dobrada. Deletável fisicamente (DI5).
+
+        api.MapGet("/financeiro/aportes", async (
+            HttpContext http,
+            IAporteDeCapitalRepository repositorio,
+            IConfiguracaoFinanceiraTenantRepository configuracoes,
+            CancellationToken ct) =>
+        {
+            var businessId = http.ObterBusinessId();
+            var gating = await FinanceiroOptInGuard.ExigirImobilizadoRoiAsync(businessId, configuracoes, ct).ConfigureAwait(false);
+            if (gating.Falha) return Results.Ok(Array.Empty<AporteDeCapitalDto>());
+
+            var aportes = await repositorio.ListarAsync(businessId, ct).ConfigureAwait(false);
+            return Results.Ok(aportes.Select(AporteDeCapitalDto.DeDominio));
+        }).RequerPermissao(Modulo.Financeiro, Acao.Ver);
+
+        api.MapPost("/financeiro/aportes", async (
+            HttpContext http,
+            RegistrarAporteDeCapitalRequest corpo,
+            RegistrarAporteDeCapitalUseCase useCase,
+            CancellationToken ct) =>
+        {
+            var businessId = http.ObterBusinessId();
+            var comando = new RegistrarAporteDeCapitalComando(businessId, corpo.ValorCentavos, corpo.Data, corpo.Descricao);
+            var resultado = await useCase.ExecutarAsync(comando, ct).ConfigureAwait(false);
+            return resultado.Sucesso ? Results.Ok(AporteDeCapitalDto.DeDominio(resultado.Valor)) : resultado.Erro.ParaRespostaHttp();
+        }).RequerPermissao(Modulo.Financeiro, Acao.Editar);
+
+        api.MapDelete("/financeiro/aportes/{id}", async (
+            HttpContext http,
+            string id,
+            ExcluirAporteDeCapitalUseCase useCase,
+            CancellationToken ct) =>
+        {
+            var businessId = http.ObterBusinessId();
+            var excluido = await useCase.ExecutarAsync(businessId, id, ct).ConfigureAwait(false);
+            return excluido ? Results.NoContent() : Results.NotFound();
+        }).RequerPermissao(Modulo.Financeiro, Acao.Editar);
+
+        // Painel de ROI do negócio (§7) — 404 com o toggle desligado (é um painel, não uma
+        // listagem — nunca [] silencioso aqui).
+        api.MapGet("/financeiro/roi-negocio", async (
+            HttpContext http,
+            RoiDoNegocioService servico,
+            CancellationToken ct) =>
+        {
+            var businessId = http.ObterBusinessId();
+            var resultado = await servico.CalcularAsync(businessId, ct).ConfigureAwait(false);
+            return resultado.Sucesso ? Results.Ok(resultado.Valor) : Results.NotFound(new { erro = resultado.Erro.Codigo, mensagem = resultado.Erro.Mensagem });
+        }).RequerPermissao(Modulo.Financeiro, Acao.Ver);
 
         // ANÁLISE POR PROJETO — PARTE B (P4): APONTAMENTO DE TEMPO (design §8.4) — só minutos
         // (decisão do dono). Mesmo gating.

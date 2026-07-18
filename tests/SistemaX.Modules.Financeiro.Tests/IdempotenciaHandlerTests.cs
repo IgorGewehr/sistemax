@@ -133,7 +133,9 @@ public class IdempotenciaHandlerTests
         await compraHandler.HandleAsync(new CompraRecebida("compra-estornada-paga", "business-1", "fornecedor-1", 12_000, DateTimeOffset.UtcNow));
 
         var conta = await contasAPagar.BuscarPorOrigemAsync("business-1", "purchaseNote:compra-estornada-paga");
-        var baixarParcela = new BaixarParcelaUseCase(contasAReceber, contasAPagar, movimentos, lancamentos);
+        var baixarParcela = new BaixarParcelaUseCase(
+            contasAReceber, contasAPagar, movimentos, lancamentos,
+            new InMemoryFormaDePagamentoRepository(), new FakeIntegrationEventBus());
         var comando = new BaixarParcelaComando(
             conta!.Id, conta.Parcelas[0].Id, Money.DeReais(120), DateTimeOffset.UtcNow, "conta-caixa-1", "boleto", "baixa-compra-1");
         await baixarParcela.BaixarParcelaDeContaAPagarAsync(comando);
@@ -167,7 +169,9 @@ public class IdempotenciaHandlerTests
         var comando = new BaixarParcelaComando(
             conta!.Id, conta.Parcelas[0].Id, Money.DeReais(120), DateTimeOffset.UtcNow, "conta-caixa-1", "pix", "baixa-idempotente-1");
 
-        var baixarParcela = new BaixarParcelaUseCase(contasAReceber, contasAPagar, movimentos, lancamentos);
+        var baixarParcela = new BaixarParcelaUseCase(
+            contasAReceber, contasAPagar, movimentos, lancamentos,
+            new InMemoryFormaDePagamentoRepository(), new FakeIntegrationEventBus());
 
         var primeiraChamada = await baixarParcela.BaixarParcelaDeContaAReceberAsync(comando);
         var segundaChamada = await baixarParcela.BaixarParcelaDeContaAReceberAsync(comando); // reenvio (ex.: retry de rede do cliente)

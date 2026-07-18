@@ -28,4 +28,13 @@ public static class CategoriaFinanceiraPadrao
     /// receita recorrente × receita operacional em <see cref="ReadModels.DreGerencialService"/>.
     /// </summary>
     public const string ReceitaRecorrente = "receita-recorrente";
+
+    /// <summary>
+    /// P1-6 (docs/financeiro/revisao-domain-fit-cnpj.md) — rótulo da linha "despesas financeiras
+    /// (MDR)" que <see cref="ReadModels.DreGerencialService"/> devolve. Não é <c>CategoriaId</c> de
+    /// nenhuma <c>ContaAPagar</c> — o MDR é derivado AO VIVO de <c>fato_recebiveis</c> (Σ bruto −
+    /// líquido do período, já calculado pelo lar único <c>FormaDePagamento</c>, nunca recomputado
+    /// em paralelo), então esta constante só nomeia a linha para a UI/relatórios.
+    /// </summary>
+    public const string TaxasDeCartao = "taxas-de-cartao";
 }

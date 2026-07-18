@@ -416,3 +416,26 @@ public sealed record CobrancaDeAssinaturaGerada(
 {
     public string ChaveIdempotencia => $"assinatura.cobranca:{AssinaturaId}:{OcorridoEm:yyyyMM}";
 }
+
+/// <summary>
+/// P1-3 (docs/financeiro/revisao-domain-fit-cnpj.md) — publicado por <c>BaixarParcelaUseCase</c>
+/// logo após liquidar UMA parcela de <c>ContaAPagar</c>/<c>ContaAReceber</c>. Fecha o gap
+/// "<c>fato_caixa_diario</c> unilateral": até este evento existir, só entradas à vista
+/// (<c>VendaConcluida</c>/<c>PedidoPago</c>) e a reversão de <c>VendaEstornada</c> alimentavam o
+/// caixa REALIZADO — toda SAÍDA de pagamento de conta (folha, compras, despesas fixas, comissão) e
+/// toda ENTRADA a prazo liquidada depois (ex.: recebível de cartão em D+N) ficavam fora,
+/// enviesando bandas de fluxo/burn EWMA/runway para "sem queima de caixa" mesmo com folha alta.
+///
+/// <see cref="ValorCaixaCentavos"/> é o valor que de fato muda de mãos na liquidação — para uma
+/// ENTRADA de recebível com MDR (<c>FormaDePagamento.TaxaPercentual</c> &gt; 0), o publicador já
+/// resolve o LÍQUIDO reusando <c>FormaDePagamento.CalcularValorLiquido</c> (o mesmo lar único de
+/// MDR que <c>FatoRecebiveisProjection</c> usa — nunca recomputa a taxa numa fonte paralela);
+/// para SAÍDA (<c>ContaAPagar</c>, sem MDR) é o valor pago integral. <see cref="EhAPagar"/> segue a
+/// mesma convenção de <see cref="ParcelaVencida"/>.
+/// </summary>
+public sealed record ParcelaBaixada(
+    string ContaId, string ParcelaId, string TenantId, bool EhAPagar, long ValorCaixaCentavos, DateTimeOffset OcorridoEm)
+    : IIntegrationEvent
+{
+    public string ChaveIdempotencia => $"parcela.baixada:{ContaId}:{ParcelaId}";
+}

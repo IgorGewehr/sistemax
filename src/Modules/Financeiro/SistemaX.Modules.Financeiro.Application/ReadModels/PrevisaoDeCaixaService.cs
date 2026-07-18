@@ -1,5 +1,7 @@
+using SistemaX.Modules.Financeiro.Application.Caixa;
 using SistemaX.Modules.Financeiro.Application.Ports;
 using SistemaX.Modules.Financeiro.Application.Quant;
+using SistemaX.Modules.Financeiro.Domain.Caixa;
 using SistemaX.Modules.Financeiro.Domain.Comum;
 
 namespace SistemaX.Modules.Financeiro.Application.ReadModels;
@@ -36,6 +38,7 @@ public sealed class PrevisaoDeCaixaService(
     IContaAReceberRepository contasAReceber,
     IContaAPagarRepository contasAPagar,
     IMovimentoFinanceiroRepository movimentos,
+    IFormaDePagamentoRepository formasDePagamento,
     IRelogio relogio)
 {
     private const int DiasDeHistoricoParaOBootstrap = 90;
@@ -87,6 +90,10 @@ public sealed class PrevisaoDeCaixaService(
         return resultado;
     }
 
+    /// <summary>P1-6(b): entradas (ContaAReceber) projetam o LÍQUIDO de MDR quando a parcela já tem
+    /// forma de pagamento resolvível (pagamento parcial já registrado) — mesmo padrão de
+    /// <c>FluxoDeCaixaService.SaldoRestanteEntradasNoDiaAsync</c>, via
+    /// <see cref="ResolvedorDeValorLiquido"/>. Saídas (ContaAPagar) não têm MDR — seguem no bruto.</summary>
     private async Task<IReadOnlyList<BandasDeFluxoDeCaixa.PontoConhecido>> CarregarFluxoConhecidoAsync(
         string businessId, DateOnly hoje, DateOnly fimProjecao, CancellationToken ct)
     {
@@ -95,23 +102,27 @@ public sealed class PrevisaoDeCaixaService(
 
         var porDia = new Dictionary<int, long>();
 
-        void Acumular(IEnumerable<Domain.ContasAPagarReceber.Parcela> parcelas, int sinal)
+        void Acumular(Domain.ContasAPagarReceber.Parcela parcela, long valorCentavos)
         {
-            foreach (var parcela in parcelas)
-            {
-                if (parcela.Status is not (StatusFinanceiro.Aberto or StatusFinanceiro.Parcial or StatusFinanceiro.Atrasado)) continue;
+            if (parcela.Status is not (StatusFinanceiro.Aberto or StatusFinanceiro.Parcial or StatusFinanceiro.Atrasado)) return;
 
-                var diaVencimento = DateOnly.FromDateTime(parcela.Vencimento.UtcDateTime);
-                var offset = diaVencimento.DayNumber - hoje.DayNumber;
-                if (offset < 1 || diaVencimento > fimProjecao) continue; // já passou ou fora do horizonte
+            var diaVencimento = DateOnly.FromDateTime(parcela.Vencimento.UtcDateTime);
+            var offset = diaVencimento.DayNumber - hoje.DayNumber;
+            if (offset < 1 || diaVencimento > fimProjecao) return; // já passou ou fora do horizonte
 
-                var restante = (parcela.Valor - parcela.ValorPago).Centavos * sinal;
-                porDia[offset] = porDia.GetValueOrDefault(offset, 0) + restante;
-            }
+            porDia[offset] = porDia.GetValueOrDefault(offset, 0) + valorCentavos;
         }
 
-        Acumular(contasReceberAbertas.SelectMany(c => c.Parcelas), sinal: 1);
-        Acumular(contasPagarAbertas.SelectMany(c => c.Parcelas), sinal: -1);
+        var cacheFormas = new Dictionary<string, FormaDePagamento?>();
+        foreach (var parcela in contasReceberAbertas.SelectMany(c => c.Parcelas))
+        {
+            var restante = parcela.Valor - parcela.ValorPago;
+            var liquido = await ResolvedorDeValorLiquido.ResolverAsync(formasDePagamento, businessId, parcela.FormaPagamentoId, restante, cacheFormas, ct).ConfigureAwait(false);
+            Acumular(parcela, liquido.Centavos);
+        }
+
+        foreach (var parcela in contasPagarAbertas.SelectMany(c => c.Parcelas))
+            Acumular(parcela, -(parcela.Valor - parcela.ValorPago).Centavos);
 
         return porDia.Select(kv => new BandasDeFluxoDeCaixa.PontoConhecido(kv.Key, kv.Value)).ToList();
     }

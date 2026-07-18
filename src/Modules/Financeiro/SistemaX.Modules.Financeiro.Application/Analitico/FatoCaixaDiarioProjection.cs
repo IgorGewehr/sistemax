@@ -18,8 +18,15 @@ namespace SistemaX.Modules.Financeiro.Application.Analitico;
 /// docs/financeiro/inteligencia-arquitetura.md: "insumo é evento, nunca leitura direta de tabela
 /// alheia"); ele reconstrói o mesmo fato a partir do MESMO evento de origem.
 ///
-/// Ver <see cref="FatoCaixaDiario"/> para as limitações conhecidas desta F0 (sem MDR/lag de
-/// cartão ainda — Fase 1).
+/// CAIXA BILATERAL (P1-3, docs/financeiro/revisao-domain-fit-cnpj.md — FECHADO): além das entradas
+/// à vista e da reversão de <c>VendaEstornada</c>, o fold agora reage a <c>ParcelaBaixada</c>
+/// (publicado por <c>BaixarParcelaUseCase</c> a cada liquidação de <c>ContaAPagar</c>/
+/// <c>ContaAReceber</c>) — SAÍDA de pagamento de conta (folha, compras, despesas, comissão) e
+/// ENTRADA a prazo liquidada depois (ex.: recebível de cartão em D+N, já LÍQUIDO de MDR — P1-6,
+/// resolvido no publicador via <c>FormaDePagamento.CalcularValorLiquido</c>, nunca recomputado
+/// aqui) passam a alimentar o mesmo dia local do tenant. É esse insumo bilateral que faz as bandas
+/// P5/P50/P95 (<c>BandasDeFluxoDeCaixa</c>) e o burn EWMA (<c>RunwayCalculator</c>) refletirem
+/// queima de caixa de verdade — antes dele, o "ruído" histórico era quase só positivo.
 /// </summary>
 public sealed class FatoCaixaDiarioProjection(IFatoCaixaDiarioRepository repositorio) : IProjection
 {
@@ -32,6 +39,7 @@ public sealed class FatoCaixaDiarioProjection(IFatoCaixaDiarioRepository reposit
             nameof(VendaConcluida) => AplicarVendaConcluidaAsync(evento, ct),
             nameof(VendaEstornada) => AplicarVendaEstornadaAsync(evento, ct),
             nameof(PedidoPago) => AplicarPedidoPagoAsync(evento, ct),
+            nameof(ParcelaBaixada) => AplicarParcelaBaixadaAsync(evento, ct),
             _ => Task.CompletedTask,
         };
     }
@@ -57,5 +65,19 @@ public sealed class FatoCaixaDiarioProjection(IFatoCaixaDiarioRepository reposit
     {
         var e = JsonSerializer.Deserialize<PedidoPago>(evento.PayloadJson)!;
         return repositorio.AcumularEntradaAsync(e.TenantId, BucketingTemporalDoTenant.DiaLocal(e.OcorridoEm), e.TotalCentavos, ct);
+    }
+
+    /// <summary>Fecha o lado bilateral (P1-3): SAÍDA de ContaAPagar liquidada vira saída de caixa no
+    /// dia do pagamento; ENTRADA de ContaAReceber liquidada (a prazo — a à vista já entrou via
+    /// <see cref="AplicarVendaConcluidaAsync"/>/<see cref="AplicarPedidoPagoAsync"/> e não passa por
+    /// <c>BaixarParcelaUseCase</c>, então não há dupla contagem) vira entrada, já LÍQUIDA de MDR
+    /// quando aplicável.</summary>
+    private Task AplicarParcelaBaixadaAsync(IntegrationEventLedgerEntry evento, CancellationToken ct)
+    {
+        var e = JsonSerializer.Deserialize<ParcelaBaixada>(evento.PayloadJson)!;
+        var dia = BucketingTemporalDoTenant.DiaLocal(e.OcorridoEm);
+        return e.EhAPagar
+            ? repositorio.AcumularSaidaAsync(e.TenantId, dia, e.ValorCaixaCentavos, ct)
+            : repositorio.AcumularEntradaAsync(e.TenantId, dia, e.ValorCaixaCentavos, ct);
     }
 }

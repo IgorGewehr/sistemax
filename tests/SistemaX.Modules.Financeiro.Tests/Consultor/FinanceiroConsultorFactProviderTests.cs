@@ -51,7 +51,7 @@ public class FinanceiroConsultorFactProviderTests
         var fatoMargemProduto = new InMemoryFatoMargemProdutoRepository();
         var fatoReceitaDiaria = new InMemoryFatoReceitaDiariaRepository();
 
-        var previsaoDeCaixa = new PrevisaoDeCaixaService(fatoCaixaDiario, contasAReceber, contasAPagar, movimentos, relogio);
+        var previsaoDeCaixa = new PrevisaoDeCaixaService(fatoCaixaDiario, contasAReceber, contasAPagar, movimentos, new InMemoryFormaDePagamentoRepository(), relogio);
         var pontoDeEquilibrio = new PontoDeEquilibrioService(recorrencias, fatoMargemProduto, fatoReceitaDiaria, relogio);
         var inadimplencia = new InadimplenciaService(contasAReceber, relogio);
         var radarDoSimples = new RadarDoSimplesService(fatoReceitaDiaria, contasAPagar, new InMemoryConfiguracaoRadarSimplesRepository(), relogio);

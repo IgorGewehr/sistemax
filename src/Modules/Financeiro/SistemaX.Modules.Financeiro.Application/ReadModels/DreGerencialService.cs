@@ -32,9 +32,17 @@ namespace SistemaX.Modules.Financeiro.Application.ReadModels;
 /// × Comercio, com custo direto e margem de cada uma), formalizada com o enum
 /// <see cref="CorrenteDeReceita"/> gravado em <c>ContaAReceber.Corrente</c>/<c>ContaAPagar.Corrente</c>/
 /// <c>fato_custo_diario.Corrente</c> em vez de inferida só pela categoria.
+///
+/// <c>DespesaFinanceira</c> (P1-6, docs/financeiro/revisao-domain-fit-cnpj.md) — MDR (taxa de
+/// cartão) do período, derivado AO VIVO de <c>fato_recebiveis</c> (soma de <c>ValorBrutoCentavos
+/// − ValorLiquidoCentavos</c> de todo recebível com <c>Vencimento</c> na competência): nunca
+/// recomputa a taxa — <c>fato_recebiveis</c> já resolveu o MDR contra o lar único
+/// <c>FormaDePagamento</c> no momento em que a linha nasceu. Reduz <see cref="ResultadoOperacional"/>
+/// sem entrar em <see cref="CustoDireto"/> (não é CMV/comissão — é despesa financeira). Dinheiro/PIX
+/// (taxa 0%) contribuem zero: venda sem cartão não gera esta despesa.
 /// </summary>
 public sealed record DreResultado(
-    Money ReceitaBruta, Money CustoDireto, Money DespesaOperacional, Money ResultadoOperacional,
+    Money ReceitaBruta, Money CustoDireto, Money DespesaOperacional, Money DespesaFinanceira, Money ResultadoOperacional,
     Money ReceitaRecorrente, Money ReceitaOperacional,
     IReadOnlyList<DrePorCorrente> PorCorrente);
 
@@ -49,7 +57,8 @@ public sealed record DreResultado(
 public sealed record DrePorCorrente(CorrenteDeReceita Corrente, Money ReceitaBruta, Money CustoDireto, Money Margem);
 
 public sealed class DreGerencialService(
-    IContaAReceberRepository contasAReceber, IContaAPagarRepository contasAPagar, IFatoCustoDiarioRepository fatoCustoDiario)
+    IContaAReceberRepository contasAReceber, IContaAPagarRepository contasAPagar,
+    IFatoCustoDiarioRepository fatoCustoDiario, IFatoRecebiveisRepository fatoRecebiveis)
 {
     private static readonly CorrenteDeReceita[] TodasAsCorrentes =
         [CorrenteDeReceita.Recorrente, CorrenteDeReceita.Servico, CorrenteDeReceita.Comercio];
@@ -60,6 +69,7 @@ public sealed class DreGerencialService(
         var despesas = await contasAPagar.ListarPorCompetenciaAsync(businessId, inicio, fim, ct);
         var fatosCusto = await ListarFatoCustoAsync(businessId, inicio, fim, ct);
         var cmvReal = new Money(fatosCusto.Sum(f => f.CustoCentavos));
+        var despesaFinanceira = await CalcularMdrDoPeriodoAsync(businessId, inicio, fim, ct);
 
         var receitasReconhecidas = receitas.Where(c => c.Status != StatusFinanceiro.Cancelado).ToList();
         var receitaBruta = Somar(receitasReconhecidas);
@@ -75,13 +85,29 @@ public sealed class DreGerencialService(
             c.CategoriaId != CategoriaFinanceiraPadrao.CustoMercadoriaVendida &&
             c.CategoriaId != CategoriaFinanceiraPadrao.Comissoes));
 
-        var resultadoOperacional = receitaBruta - custoDireto - despesaOperacional;
+        var resultadoOperacional = receitaBruta - custoDireto - despesaOperacional - despesaFinanceira;
 
         var porCorrente = CalcularPorCorrente(receitasReconhecidas, despesas, fatosCusto);
 
         return new DreResultado(
-            receitaBruta, custoDireto, despesaOperacional, resultadoOperacional,
+            receitaBruta, custoDireto, despesaOperacional, despesaFinanceira, resultadoOperacional,
             receitaRecorrente, receitaOperacional, porCorrente);
+    }
+
+    /// <summary>
+    /// P1-6 — soma <c>ValorBrutoCentavos − ValorLiquidoCentavos</c> de todo <c>fato_recebiveis</c>
+    /// com <c>Vencimento</c> na competência do período: essa diferença JÁ É o MDR (a taxa foi
+    /// aplicada uma vez só, na origem, por <c>FatoRecebiveisProjection</c> contra
+    /// <c>FormaDePagamento</c>) — nunca uma segunda resolução de taxa. Dinheiro/PIX (0% de taxa)
+    /// e a compensação de estorno somam exatamente zero de MDR líquido no par venda+estorno.
+    /// </summary>
+    private async Task<Money> CalcularMdrDoPeriodoAsync(string businessId, DateTimeOffset inicio, DateTimeOffset fim, CancellationToken ct)
+    {
+        var de = BucketingTemporalDoTenant.DiaLocal(inicio);
+        var ate = BucketingTemporalDoTenant.DiaLocal(fim);
+        var recebiveis = await fatoRecebiveis.ListarPorVencimentoAsync(businessId, de, ate, ct).ConfigureAwait(false);
+        var mdrCentavos = recebiveis.Sum(r => r.ValorBrutoCentavos - r.ValorLiquidoCentavos);
+        return new Money(mdrCentavos);
     }
 
     /// <summary>

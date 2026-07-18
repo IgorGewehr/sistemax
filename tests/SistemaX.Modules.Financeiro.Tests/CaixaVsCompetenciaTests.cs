@@ -3,6 +3,7 @@ using SistemaX.Modules.Financeiro.Application.CasosDeUso;
 using SistemaX.Modules.Financeiro.Application.EventosDeIntegracao.Handlers;
 using SistemaX.Modules.Financeiro.Domain.Comum;
 using SistemaX.Modules.Financeiro.Infrastructure.InMemory;
+using SistemaX.Modules.Financeiro.Tests.Fakes;
 using SistemaX.SharedKernel;
 
 namespace SistemaX.Modules.Financeiro.Tests;
@@ -40,7 +41,9 @@ public class CaixaVsCompetenciaTests
         Assert.Equal(Money.DeReais(300), dreDoMesDaVenda); // DRE de competência já reconheceria os R$300
 
         // --- Dia 31: cliente paga via PIX — nasce a visão de CAIXA ---
-        var baixarParcela = new BaixarParcelaUseCase(contasAReceber, new InMemoryContaAPagarRepository(), movimentos, lancamentos);
+        var baixarParcela = new BaixarParcelaUseCase(
+            contasAReceber, new InMemoryContaAPagarRepository(), movimentos, lancamentos,
+            new InMemoryFormaDePagamentoRepository(), new FakeIntegrationEventBus());
         var parcelaId = conta.Parcelas[0].Id;
 
         var pagamentoResultado = await baixarParcela.BaixarParcelaDeContaAReceberAsync(new BaixarParcelaComando(

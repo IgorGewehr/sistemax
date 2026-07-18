@@ -291,4 +291,55 @@ public class DreGerencialServiceTests
         Assert.Equal(Money.Zero, resultado.DespesaFinanceira);
         Assert.Equal(Money.DeReais(500), resultado.ResultadoOperacional);
     }
+
+    /// <summary>
+    /// P1-5 (docs/financeiro/revisao-domain-fit-cnpj.md) — cobrança ANUAL de assinatura: o
+    /// RECEBÍVEL (<c>ContaAReceber</c>) nasce íntegro no valor cheio na competência da cobrança
+    /// (é o CAIXA — nunca fracionado), mas o DRE reconhece só 1/12 em cada uma das 12 competências
+    /// seguintes (CronogramaLinear/Hamilton). Somando as 12 competências, a receita reconhecida
+    /// total bate exatamente com o valor cheio da cobrança (conservação de centavos).
+    /// </summary>
+    [Fact]
+    public async Task CalcularAsync_CobrancaAnualDeAssinatura_ReconheceUmDozeAvosPorMesE12Competencias()
+    {
+        var contasAReceber = new InMemoryContaAReceberRepository();
+        var contasAPagar = new InMemoryContaAPagarRepository();
+        var fatoCustoDiario = new InMemoryFatoCustoDiarioRepository();
+        var fatoRecebiveis = new InMemoryFatoRecebiveisRepository();
+
+        // Cobrança anual de R$1.200,00, competência de agosto/2026 — o "caixa" nasce aqui, íntegro.
+        var dataCobranca = new DateTimeOffset(2026, 8, 5, 12, 0, 0, TimeSpan.FromHours(-3));
+        var cobranca = ContaAReceber.Criar(
+            "business-1", new SourceRef("assinatura", "as1:202608"), "Plano Anual", CategoriaFinanceiraPadrao.ReceitaRecorrente,
+            dataCobranca, Money.DeReais(1_200), ContaFinanceiraBase.ParcelaUnica(Money.DeReais(1_200), dataCobranca),
+            corrente: CorrenteDeReceita.Recorrente, mesesDeReconhecimento: 12).Valor;
+        await contasAReceber.SalvarAsync(cobranca);
+
+        // O CAIXA (o recebível) continua íntegro no valor cheio, na data da cobrança — nunca fracionado.
+        Assert.Equal(Money.DeReais(1_200), cobranca.ValorTotal);
+        Assert.Equal(dataCobranca, cobranca.DataCompetencia);
+
+        var service = new DreGerencialService(contasAReceber, contasAPagar, fatoCustoDiario, fatoRecebiveis);
+
+        long totalReconhecido = 0;
+        for (var i = 0; i < 12; i++)
+        {
+            var mes = new DateTimeOffset(2026, 8, 1, 0, 0, 0, TimeSpan.FromHours(-3)).AddMonths(i);
+            var fimDoMes = mes.AddMonths(1).AddSeconds(-1);
+
+            var resultado = await service.CalcularAsync("business-1", mes, fimDoMes);
+
+            // 1.200,00 ÷ 12 = 100,00 exato em cada mês (Hamilton sem resto aqui).
+            Assert.Equal(Money.DeReais(100), resultado.ReceitaBruta);
+            Assert.Equal(Money.DeReais(100), resultado.ReceitaRecorrente);
+            totalReconhecido += resultado.ReceitaBruta.Centavos;
+        }
+
+        Assert.Equal(120_000, totalReconhecido); // Σ das 12 competências = o valor cheio da cobrança
+
+        // Fora da janela de 12 meses (mês 13), nada mais é reconhecido — o cronograma acabou.
+        var mesFora = new DateTimeOffset(2027, 8, 1, 0, 0, 0, TimeSpan.FromHours(-3));
+        var resultadoFora = await service.CalcularAsync("business-1", mesFora, mesFora.AddMonths(1).AddSeconds(-1));
+        Assert.Equal(Money.Zero, resultadoFora.ReceitaBruta);
+    }
 }

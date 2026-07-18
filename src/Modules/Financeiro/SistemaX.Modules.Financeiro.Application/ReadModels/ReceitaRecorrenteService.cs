@@ -11,6 +11,21 @@ public sealed record MrrPorServico(string ServicoId, string ServicoNome, Money M
 /// Painel de RECEITA RECORRENTE (a tela Assinaturas): MRR, ARR, novos/churn do mês, churn %,
 /// ticket médio, MRR por serviço e a maior concentração (o gargalo mais perigoso — 1 cliente/
 /// serviço carregando a receita). Tudo DERIVADO das assinaturas, nada persistido.
+///
+/// <see cref="StatusAssinatura.Inadimplente"/> conta como MRR corrente aqui, junto de
+/// <see cref="StatusAssinatura.Ativa"/> (P1-4, docs/financeiro/revisao-domain-fit-cnpj.md): uma
+/// assinatura em dunning ainda não churnou — só <see cref="Assinatura.Cancelar"/> (graça expirada
+/// ou cancelamento direto) remove de fato. <see cref="StatusAssinatura.Pausada"/> continua de fora
+/// (nunca contou, antes ou depois desta mudança).
+///
+/// AVISO — viés conhecido de <see cref="ReceitaRecorrenteResultado.ChurnPercent"/>: a fórmula
+/// abaixo deriva "MRR no início do mês" por ÁLGEBRA sobre o snapshot atual
+/// (<c>mrrInicioMes = mrr - novo + churn</c>), o que INCLUI de volta uma assinatura
+/// nascida-E-cancelada no MESMO mês como se ela tivesse existido desde o dia 1 — inflando o
+/// denominador (e por tabela, distorcendo o %) exatamente nesse caso. <c>PainelDeMovimentosMrrService</c>
+/// (P1-4) é a versão CORRIGIDA, com <c>MrrInicio</c> somado do ledger real de <c>MovimentoMrr</c>
+/// (nunca inclui esse caso) — preferir aquele painel para churn% auditável; este método é mantido
+/// por compatibilidade com quem só olha MRR/ARR/concentração.
 /// </summary>
 public sealed record ReceitaRecorrenteResultado(
     Money Mrr,
@@ -29,7 +44,7 @@ public sealed class ReceitaRecorrenteService(IAssinaturaRepository assinaturas)
     public async Task<ReceitaRecorrenteResultado> CalcularAsync(string businessId, DateTimeOffset referencia, CancellationToken ct = default)
     {
         var todas = await assinaturas.ListarAsync(businessId, ct);
-        var ativas = todas.Where(a => a.Status == StatusAssinatura.Ativa).ToList();
+        var ativas = todas.Where(a => a.Status is StatusAssinatura.Ativa or StatusAssinatura.Inadimplente).ToList();
 
         var mrr = ativas.Aggregate(Money.Zero, (acc, a) => acc + a.Mrr);
         var arr = mrr * 12;

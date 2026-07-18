@@ -120,6 +120,17 @@ public sealed class FinanceiroInfrastructureModule : IModule
             // P0-4 — mapeamento corrente→anexo do Radar do Simples, configurável por tenant.
             services.AddScoped<IConfiguracaoRadarSimplesRepository, SqliteConfiguracaoRadarSimplesRepository>();
             services.AddModuleSchemaMigration<FinanceiroSchemaMigrationV22>();
+
+            // P1-5 (docs/financeiro/revisao-domain-fit-cnpj.md) — receita diferida: contas_a_receber
+            // ganha meses_de_reconhecimento.
+            services.AddModuleSchemaMigration<FinanceiroSchemaMigrationV23>();
+
+            // P1-4 — dunning: assinaturas ganha inadimplente_desde.
+            services.AddModuleSchemaMigration<FinanceiroSchemaMigrationV24>();
+
+            // P1-4 — ledger de movimentos de MRR (mrr_movimentos).
+            services.AddScoped<IMovimentoMrrRepository, SqliteMovimentoMrrRepository>();
+            services.AddModuleSchemaMigration<FinanceiroSchemaMigrationV25>();
         }
         else
         {
@@ -142,6 +153,7 @@ public sealed class FinanceiroInfrastructureModule : IModule
             services.AddSingleton<ISessaoCaixaRepository, InMemorySessaoCaixaRepository>();
             services.AddSingleton<IAssinaturaRepository, InMemoryAssinaturaRepository>();
             services.AddSingleton<IConfiguracaoRadarSimplesRepository, InMemoryConfiguracaoRadarSimplesRepository>();
+            services.AddSingleton<IMovimentoMrrRepository, InMemoryMovimentoMrrRepository>();
         }
 
         // Projeções (IProjection) — Scoped em ambos os modos: o repo por trás pode ser Scoped

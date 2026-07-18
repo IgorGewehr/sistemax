@@ -20,6 +20,7 @@ public sealed class SqliteAssinaturaRepositoryContractTests : AssinaturaReposito
         using var connection = _connectionFactory.OpenConnection();
         using var transaction = connection.BeginTransaction();
         new FinanceiroSchemaMigrationV15().AplicarAsync(connection, transaction, CancellationToken.None).GetAwaiter().GetResult();
+        new FinanceiroSchemaMigrationV24().AplicarAsync(connection, transaction, CancellationToken.None).GetAwaiter().GetResult();
         transaction.Commit();
     }
 

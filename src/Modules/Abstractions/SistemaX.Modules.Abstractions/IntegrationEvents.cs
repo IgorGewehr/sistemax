@@ -94,9 +94,17 @@ public sealed record PedidoPago(
     public string ChaveIdempotencia => $"pedido.pago:{PedidoId}";
 }
 
-/// <summary>Parcela (a pagar/receber) venceu → dispara ALERTA e move visão de caixa.</summary>
+/// <summary>
+/// Parcela (a pagar/receber) venceu → dispara ALERTA e move visão de caixa.
+///
+/// <see cref="ContaId"/> (P1-4, docs/financeiro/revisao-domain-fit-cnpj.md) — a conta (ContaAReceber/
+/// ContaAPagar) DONA da parcela: fecha o gap de <c>DunningAssinaturaHandler</c> não conseguir
+/// resolver "essa parcela vencida é de qual assinatura?" sem ele (o evento de domínio
+/// <c>ParcelaMarcadaVencida</c> sempre carregou o id da conta — só a tradução pra este evento de
+/// integração o descartava).
+/// </summary>
 public sealed record ParcelaVencida(
-    string ParcelaId, string TenantId, long ValorCentavos, bool EhAPagar, DateTimeOffset OcorridoEm)
+    string ContaId, string ParcelaId, string TenantId, long ValorCentavos, bool EhAPagar, DateTimeOffset OcorridoEm)
     : IIntegrationEvent
 {
     public string ChaveIdempotencia => $"parcela.vencida:{ParcelaId}";

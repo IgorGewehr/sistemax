@@ -33,8 +33,8 @@ public sealed class ContaAReceber : ContaFinanceiraBase
         string id, string businessId, SourceRef sourceRef, string descricao, string categoriaId,
         string? centroDeCustoId, DateTimeOffset dataCompetencia, Money valorTotal,
         IReadOnlyCollection<Parcela> parcelas, string? clienteId, CorrenteDeReceita? corrente,
-        string? tecnicoId, Money? valorServico, Money? valorPecas)
-        : base(id, businessId, sourceRef, descricao, categoriaId, centroDeCustoId, dataCompetencia, valorTotal, parcelas, corrente)
+        string? tecnicoId, Money? valorServico, Money? valorPecas, int? mesesDeReconhecimento)
+        : base(id, businessId, sourceRef, descricao, categoriaId, centroDeCustoId, dataCompetencia, valorTotal, parcelas, corrente, mesesDeReconhecimento)
     {
         ClienteId = clienteId;
         TecnicoId = tecnicoId;
@@ -46,8 +46,8 @@ public sealed class ContaAReceber : ContaFinanceiraBase
         string id, string businessId, SourceRef sourceRef, string descricao, string categoriaId,
         string? centroDeCustoId, DateTimeOffset dataCompetencia, Money valorTotal, StatusFinanceiro status,
         DateTimeOffset criadoEm, IReadOnlyCollection<Parcela> parcelas, string? clienteId, CorrenteDeReceita? corrente,
-        string? tecnicoId, Money? valorServico, Money? valorPecas)
-        : base(id, businessId, sourceRef, descricao, categoriaId, centroDeCustoId, dataCompetencia, valorTotal, status, criadoEm, parcelas, corrente)
+        string? tecnicoId, Money? valorServico, Money? valorPecas, int? mesesDeReconhecimento)
+        : base(id, businessId, sourceRef, descricao, categoriaId, centroDeCustoId, dataCompetencia, valorTotal, status, criadoEm, parcelas, corrente, mesesDeReconhecimento)
     {
         ClienteId = clienteId;
         TecnicoId = tecnicoId;
@@ -60,9 +60,9 @@ public sealed class ContaAReceber : ContaFinanceiraBase
         string id, string businessId, SourceRef sourceRef, string descricao, string categoriaId,
         string? centroDeCustoId, DateTimeOffset dataCompetencia, Money valorTotal, StatusFinanceiro status,
         DateTimeOffset criadoEm, IReadOnlyCollection<Parcela> parcelas, string? clienteId, CorrenteDeReceita? corrente = null,
-        string? tecnicoId = null, Money? valorServico = null, Money? valorPecas = null)
+        string? tecnicoId = null, Money? valorServico = null, Money? valorPecas = null, int? mesesDeReconhecimento = null)
         => new(id, businessId, sourceRef, descricao, categoriaId, centroDeCustoId, dataCompetencia, valorTotal, status, criadoEm, parcelas, clienteId, corrente,
-            tecnicoId, valorServico, valorPecas);
+            tecnicoId, valorServico, valorPecas, mesesDeReconhecimento);
 
     public static Result<ContaAReceber> Criar(
         string businessId,
@@ -77,7 +77,8 @@ public sealed class ContaAReceber : ContaFinanceiraBase
         CorrenteDeReceita? corrente = null,
         string? tecnicoId = null,
         Money? valorServico = null,
-        Money? valorPecas = null)
+        Money? valorPecas = null,
+        int? mesesDeReconhecimento = null)
     {
         var validacao = ValidarParcelas(valorTotal, parcelas);
         if (validacao.Falha) return Result.Falhar<ContaAReceber>(validacao.Erro);
@@ -87,10 +88,15 @@ public sealed class ContaAReceber : ContaFinanceiraBase
                 "financeiro.conta.repartição_servico_pecas_nao_bate",
                 $"Soma de mão de obra ({servico.Formatado()}) e peças ({pecas.Formatado()}) é diferente do valor total da conta ({valorTotal.Formatado()})."));
 
+        if (mesesDeReconhecimento is { } meses && meses < 1)
+            return Result.Falhar<ContaAReceber>(new Error(
+                "financeiro.conta.meses_de_reconhecimento_invalido",
+                "Reconhecimento diferido precisa de ao menos 1 competência."));
+
         var conta = new ContaAReceber(
             IdGenerator.NovoId(), businessId, sourceRef, descricao, categoriaId,
             centroDeCustoId, dataCompetencia, valorTotal, parcelas, clienteId, corrente,
-            tecnicoId, valorServico, valorPecas);
+            tecnicoId, valorServico, valorPecas, mesesDeReconhecimento);
 
         conta.Raise(new ContaCriada(conta.Id, businessId, "receber", valorTotal.Centavos, sourceRef.Chave));
         return Result.Ok(conta);

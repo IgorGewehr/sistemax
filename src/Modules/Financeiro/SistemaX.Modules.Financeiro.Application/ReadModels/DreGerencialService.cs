@@ -1,7 +1,9 @@
 using SistemaX.Modules.Financeiro.Application.Categorias;
 using SistemaX.Modules.Financeiro.Application.Comum;
 using SistemaX.Modules.Financeiro.Application.Ports;
+using SistemaX.Modules.Financeiro.Application.Quant;
 using SistemaX.Modules.Financeiro.Domain.Comum;
+using SistemaX.Modules.Financeiro.Domain.ContasAPagarReceber;
 using SistemaX.SharedKernel;
 
 namespace SistemaX.Modules.Financeiro.Application.ReadModels;
@@ -40,6 +42,18 @@ namespace SistemaX.Modules.Financeiro.Application.ReadModels;
 /// <c>FormaDePagamento</c> no momento em que a linha nasceu. Reduz <see cref="ResultadoOperacional"/>
 /// sem entrar em <see cref="CustoDireto"/> (não é CMV/comissão — é despesa financeira). Dinheiro/PIX
 /// (taxa 0%) contribuem zero: venda sem cartão não gera esta despesa.
+///
+/// RECEITA DIFERIDA (P1-5, docs/financeiro/revisao-domain-fit-cnpj.md) — <c>ReceitaBruta</c>,
+/// <c>ReceitaRecorrente</c> e a receita de cada <see cref="DrePorCorrente"/> não somam mais
+/// <c>ContaAReceber.ValorTotal</c> direto: passam por <see cref="ReceitaReconhecidaResolver"/>, que
+/// reconhece pró-rata (via <c>CronogramaLinear</c>) as cobranças de assinatura de ciclo &gt;
+/// mensal. Por isso a consulta amplia a janela pra TRÁS (até
+/// <see cref="ReceitaReconhecidaResolver.MaiorHorizonteDeReconhecimentoEmMeses"/> competências)
+/// antes de filtrar: uma cobrança ANUAL feita 5 meses atrás ainda tem fração reconhecida no mês
+/// corrente, mesmo com <c>DataCompetencia</c> fora da janela pedida. O RECEBÍVEL
+/// (<c>ContaAReceber</c>) nunca muda — só esta leitura separa caixa (a cobrança) de competência
+/// (o reconhecimento). Despesas (<c>ContaAPagar</c>) não são afetadas — nenhuma tem reconhecimento
+/// diferido hoje.
 /// </summary>
 public sealed record DreResultado(
     Money ReceitaBruta, Money CustoDireto, Money DespesaOperacional, Money DespesaFinanceira, Money ResultadoOperacional,
@@ -65,15 +79,20 @@ public sealed class DreGerencialService(
 
     public async Task<DreResultado> CalcularAsync(string businessId, DateTimeOffset inicio, DateTimeOffset fim, CancellationToken ct = default)
     {
-        var receitas = await contasAReceber.ListarPorCompetenciaAsync(businessId, inicio, fim, ct);
+        // P1-5 — janela AMPLIADA pra trás: uma cobrança anual feita até 11 meses antes de `inicio`
+        // ainda pode ter fração reconhecida caindo dentro de [inicio, fim]. ReceitaReconhecidaResolver
+        // descarta, por conta própria, tudo que não reconhece na janela pedida — a lista mais larga
+        // aqui é só o INSUMO, nunca o resultado.
+        var janelaAmpliadaInicio = inicio.AddMonths(-(ReceitaReconhecidaResolver.MaiorHorizonteDeReconhecimentoEmMeses - 1));
+        var receitas = await contasAReceber.ListarPorCompetenciaAsync(businessId, janelaAmpliadaInicio, fim, ct);
         var despesas = await contasAPagar.ListarPorCompetenciaAsync(businessId, inicio, fim, ct);
         var fatosCusto = await ListarFatoCustoAsync(businessId, inicio, fim, ct);
         var cmvReal = new Money(fatosCusto.Sum(f => f.CustoCentavos));
         var despesaFinanceira = await CalcularMdrDoPeriodoAsync(businessId, inicio, fim, ct);
 
         var receitasReconhecidas = receitas.Where(c => c.Status != StatusFinanceiro.Cancelado).ToList();
-        var receitaBruta = Somar(receitasReconhecidas);
-        var receitaRecorrente = Somar(receitasReconhecidas.Where(c => c.CategoriaId == CategoriaFinanceiraPadrao.ReceitaRecorrente));
+        var receitaBruta = SomarReconhecida(receitasReconhecidas, inicio, fim);
+        var receitaRecorrente = SomarReconhecida(receitasReconhecidas.Where(c => c.CategoriaId == CategoriaFinanceiraPadrao.ReceitaRecorrente), inicio, fim);
         var receitaOperacional = receitaBruta - receitaRecorrente;
 
         var comissoes = Somar(despesas.Where(c =>
@@ -87,7 +106,7 @@ public sealed class DreGerencialService(
 
         var resultadoOperacional = receitaBruta - custoDireto - despesaOperacional - despesaFinanceira;
 
-        var porCorrente = CalcularPorCorrente(receitasReconhecidas, despesas, fatosCusto);
+        var porCorrente = CalcularPorCorrente(receitasReconhecidas, despesas, fatosCusto, inicio, fim);
 
         return new DreResultado(
             receitaBruta, custoDireto, despesaOperacional, despesaFinanceira, resultadoOperacional,
@@ -117,9 +136,10 @@ public sealed class DreGerencialService(
     /// (<c>fato_custo_diario</c>, sempre classificado pelo fold) + comissão categorizada nela.
     /// </summary>
     private static IReadOnlyList<DrePorCorrente> CalcularPorCorrente(
-        IReadOnlyList<Domain.ContasAPagarReceber.ContaFinanceiraBase> receitasReconhecidas,
-        IReadOnlyList<Domain.ContasAPagarReceber.ContaFinanceiraBase> despesas,
-        IReadOnlyList<Analitico.FatoCustoDiario> fatosCusto)
+        IReadOnlyList<ContaFinanceiraBase> receitasReconhecidas,
+        IReadOnlyList<ContaFinanceiraBase> despesas,
+        IReadOnlyList<Analitico.FatoCustoDiario> fatosCusto,
+        DateTimeOffset inicio, DateTimeOffset fim)
     {
         var cmvPorCorrente = fatosCusto
             .GroupBy(f => f.Corrente)
@@ -132,7 +152,7 @@ public sealed class DreGerencialService(
         var resultado = new List<DrePorCorrente>(TodasAsCorrentes.Length);
         foreach (var corrente in TodasAsCorrentes)
         {
-            var receitaBruta = Somar(receitasReconhecidas.Where(c => ClassificarCorrente(c) == corrente));
+            var receitaBruta = SomarReconhecida(receitasReconhecidas.Where(c => ClassificarCorrente(c) == corrente), inicio, fim);
             var comissao = Somar(comissoesAbertas.Where(c => ClassificarCorrente(c) == corrente));
             var custoDireto = cmvPorCorrente.GetValueOrDefault(corrente, Money.Zero) + comissao;
             resultado.Add(new DrePorCorrente(corrente, receitaBruta, custoDireto, receitaBruta - custoDireto));
@@ -140,7 +160,7 @@ public sealed class DreGerencialService(
         return resultado;
     }
 
-    private static CorrenteDeReceita? ClassificarCorrente(Domain.ContasAPagarReceber.ContaFinanceiraBase conta)
+    private static CorrenteDeReceita? ClassificarCorrente(ContaFinanceiraBase conta)
         => conta.Corrente ?? CorrenteDeReceitaInferencia.InferirDaCategoria(conta.CategoriaId);
 
     private Task<IReadOnlyList<Analitico.FatoCustoDiario>> ListarFatoCustoAsync(string businessId, DateTimeOffset inicio, DateTimeOffset fim, CancellationToken ct)
@@ -150,6 +170,13 @@ public sealed class DreGerencialService(
         return fatoCustoDiario.ListarAsync(businessId, de, ate, ct);
     }
 
-    private static Money Somar(IEnumerable<Domain.ContasAPagarReceber.ContaFinanceiraBase> contas)
+    private static Money Somar(IEnumerable<ContaFinanceiraBase> contas)
         => contas.Aggregate(Money.Zero, (acumulado, conta) => acumulado + conta.ValorTotal);
+
+    /// <summary>P1-5 — soma a fração RECONHECIDA de cada conta na janela [inicio,fim], via
+    /// <see cref="ReceitaReconhecidaResolver"/>. Para contas sem reconhecimento diferido, é
+    /// idêntico a <see cref="Somar"/> (a fração é 100% do valor, se a competência cair na janela) —
+    /// nunca muda o comportamento de venda/OS/lançamento manual.</summary>
+    private static Money SomarReconhecida(IEnumerable<ContaFinanceiraBase> contas, DateTimeOffset inicio, DateTimeOffset fim)
+        => new(contas.Sum(c => ReceitaReconhecidaResolver.CentavosNaJanela(c, inicio, fim)));
 }

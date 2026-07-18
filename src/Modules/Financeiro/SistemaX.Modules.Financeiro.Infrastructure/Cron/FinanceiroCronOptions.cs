@@ -26,4 +26,13 @@ public sealed class FinanceiroCronOptions
     /// entre rodadas.
     /// </summary>
     public TimeSpan IntervaloFaturamentoAssinaturas { get; set; } = TimeSpan.FromHours(1);
+
+    /// <summary>
+    /// P1-4 (docs/financeiro/revisao-domain-fit-cnpj.md) — dias de GRAÇA após uma assinatura
+    /// entrar em <c>StatusAssinatura.Inadimplente</c> (cobrança vencida sem pagamento) antes de o
+    /// dunning virar churn (<c>AvaliarDunningAssinaturasUseCase</c>, rodado no mesmo ciclo de
+    /// <see cref="FaturarAssinaturasBackgroundService"/>). Regularizar a cobrança
+    /// (<c>ParcelaBaixada</c>) a qualquer momento dentro da graça cancela o relógio.
+    /// </summary>
+    public int DiasGracaInadimplenciaAssinatura { get; set; } = 7;
 }

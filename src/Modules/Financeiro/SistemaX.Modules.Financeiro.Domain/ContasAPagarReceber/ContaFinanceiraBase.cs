@@ -45,6 +45,20 @@ public abstract class ContaFinanceiraBase : AggregateRoot<string>
     /// </summary>
     public CorrenteDeReceita? Corrente { get; }
 
+    /// <summary>
+    /// P1-5 (docs/financeiro/revisao-domain-fit-cnpj.md) — quando NÃO-NULO, o número de
+    /// competências (meses) sobre as quais <see cref="ValorTotal"/> deve ser RECONHECIDO no DRE,
+    /// via <see cref="Application.Quant.CronogramaLinear"/> a partir de <see cref="DataCompetencia"/>
+    /// (mesma mecânica, Hamilton centavo-exato, que amortização/depreciação vão reusar). NULL
+    /// (o padrão, e o único valor que <c>ContaAPagar</c> usa hoje) = reconhecimento IMEDIATO, 100%
+    /// na própria <see cref="DataCompetencia"/> — o comportamento de sempre. Hoje só
+    /// <c>Assinatura.GerarCobranca</c> preenche este campo, para cobrança de ciclo &gt; mensal
+    /// (trimestral/semestral/anual): o RECEBÍVEL (esta conta) continua íntegro no valor cheio — é
+    /// <see cref="Application.Quant.ReceitaReconhecidaResolver"/>, consultado pelo DRE, quem separa
+    /// caixa (a cobrança, aqui) de competência (a fração reconhecida por mês).
+    /// </summary>
+    public int? MesesDeReconhecimento { get; }
+
     public IReadOnlyList<Parcela> Parcelas => _parcelas.AsReadOnly();
 
     /// <summary>Usado pelo motor de partida dobrada para saber se a contrapartida é Receita ou Custo/Despesa.</summary>
@@ -53,7 +67,7 @@ public abstract class ContaFinanceiraBase : AggregateRoot<string>
     protected ContaFinanceiraBase(
         string id, string businessId, SourceRef sourceRef, string descricao, string categoriaId,
         string? centroDeCustoId, DateTimeOffset dataCompetencia, Money valorTotal, IReadOnlyCollection<Parcela> parcelas,
-        CorrenteDeReceita? corrente = null)
+        CorrenteDeReceita? corrente = null, int? mesesDeReconhecimento = null)
     {
         Id = id;
         BusinessId = businessId;
@@ -65,6 +79,7 @@ public abstract class ContaFinanceiraBase : AggregateRoot<string>
         ValorTotal = valorTotal;
         CriadoEm = DateTimeOffset.UtcNow;
         Corrente = corrente;
+        MesesDeReconhecimento = mesesDeReconhecimento;
         _parcelas.AddRange(parcelas);
         Status = StatusFinanceiro.Aberto;
     }
@@ -75,7 +90,8 @@ public abstract class ContaFinanceiraBase : AggregateRoot<string>
     protected ContaFinanceiraBase(
         string id, string businessId, SourceRef sourceRef, string descricao, string categoriaId,
         string? centroDeCustoId, DateTimeOffset dataCompetencia, Money valorTotal, StatusFinanceiro status,
-        DateTimeOffset criadoEm, IReadOnlyCollection<Parcela> parcelas, CorrenteDeReceita? corrente = null)
+        DateTimeOffset criadoEm, IReadOnlyCollection<Parcela> parcelas, CorrenteDeReceita? corrente = null,
+        int? mesesDeReconhecimento = null)
     {
         Id = id;
         BusinessId = businessId;
@@ -88,6 +104,7 @@ public abstract class ContaFinanceiraBase : AggregateRoot<string>
         Status = status;
         CriadoEm = criadoEm;
         Corrente = corrente;
+        MesesDeReconhecimento = mesesDeReconhecimento;
         _parcelas.AddRange(parcelas);
     }
 

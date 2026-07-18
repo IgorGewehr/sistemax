@@ -56,7 +56,7 @@ public sealed class AvaliarParcelasVencidasUseCase(
         foreach (var evento in eventos.OfType<ParcelaMarcadaVencida>())
         {
             await barramentoDeEventos.PublishAsync(
-                new ParcelaVencida(evento.ParcelaId, businessId, evento.ValorCentavos, evento.EhAPagar, evento.OccurredOn), ct);
+                new ParcelaVencida(evento.ContaId, evento.ParcelaId, businessId, evento.ValorCentavos, evento.EhAPagar, evento.OccurredOn), ct);
             publicados++;
         }
         return publicados;

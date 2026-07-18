@@ -74,6 +74,12 @@ public sealed class FaturarAssinaturasBackgroundService(
                 // §4, Fatia 1) e usa exatamente o mesmo catch-up idempotente.
                 var recorrentesUseCase = escopo.ServiceProvider.GetRequiredService<GerarContasRecorrentesUseCase>();
                 await recorrentesUseCase.ExecutarAsync(businessId, relogio.Agora(), ct).ConfigureAwait(false);
+
+                // P1-4 — dunning: assinaturas em graça (Inadimplente) há tempo demais viram churn.
+                // Mesmo cron (recomendação da Fatia 7 do plano): um BackgroundService a menos, e o
+                // relógio de graça nunca fica sem ser reavaliado por mais que o intervalo do cron.
+                var dunningUseCase = escopo.ServiceProvider.GetRequiredService<AvaliarDunningAssinaturasUseCase>();
+                await dunningUseCase.ExecutarAsync(businessId, relogio.Agora(), options.Value.DiasGracaInadimplenciaAssinatura, ct).ConfigureAwait(false);
             }
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)

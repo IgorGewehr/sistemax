@@ -97,7 +97,7 @@ public abstract class AssinaturaRepositoryContractTests
         var repo = CriarRepositorio();
         var ativa = CriarAssinatura(BusinessA, "Diego");
         var pausada = CriarAssinatura(BusinessA, "Elisa");
-        pausada.Pausar();
+        pausada.Pausar(new DateTimeOffset(2026, 1, 10, 0, 0, 0, TimeSpan.FromHours(-3)));
         var deOutroBusiness = CriarAssinatura(BusinessB, "Fabio");
 
         await repo.SalvarAsync(ativa);
@@ -116,7 +116,7 @@ public abstract class AssinaturaRepositoryContractTests
         var repo = CriarRepositorio();
         var ativa = CriarAssinatura(BusinessA, "Gustavo");
         var pausada = CriarAssinatura(BusinessA, "Helena");
-        pausada.Pausar();
+        pausada.Pausar(new DateTimeOffset(2026, 1, 10, 0, 0, 0, TimeSpan.FromHours(-3)));
 
         await repo.SalvarAsync(ativa);
         await repo.SalvarAsync(pausada);

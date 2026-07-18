@@ -65,6 +65,7 @@ public sealed class CorrenteDeReceitaMigrationTests : IDisposable
         {
             new FinanceiroSchemaMigrationV16().AplicarAsync(connection, transaction, CancellationToken.None).GetAwaiter().GetResult();
             new FinanceiroSchemaMigrationV21().AplicarAsync(connection, transaction, CancellationToken.None).GetAwaiter().GetResult();
+            new FinanceiroSchemaMigrationV23().AplicarAsync(connection, transaction, CancellationToken.None).GetAwaiter().GetResult();
             transaction.Commit();
         }
 

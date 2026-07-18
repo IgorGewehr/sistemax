@@ -5,6 +5,7 @@ using SistemaX.Modules.Financeiro.Application.Caixa;
 using SistemaX.Modules.Financeiro.Application.CasosDeUso;
 using SistemaX.Modules.Financeiro.Application.Consultor;
 using SistemaX.Modules.Financeiro.Application.EventosDeIntegracao.Handlers;
+using SistemaX.Modules.Financeiro.Application.Mrr;
 using SistemaX.Modules.Financeiro.Application.ReadModels;
 
 namespace SistemaX.Modules.Financeiro.Application;
@@ -16,11 +17,15 @@ namespace SistemaX.Modules.Financeiro.Application;
 /// <c>compra.recebida</c>, <c>os.faturada</c>, <c>pedido.pago</c>, <c>folha.lancada</c>
 /// (ver <c>SistemaX.Modules.Abstractions.IntegrationEvents</c>).
 ///
-/// DECISÃO DE DESIGN — por que <c>ParcelaVencida</c> não tem handler aqui: pelo próprio catálogo
-/// de docs/financeiro/financeiro-datamodel.md §4.2, a ORIGEM desse evento é o "Cron financeiro" —
-/// ou seja, o PRÓPRIO Financeiro é quem PUBLICA <c>ParcelaVencida</c> (ver
-/// <see cref="AvaliarParcelasVencidasUseCase"/>), não quem o consome. Registrar um handler para
-/// consumir um evento que o módulo mesmo produz seria um ciclo sem propósito.
+/// DECISÃO DE DESIGN — por que <c>ParcelaVencida</c>/<c>ParcelaBaixada</c> normalmente não têm
+/// handler aqui: pelo próprio catálogo de docs/financeiro-datamodel.md §4.2, a ORIGEM desses
+/// eventos é o PRÓPRIO Financeiro (<see cref="AvaliarParcelasVencidasUseCase"/>/
+/// <c>BaixarParcelaUseCase</c>) — registrar um handler para consumir um evento que o módulo mesmo
+/// produz seria, em geral, um ciclo sem propósito. EXCEÇÃO — <c>DunningAssinaturaHandler</c> (P1-4,
+/// docs/financeiro/revisao-domain-fit-cnpj.md): dentro do Financeiro, <c>Assinatura</c> é um
+/// agregado DIFERENTE de <c>ContaAReceber</c>/<c>ContaAPagar</c> — ela precisa reagir a "sua"
+/// cobrança vencer/liquidar pra acionar a FSM de dunning, exatamente como qualquer outro
+/// consumidor cross-agregado. Não é o mesmo ciclo (produtor e consumidor são agregados distintos).
 ///
 /// DECISÃO DE DESIGN — por que os ADAPTERS concretos dos ports (repositórios) NÃO são
 /// registrados aqui: o grafo de referência de projeto da solução é
@@ -45,6 +50,10 @@ public sealed class FinanceiroModule : IModule
         services.AddScoped<IIntegrationEventHandler<PedidoPago>, PedidoPagoHandler>();
         services.AddScoped<IIntegrationEventHandler<FolhaLancada>, FolhaLancadaHandler>();
 
+        // P1-4 — dunning consumindo os próprios eventos do Financeiro (exceção documentada acima).
+        services.AddScoped<IIntegrationEventHandler<ParcelaVencida>, DunningAssinaturaHandler>();
+        services.AddScoped<IIntegrationEventHandler<ParcelaBaixada>, DunningAssinaturaHandler>();
+
         services.AddScoped<EstornarMovimentoUseCase>();
         services.AddScoped<LancarContaAPagarUseCase>();
         services.AddScoped<LancarContaAReceberUseCase>();
@@ -56,10 +65,15 @@ public sealed class FinanceiroModule : IModule
         services.AddScoped<CriarAssinaturaUseCase>();
         services.AddScoped<CancelarAssinaturaUseCase>();
         services.AddScoped<PausarReativarAssinaturaUseCase>();
+        services.AddScoped<AlterarValorAssinaturaUseCase>();
 
         // Motor de recorrência (geração de contas/cobranças)
         services.AddScoped<GerarContasRecorrentesUseCase>();
         services.AddScoped<GerarCobrancasAssinaturasUseCase>();
+
+        // P1-4 — dunning (relógio de graça) + painel de movimentos de MRR.
+        services.AddScoped<AvaliarDunningAssinaturasUseCase>();
+        services.AddScoped<PainelDeMovimentosMrrService>();
 
         services.AddScoped<FluxoDeCaixaService>();
         services.AddScoped<DreGerencialService>();

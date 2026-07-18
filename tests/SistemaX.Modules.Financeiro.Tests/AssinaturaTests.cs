@@ -46,12 +46,118 @@ public class AssinaturaTests
     {
         var a = Nova(new Money(20000), FrequenciaRecorrencia.Mensal, Ref);
 
-        Assert.True(a.Pausar().Sucesso);
+        Assert.True(a.Pausar(Ref).Sucesso);
         Assert.Equal(StatusAssinatura.Pausada, a.Status);
-        Assert.True(a.Pausar().Falha);          // já pausada
-        Assert.True(a.Reativar().Sucesso);
+        Assert.True(a.Pausar(Ref).Falha);          // já pausada
+        Assert.True(a.Reativar(Ref).Sucesso);
         Assert.Equal(StatusAssinatura.Ativa, a.Status);
-        Assert.True(a.Reativar().Falha);         // já ativa
+        Assert.True(a.Reativar(Ref).Falha);         // já ativa
+    }
+
+    [Fact]
+    public void AlterarValor_sobe_levanta_evento_com_delta_de_expansao()
+    {
+        var a = Nova(new Money(50000), FrequenciaRecorrencia.Mensal, Ref); // MRR 500
+        a.ClearDomainEvents();
+
+        var r = a.AlterarValor(new Money(80000), Ref); // MRR 800
+
+        Assert.True(r.Sucesso);
+        Assert.Equal(80000, a.ValorPorCiclo.Centavos);
+        var evento = Assert.Single(a.DomainEvents.OfType<AssinaturaAlterada>());
+        Assert.Equal(50000, evento.MrrAnteriorCentavos);
+        Assert.Equal(80000, evento.MrrNovoCentavos);
+    }
+
+    [Fact]
+    public void AlterarValor_desce_levanta_evento_com_delta_de_contracao()
+    {
+        var a = Nova(new Money(80000), FrequenciaRecorrencia.Mensal, Ref);
+        a.ClearDomainEvents();
+
+        var r = a.AlterarValor(new Money(50000), Ref);
+
+        Assert.True(r.Sucesso);
+        var evento = Assert.Single(a.DomainEvents.OfType<AssinaturaAlterada>());
+        Assert.Equal(80000, evento.MrrAnteriorCentavos);
+        Assert.Equal(50000, evento.MrrNovoCentavos);
+    }
+
+    [Fact]
+    public void AlterarValor_mesmo_mrr_normalizado_nao_levanta_evento()
+    {
+        // Trimestral: dois valores por ciclo diferentes podem normalizar pro MESMO MRR mensal
+        // (300/3 = 100 = 300/3) — usar o MESMO valor é o caso trivial, mas já basta pra provar
+        // que "sem efeito líquido" não é um movimento.
+        var a = Nova(new Money(30000), FrequenciaRecorrencia.Trimestral, Ref);
+        a.ClearDomainEvents();
+
+        var r = a.AlterarValor(new Money(30000), Ref);
+
+        Assert.True(r.Sucesso);
+        Assert.Empty(a.DomainEvents);
+    }
+
+    [Fact]
+    public void AlterarValor_recusa_valor_nao_positivo_e_assinatura_cancelada()
+    {
+        var a = Nova(new Money(50000), FrequenciaRecorrencia.Mensal, Ref);
+        Assert.True(a.AlterarValor(new Money(0), Ref).Falha);
+
+        var cancelada = Nova(new Money(50000), FrequenciaRecorrencia.Mensal, Ref);
+        cancelada.Cancelar("saiu", Ref);
+        Assert.True(cancelada.AlterarValor(new Money(60000), Ref).Falha);
+    }
+
+    [Fact]
+    public void Cancelar_de_assinatura_pausada_nao_duplo_desconta_mrr()
+    {
+        // Pausar já "tira" o MRR corrente (Contração); cancelar uma assinatura JÁ pausada não pode
+        // contar o mesmo MRR de novo como Churn — magnitude 0, sem duplo desconto no painel.
+        var a = Nova(new Money(50000), FrequenciaRecorrencia.Mensal, Ref);
+        a.Pausar(Ref);
+        a.ClearDomainEvents();
+
+        a.Cancelar("cancelado enquanto pausada", Ref);
+
+        var evento = Assert.Single(a.DomainEvents.OfType<AssinaturaCancelada>());
+        Assert.Equal(0, evento.MrrCentavos);
+    }
+
+    [Fact]
+    public void Cancelar_de_assinatura_ativa_carrega_o_mrr_cheio_como_churn()
+    {
+        var a = Nova(new Money(50000), FrequenciaRecorrencia.Mensal, Ref);
+        a.ClearDomainEvents();
+
+        a.Cancelar("saiu", Ref);
+
+        var evento = Assert.Single(a.DomainEvents.OfType<AssinaturaCancelada>());
+        Assert.Equal(50000, evento.MrrCentavos);
+    }
+
+    [Fact]
+    public void Dunning_fsm_marcar_inadimplente_regularizar_e_cancelar()
+    {
+        var a = Nova(new Money(50000), FrequenciaRecorrencia.Mensal, Ref);
+
+        Assert.True(a.MarcarInadimplente(Ref).Sucesso);
+        Assert.Equal(StatusAssinatura.Inadimplente, a.Status);
+        Assert.Equal(Ref, a.InadimplenteDesde);
+        Assert.True(a.MarcarInadimplente(Ref).Falha); // já inadimplente
+
+        Assert.True(a.Regularizar(Ref).Sucesso);
+        Assert.Equal(StatusAssinatura.Ativa, a.Status);
+        Assert.Null(a.InadimplenteDesde);
+        Assert.True(a.Regularizar(Ref).Falha); // já regularizada
+
+        Assert.True(a.MarcarInadimplente(Ref).Sucesso);
+        var graçaExpirada = Ref.AddDays(8);
+        var cancelou = a.Cancelar("dunning: graça expirada", graçaExpirada);
+        Assert.True(cancelou.Sucesso);
+        Assert.Equal(StatusAssinatura.Cancelada, a.Status);
+        // Inadimplente ainda contava como MRR corrente — churn carrega o valor cheio.
+        Assert.Contains(a.DomainEvents, e => e is AssinaturaCancelada { MrrCentavos: 50000 });
     }
 
     /// <summary>

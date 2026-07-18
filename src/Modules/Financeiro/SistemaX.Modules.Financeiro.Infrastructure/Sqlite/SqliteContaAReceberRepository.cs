@@ -25,7 +25,8 @@ public sealed class SqliteContaAReceberRepository(ILocalSqliteConnectionFactory 
         """
         id, business_id, source_ref_modulo, source_ref_id, descricao, categoria_id,
         centro_de_custo_id, data_competencia, valor_total_centavos, valor_total_moeda,
-        status, criado_em, cliente_id, corrente, tecnico_id, valor_servico_centavos, valor_pecas_centavos
+        status, criado_em, cliente_id, corrente, tecnico_id, valor_servico_centavos, valor_pecas_centavos,
+        meses_de_reconhecimento
         """;
 
     public Task<ContaAReceber?> ObterPorIdAsync(string id, CancellationToken ct = default)
@@ -96,24 +97,25 @@ public sealed class SqliteContaAReceberRepository(ILocalSqliteConnectionFactory 
                     INSERT INTO contas_a_receber
                         (id, business_id, source_ref_modulo, source_ref_id, source_ref_chave, descricao, categoria_id,
                          centro_de_custo_id, data_competencia, valor_total_centavos, valor_total_moeda, status, criado_em, cliente_id, corrente,
-                         tecnico_id, valor_servico_centavos, valor_pecas_centavos)
+                         tecnico_id, valor_servico_centavos, valor_pecas_centavos, meses_de_reconhecimento)
                     VALUES
                         ($id, $biz, $srModulo, $srId, $srChave, $descricao, $categoriaId,
                          $centroDeCustoId, $dataCompetencia, $valorCentavos, $valorMoeda, $status, $criadoEm, $clienteId, $corrente,
-                         $tecnicoId, $valorServicoCentavos, $valorPecasCentavos)
+                         $tecnicoId, $valorServicoCentavos, $valorPecasCentavos, $mesesDeReconhecimento)
                     ON CONFLICT(id) DO UPDATE SET
-                        descricao              = excluded.descricao,
-                        categoria_id           = excluded.categoria_id,
-                        centro_de_custo_id     = excluded.centro_de_custo_id,
-                        data_competencia       = excluded.data_competencia,
-                        valor_total_centavos   = excluded.valor_total_centavos,
-                        valor_total_moeda      = excluded.valor_total_moeda,
-                        status                 = excluded.status,
-                        cliente_id             = excluded.cliente_id,
-                        corrente               = excluded.corrente,
-                        tecnico_id             = excluded.tecnico_id,
-                        valor_servico_centavos = excluded.valor_servico_centavos,
-                        valor_pecas_centavos   = excluded.valor_pecas_centavos;
+                        descricao                = excluded.descricao,
+                        categoria_id             = excluded.categoria_id,
+                        centro_de_custo_id       = excluded.centro_de_custo_id,
+                        data_competencia         = excluded.data_competencia,
+                        valor_total_centavos     = excluded.valor_total_centavos,
+                        valor_total_moeda        = excluded.valor_total_moeda,
+                        status                   = excluded.status,
+                        cliente_id               = excluded.cliente_id,
+                        corrente                 = excluded.corrente,
+                        tecnico_id               = excluded.tecnico_id,
+                        valor_servico_centavos   = excluded.valor_servico_centavos,
+                        valor_pecas_centavos     = excluded.valor_pecas_centavos,
+                        meses_de_reconhecimento  = excluded.meses_de_reconhecimento;
                     """;
                 cmd.Parameters.AddWithValue("$id", conta.Id);
                 cmd.Parameters.AddWithValue("$biz", conta.BusinessId);
@@ -133,6 +135,7 @@ public sealed class SqliteContaAReceberRepository(ILocalSqliteConnectionFactory 
                 cmd.Parameters.AddWithValue("$tecnicoId", (object?)conta.TecnicoId ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("$valorServicoCentavos", (object?)(conta.ValorServico is { } vs ? vs.Centavos : null) ?? DBNull.Value);
                 cmd.Parameters.AddWithValue("$valorPecasCentavos", (object?)(conta.ValorPecas is { } vp ? vp.Centavos : null) ?? DBNull.Value);
+                cmd.Parameters.AddWithValue("$mesesDeReconhecimento", (object?)conta.MesesDeReconhecimento ?? DBNull.Value);
 
                 await cmd.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
             }
@@ -194,7 +197,8 @@ public sealed class SqliteContaAReceberRepository(ILocalSqliteConnectionFactory 
                     reader.IsDBNull(13) ? null : (CorrenteDeReceita)reader.GetInt32(13),
                     reader.IsDBNull(14) ? null : reader.GetString(14),
                     reader.IsDBNull(15) ? null : reader.GetInt64(15),
-                    reader.IsDBNull(16) ? null : reader.GetInt64(16)));
+                    reader.IsDBNull(16) ? null : reader.GetInt64(16),
+                    reader.IsDBNull(17) ? null : reader.GetInt32(17)));
             }
         }
 
@@ -207,7 +211,8 @@ public sealed class SqliteContaAReceberRepository(ILocalSqliteConnectionFactory 
                 h.CentroDeCustoId, ParseData(h.DataCompetencia)!.Value, h.ValorTotal, h.Status,
                 ParseData(h.CriadoEm)!.Value, parcelas, h.ClienteId, h.Corrente, h.TecnicoId,
                 h.ValorServicoCentavos is { } vsc ? new Money(vsc, h.ValorTotal.Moeda) : null,
-                h.ValorPecasCentavos is { } vpc ? new Money(vpc, h.ValorTotal.Moeda) : null));
+                h.ValorPecasCentavos is { } vpc ? new Money(vpc, h.ValorTotal.Moeda) : null,
+                h.MesesDeReconhecimento));
         }
         return resultado;
     }
@@ -250,7 +255,7 @@ public sealed class SqliteContaAReceberRepository(ILocalSqliteConnectionFactory 
         string Id, string BusinessId, string SourceRefModulo, string SourceRefId, string Descricao,
         string CategoriaId, string? CentroDeCustoId, string DataCompetencia, Money ValorTotal,
         StatusFinanceiro Status, string CriadoEm, string? ClienteId, CorrenteDeReceita? Corrente,
-        string? TecnicoId, long? ValorServicoCentavos, long? ValorPecasCentavos);
+        string? TecnicoId, long? ValorServicoCentavos, long? ValorPecasCentavos, int? MesesDeReconhecimento);
 
     /// <summary>Escreve dentro da sessão ambiente, se houver uma ativa; senão abre conexão própria
     /// e curta. Copiado literalmente de <c>SqliteFornecedorRepository</c> — molde da F0.</summary>

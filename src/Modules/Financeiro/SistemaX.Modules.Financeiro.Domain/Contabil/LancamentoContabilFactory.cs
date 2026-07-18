@@ -81,6 +81,39 @@ public static class LancamentoContabilFactory
         return LancamentoContabil.Criar(businessId, competencia, descricao, origem, partidas);
     }
 
+    /// <summary>
+    /// Alienação (venda) de um <c>AtivoDeCapital</c> — fatia I4, docs/financeiro/design-imobilizado-roi.md
+    /// §4.6: "C-1.3 pelo valor contábil, D-4.1 pela perda (ou crédito residual em 3.1 pelo ganho)".
+    /// UM lançamento auto-contido (nunca dois lançamentos concorrentes para o mesmo fato de venda):
+    /// débito 1.2 (o recebível, se houver preço de venda rastreado), crédito 1.3 (baixa do valor
+    /// contábil restante, se houver), e a diferença fecha a partida — crédito 3.1 se ganho
+    /// (<paramref name="valorVenda"/> &gt; <paramref name="valorContabil"/>), débito 4.1 se perda.
+    /// Pernas de valor ZERO são omitidas (<see cref="LancamentoContabil.Criar"/> rejeita partida com
+    /// valor não-positivo) — o balanceamento (Σdébito == Σcrédito) é garantido por construção em
+    /// qualquer combinação de sinais; se as duas pernas principais forem zero (bem já 100%
+    /// depreciado, doado sem preço) o resultado é <c>Falha</c> por partidas insuficientes — o
+    /// chamador trata como "nada a lançar", nunca propaga como erro do usuário.
+    /// </summary>
+    public static Result<LancamentoContabil> DeVendaDeAtivoDeCapital(
+        string businessId, DateTimeOffset competencia, string descricao, string ativoId, Money valorVenda, Money valorContabil)
+    {
+        var origem = new OrigemLancamento("financeiro", "alienacao-ativo", ativoId);
+        var partidas = new List<PartidaContabil>();
+
+        if (valorVenda.EhPositivo)
+            partidas.Add(PartidaContabil.Debito(PlanoDeContasPadrao.ContasAReceber.Id, valorVenda));
+        if (valorContabil.EhPositivo)
+            partidas.Add(PartidaContabil.Credito(PlanoDeContasPadrao.AtivosDeCapital.Id, valorContabil));
+
+        var resultadoCentavos = valorVenda.Centavos - valorContabil.Centavos;
+        if (resultadoCentavos > 0)
+            partidas.Add(PartidaContabil.Credito(PlanoDeContasPadrao.Receita.Id, new Money(resultadoCentavos)));
+        else if (resultadoCentavos < 0)
+            partidas.Add(PartidaContabil.Debito(PlanoDeContasPadrao.CustoDespesa.Id, new Money(-resultadoCentavos)));
+
+        return LancamentoContabil.Criar(businessId, competencia, descricao, origem, partidas);
+    }
+
     /// <summary>Dinheiro ENTRA (recebimento de parcela): débito Caixa/Bancos, crédito Contas a Receber.</summary>
     public static Result<LancamentoContabil> DeMovimentoEntrada(MovimentoFinanceiro movimento)
     {

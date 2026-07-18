@@ -50,4 +50,15 @@ public static class CategoriaFinanceiraPadrao
     /// <c>LancamentoContabilFactory.DeContaAPagar</c>.
     /// </summary>
     public const string AtivoDeCapital = LancamentoContabilFactory.CategoriaAtivoDeCapital;
+
+    /// <summary>
+    /// Alienação de ativo (fatia I4, docs/financeiro/design-imobilizado-roi.md §4.6) — categoria da
+    /// <c>ContaAReceber</c> criada quando um <c>AtivoDeCapital</c> é vendido (<c>AtivoDeCapital.Baixar</c>
+    /// com <c>valorVenda</c>). Espelha o desvio de <see cref="AtivoDeCapital"/> na outra direção:
+    /// EXCLUÍDA da <c>ReceitaBruta</c> do <see cref="ReadModels.DreGerencialService"/> (vender a
+    /// bancada usada não é performance operacional) e fora do Radar do Simples (não é receita de
+    /// venda/OS/assinatura). O <c>MovimentoFinanceiro</c> de Entrada que liquida essa conta É capturado
+    /// normalmente pelo <c>RoiDoNegocioService</c> em <c>F_m</c> — os proceeds da venda contam no fluxo.
+    /// </summary>
+    public const string AlienacaoDeAtivo = "alienacao-de-ativo";
 }

@@ -16,11 +16,16 @@ public sealed record RoiSerieMensal(
     DateOnly Competencia, long FluxoOperacionalCentavos, long CapexCentavos, long AporteCentavos,
     long LiquidoCentavos, long AcumuladoCentavos, long AcumuladoDescontadoCentavos);
 
-public sealed record RoiPorCategoria(string Categoria, long CustoCentavos, long ValorContabilCentavos);
+/// <summary>Fatia I4 (§12 "painel por categoria de bem enriquecido") — <c>Vendidos</c> e
+/// <c>ResultadoAlienacaoCentavos</c> são aditivos (0 até a primeira venda da categoria, nunca
+/// mudam o shape pré-I4). <c>ResultadoAlienacaoCentavos</c> soma <see cref="Domain.Ativos.AtivoDeCapital.ResultadoAlienacaoCentavos"/>
+/// de todo bem <c>Vendido</c> da categoria — ganho ou perda acumulados, informativo (mesma
+/// natureza da linha do DRE, §4.7, DI6: nunca entra em nenhum percentual de ROI operacional).</summary>
+public sealed record RoiPorCategoria(string Categoria, long CustoCentavos, long ValorContabilCentavos, int Vendidos, long ResultadoAlienacaoCentavos);
 
 public sealed record RoiInvestimento(
     long CapexCentavos, long AportesCentavos, long TotalCentavos, long GiroConsumidoObservadoCentavos,
-    int Bens, IReadOnlyList<RoiPorCategoria> PorCategoria);
+    int Bens, IReadOnlyList<RoiPorCategoria> PorCategoria, long ResultadoAlienacaoTotalCentavos);
 
 public sealed record RoiRecuperacao(long FluxoOperacionalAcumuladoCentavos, long RecuperadoCentavos, long FaltamCentavos, decimal PercentRecuperado);
 
@@ -230,11 +235,16 @@ public sealed class RoiDoNegocioService(
         var porCategoria = considerados
             .GroupBy(a => a.Categoria)
             .Select(g => new RoiPorCategoria(
-                g.Key.ToString(), g.Sum(a => a.CustoAquisicao.Centavos), g.Sum(a => AtivoDeCapitalQuant.ValorContabilAtualCentavos(a))))
+                g.Key.ToString(), g.Sum(a => a.CustoAquisicao.Centavos), g.Sum(a => AtivoDeCapitalQuant.ValorContabilAtualCentavos(a)),
+                g.Count(a => a.Status == StatusAtivoDeCapital.Vendido), g.Sum(a => a.ResultadoAlienacaoCentavos ?? 0)))
             .OrderBy(c => c.Categoria)
             .ToList();
 
-        return new RoiInvestimento(capexCentavos, aportesCentavos, capexCentavos + aportesCentavos, giroConsumidoObservado, considerados.Count, porCategoria);
+        var resultadoAlienacaoTotalCentavos = porCategoria.Sum(c => c.ResultadoAlienacaoCentavos);
+
+        return new RoiInvestimento(
+            capexCentavos, aportesCentavos, capexCentavos + aportesCentavos, giroConsumidoObservado,
+            considerados.Count, porCategoria, resultadoAlienacaoTotalCentavos);
     }
 
     private static RoiRecuperacao CalcularRecuperacao(RoiInvestimento investimento, long fluxoOperacionalAcumulado)

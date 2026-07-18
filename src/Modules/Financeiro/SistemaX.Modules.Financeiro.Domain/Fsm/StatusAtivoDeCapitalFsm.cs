@@ -7,16 +7,17 @@ namespace SistemaX.Modules.Financeiro.Domain.Fsm;
 /// FSM de <see cref="StatusAtivoDeCapital"/> — mesma disciplina de <see cref="StatusProjetoFsm"/>
 /// (regra dura R4). <c>EmUso → Encerrado</c> é automática (última competência do cronograma
 /// reconhecida pelo cron — ver <see cref="AtivoDeCapital.ReconhecerCompetencia"/>);
-/// <c>EmUso|Encerrado → Baixado</c> é a baixa antecipada/write-off (§4.5/§4.6 dos designs).
-/// <see cref="StatusAtivoDeCapital.Vendido"/> é reservado para a fatia I4 (Imobilizado) — nenhuma
-/// transição para ele está habilitada aqui ainda.
+/// <c>EmUso|Encerrado → Baixado</c> é a baixa antecipada/write-off (§4.5/§4.6 dos designs);
+/// <c>EmUso|Encerrado → Vendido</c> é a alienação com <c>valorVenda</c> (fatia I4, §3.2/§4.6 —
+/// um bem 100% depreciado ainda existe fisicamente e pode ser vendido). <c>Baixado</c> é terminal
+/// (write-off já reconheceu a perda total; não faz sentido "vender" um bem já sucateado).
 /// </summary>
 public static class StatusAtivoDeCapitalFsm
 {
     private static readonly Dictionary<StatusAtivoDeCapital, StatusAtivoDeCapital[]> Transicoes = new()
     {
-        [StatusAtivoDeCapital.EmUso] = [StatusAtivoDeCapital.Encerrado, StatusAtivoDeCapital.Baixado],
-        [StatusAtivoDeCapital.Encerrado] = [StatusAtivoDeCapital.Baixado]
+        [StatusAtivoDeCapital.EmUso] = [StatusAtivoDeCapital.Encerrado, StatusAtivoDeCapital.Baixado, StatusAtivoDeCapital.Vendido],
+        [StatusAtivoDeCapital.Encerrado] = [StatusAtivoDeCapital.Baixado, StatusAtivoDeCapital.Vendido]
     };
 
     public static bool PodeTransitar(StatusAtivoDeCapital de, StatusAtivoDeCapital para)

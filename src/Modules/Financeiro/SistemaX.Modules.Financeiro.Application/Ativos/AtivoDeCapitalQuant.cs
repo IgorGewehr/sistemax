@@ -30,15 +30,22 @@ public static class AtivoDeCapitalQuant
 
     /// <summary>Soma do cronograma na janela [de, ate] (inclusive) — usado pelo DRE/painel para "a
     /// amortização/depreciação reconhecida neste período", independente do cursor do cron (a
-    /// leitura NUNCA depende do cron ter rodado — só do calendário). BAIXA-AWARE: se o ativo foi
-    /// baixado antecipadamente (§4.5/§4.6 dos dois designs), a competência da baixa contribui o
-    /// VALOR CONTÁBIL reconhecido de uma vez (não a fatia linear daquele mês) e nenhuma competência
-    /// posterior contribui nada — a leitura nunca depende de recomputar a baixa, só do estado
-    /// persistido do agregado (<see cref="AtivoDeCapital.UltimaCompetenciaReconhecida"/> é
-    /// avançado para a competência da baixa por <see cref="AtivoDeCapital.Baixar"/>).</summary>
+    /// leitura NUNCA depende do cron ter rodado — só do calendário). SAÍDA-AWARE (baixa OU venda):
+    /// nenhuma competência POSTERIOR à saída contribui nada, em nenhum dos dois casos — a leitura
+    /// nunca depende de recomputar a saída, só do estado persistido do agregado
+    /// (<see cref="AtivoDeCapital.UltimaCompetenciaReconhecida"/> é avançado para a competência da
+    /// saída por <see cref="AtivoDeCapital.Baixar"/>). NA competência da saída em si, os dois casos
+    /// DIVERGEM (docs/financeiro/design-imobilizado-roi.md §4.6, DI6): write-off
+    /// (<see cref="StatusAtivoDeCapital.Baixado"/>) reconhece o VALOR CONTÁBIL inteiro de uma vez
+    /// (perda real de capacidade, permanece DENTRO do D&A/ResultadoOperacional — herdado do
+    /// design-pai §4.6); venda (<see cref="StatusAtivoDeCapital.Vendido"/>) NÃO — fica só a fatia
+    /// linear normal daquele mês, e o valor contábil restante (<see cref="AtivoDeCapital.ValorReconhecidoNaBaixaCentavos"/>)
+    /// vira <see cref="AtivoDeCapital.ResultadoAlienacaoCentavos"/>, linha informativa FORA do
+    /// resultado operacional — nunca duplicado aqui.</summary>
     public static long SomaNaJanela(AtivoDeCapital ativo, DateOnly de, DateOnly ate)
     {
-        DateOnly? competenciaBaixa = ativo.Status == StatusAtivoDeCapital.Baixado && ativo.UltimaCompetenciaReconhecida is { } ultima
+        DateOnly? competenciaSaida = ativo.Status is StatusAtivoDeCapital.Baixado or StatusAtivoDeCapital.Vendido
+            && ativo.UltimaCompetenciaReconhecida is { } ultima
             ? new DateOnly(ultima.Year, ultima.Month, 1)
             : null;
 
@@ -47,14 +54,16 @@ public static class AtivoDeCapitalQuant
         {
             if (c < de || c > ate) continue;
 
-            if (competenciaBaixa is { } cb)
+            if (competenciaSaida is { } cs)
             {
-                if (c > cb) continue; // nada reconhece depois da baixa
-                if (c == cb)
+                if (c > cs) continue; // nada reconhece depois da baixa/venda
+
+                if (c == cs && ativo.Status == StatusAtivoDeCapital.Baixado)
                 {
                     soma += ativo.ValorReconhecidoNaBaixaCentavos ?? v;
                     continue;
                 }
+                // Vendido: cai no `soma += v` de baixo — a fatia linear normal do mês, sem lump sum.
             }
 
             soma += v;
@@ -73,7 +82,14 @@ public static class AtivoDeCapitalQuant
 
     /// <summary>Valor contábil ATUAL (na data do cursor) — <c>CustoAquisicao − reconhecido</c>; ao
     /// fim da vida útil, converge para <see cref="AtivoDeCapital.ValorResidual"/> por construção
-    /// (Σ cronograma == BaseDepreciavel).</summary>
+    /// (Σ cronograma == BaseDepreciavel). ZERO após <see cref="StatusAtivoDeCapital.Baixado"/> OU
+    /// <see cref="StatusAtivoDeCapital.Vendido"/> — o bem saiu do balanço, independente de o D&A
+    /// (<see cref="SomaNaJanela"/>) ter ou não reconhecido o resíduo inteiro naquele mês (invariante
+    /// de teste #8, docs/financeiro/design-imobilizado-roi.md §14: "saldo de 1.3 zera após
+    /// baixa/venda"); curto-circuito deliberado, independente de <see cref="ReconhecidoAteOCursor"/>.</summary>
     public static long ValorContabilAtualCentavos(AtivoDeCapital ativo)
-        => ativo.CustoAquisicao.Centavos - ReconhecidoAteOCursor(ativo);
+    {
+        if (ativo.Status is StatusAtivoDeCapital.Baixado or StatusAtivoDeCapital.Vendido) return 0;
+        return ativo.CustoAquisicao.Centavos - ReconhecidoAteOCursor(ativo);
+    }
 }

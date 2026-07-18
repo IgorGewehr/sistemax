@@ -17,3 +17,10 @@ public sealed record AtivoDeCapitalEncerrado(string AtivoId, string BusinessId, 
 
 public sealed record AtivoDeCapitalBaixadoAntecipadamente(
     string AtivoId, string BusinessId, string? ProjetoId, long ValorContabilCentavos, DateTimeOffset Quando) : DomainEvent;
+
+/// <summary>Alienação do bem (fatia I4, docs/financeiro/design-imobilizado-roi.md §4.6) — o
+/// contraponto vendido de <see cref="AtivoDeCapitalBaixadoAntecipadamente"/>: mesma mecânica de
+/// remover o valor contábil restante do agregado, mas com preço de venda e resultado
+/// (ganho/perda) informativos.</summary>
+public sealed record AtivoDeCapitalVendido(
+    string AtivoId, string BusinessId, string? ProjetoId, long ValorContabilCentavos, long ValorVendaCentavos, DateTimeOffset Quando) : DomainEvent;

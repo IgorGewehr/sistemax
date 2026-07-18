@@ -1,3 +1,4 @@
+using SistemaX.Modules.Financeiro.Application.Categorias;
 using SistemaX.Modules.Financeiro.Application.Configuracao;
 using SistemaX.Modules.Financeiro.Application.Ports;
 using SistemaX.Modules.Financeiro.Application.Projetos;
@@ -15,14 +16,16 @@ public sealed record AtivoDeCapitalDto(
     long CustoAquisicaoCentavos, long ValorResidualCentavos, DateOnly DataAquisicao, DateOnly InicioDepreciacao,
     int VidaUtilMeses, int QuantidadeUnidades, string? ContaAPagarId, string Status,
     DateTimeOffset? UltimaCompetenciaReconhecida, DateTimeOffset? EncerradoEm, DateTimeOffset? BaixadoEm,
-    string? MotivoBaixa, long ValorContabilAtualCentavos, long AmortizacaoMensalCentavos)
+    string? MotivoBaixa, long ValorContabilAtualCentavos, long AmortizacaoMensalCentavos,
+    long? ValorVendaCentavos, long? ResultadoAlienacaoCentavos)
 {
     public static AtivoDeCapitalDto DeDominio(AtivoDeCapital a) => new(
         a.Id, a.ProjetoId, a.Nome, a.Natureza.ToString(), a.Categoria.ToString(),
         a.CustoAquisicao.Centavos, a.ValorResidual.Centavos, a.DataAquisicao, a.InicioDepreciacao,
         a.VidaUtilMeses, a.QuantidadeUnidades, a.ContaAPagarId, a.Status.ToString(),
         a.UltimaCompetenciaReconhecida, a.EncerradoEm, a.BaixadoEm, a.MotivoBaixa,
-        AtivoDeCapitalQuant.ValorContabilAtualCentavos(a), AtivoDeCapitalQuant.ValorNaCompetencia(a, a.ProximaCompetenciaDevida));
+        AtivoDeCapitalQuant.ValorContabilAtualCentavos(a), AtivoDeCapitalQuant.ValorNaCompetencia(a, a.ProximaCompetenciaDevida),
+        a.ValorVenda?.Centavos, a.ResultadoAlienacaoCentavos);
 }
 
 public sealed record ParcelaInvestimento(DateTimeOffset Vencimento, long ValorCentavos);
@@ -116,11 +119,20 @@ public sealed class CriarAtivoDeCapitalUseCase(
     }
 }
 
-public sealed record BaixarAtivoDeCapitalComando(string BusinessId, string AtivoId, string Motivo, DateOnly Competencia);
+/// <summary><paramref name="ValorVendaCentavos"/> não-nulo ⇒ alienação (fatia I4, §8.1: "!= null ⇒
+/// Vendido"); nulo ⇒ baixa antecipada/write-off comum (comportamento pré-I4, intocado).</summary>
+public sealed record BaixarAtivoDeCapitalComando(string BusinessId, string AtivoId, string Motivo, DateOnly Competencia, long? ValorVendaCentavos = null);
 
-/// <summary>Baixa antecipada/write-off (§4.5/§4.6 dos dois designs) — reconhece de uma vez o valor
-/// contábil restante (residual incluso) e transiciona a FSM.</summary>
-public sealed class BaixarAtivoDeCapitalUseCase(IAtivoDeCapitalRepository ativos, IRelogio relogio)
+/// <summary>Baixa antecipada/write-off (§4.5/§4.6 dos dois designs) OU alienação/venda (fatia I4,
+/// §4.6) — reconhece de uma vez o valor contábil restante (residual incluso) e transiciona a FSM
+/// para <c>Baixado</c> ou <c>Vendido</c> conforme <see cref="BaixarAtivoDeCapitalComando.ValorVendaCentavos"/>.
+/// Na venda, registra TAMBÉM (mesmo gesto, "um handler só"): a <c>ContaAReceber</c> categoria
+/// <see cref="CategoriaFinanceiraPadrao.AlienacaoDeAtivo"/> com o preço de venda (se rastreado pelo
+/// sistema — §4.6: "se entrar no sistema") e o lançamento contábil único da alienação
+/// (<see cref="LancamentoContabilFactory.DeVendaDeAtivoDeCapital"/>). Nenhum dos dois é criado no
+/// write-off comum.</summary>
+public sealed class BaixarAtivoDeCapitalUseCase(
+    IAtivoDeCapitalRepository ativos, IContaAReceberRepository contasAReceber, ILancamentoContabilRepository lancamentos, IRelogio relogio)
 {
     public async Task<Result<AtivoDeCapital>> ExecutarAsync(BaixarAtivoDeCapitalComando comando, CancellationToken ct = default)
     {
@@ -128,11 +140,43 @@ public sealed class BaixarAtivoDeCapitalUseCase(IAtivoDeCapitalRepository ativos
         if (ativo is null)
             return Result.Falhar<AtivoDeCapital>(new Error("financeiro.ativo.nao_encontrado", $"Ativo '{comando.AtivoId}' não encontrado."));
 
-        var valorContabil = AtivoDeCapitalQuant.ValorContabilAtualCentavos(ativo);
-        var resultado = ativo.Baixar(comando.Motivo, comando.Competencia, valorContabil, relogio.Agora());
+        var agora = relogio.Agora();
+        var valorContabilCentavos = AtivoDeCapitalQuant.ValorContabilAtualCentavos(ativo);
+        var valorVenda = comando.ValorVendaCentavos is { } centavos ? new Money(centavos) : (Money?)null;
+
+        var resultado = ativo.Baixar(comando.Motivo, comando.Competencia, valorContabilCentavos, agora, valorVenda);
         if (resultado.Falha) return Result.Falhar<AtivoDeCapital>(resultado.Erro);
 
         await ativos.SalvarAsync(ativo, ct).ConfigureAwait(false);
+
+        if (valorVenda is { } venda)
+        {
+            await RegistrarAlienacaoAsync(ativo, venda, new Money(valorContabilCentavos), agora, ct).ConfigureAwait(false);
+        }
+
         return Result.Ok(ativo);
+    }
+
+    private async Task RegistrarAlienacaoAsync(AtivoDeCapital ativo, Money valorVenda, Money valorContabil, DateTimeOffset agora, CancellationToken ct)
+    {
+        if (valorVenda.EhPositivo)
+        {
+            var vencimento = ativo.UltimaCompetenciaReconhecida ?? agora;
+            var origem = new SourceRef("financeiro-ativo-venda", ativo.Id);
+            var contaResultado = ContaAReceber.Criar(
+                ativo.BusinessId, origem, $"Venda — {ativo.Nome}", CategoriaFinanceiraPadrao.AlienacaoDeAtivo,
+                vencimento, valorVenda, ContaFinanceiraBase.ParcelaUnica(valorVenda, vencimento), projetoId: ativo.ProjetoId);
+            if (contaResultado.Sucesso)
+            {
+                await contasAReceber.SalvarAsync(contaResultado.Valor, ct).ConfigureAwait(false);
+            }
+        }
+
+        var lancamentoResultado = LancamentoContabilFactory.DeVendaDeAtivoDeCapital(
+            ativo.BusinessId, agora, $"Alienação — {ativo.Nome}", ativo.Id, valorVenda, valorContabil);
+        if (lancamentoResultado.Sucesso)
+        {
+            await lancamentos.SalvarAsync(lancamentoResultado.Valor, ct).ConfigureAwait(false);
+        }
     }
 }

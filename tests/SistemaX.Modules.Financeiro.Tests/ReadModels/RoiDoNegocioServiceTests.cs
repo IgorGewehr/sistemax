@@ -225,6 +225,138 @@ public sealed class RoiDoNegocioServiceTests
         Assert.Equal(100_000, mesJulho.FluxoOperacionalCentavos); // só a venda normal — capex excluído
     }
 
+    /// <summary>Gera combinações pseudo-aleatórias (seed fixa — reprodutível, nunca flaky) de
+    /// capex/parcelas/movimento-não-relacionado/mês para o property test abaixo. Varia: valor do
+    /// capex (R$1 a R$500.000), quantidade de parcelas do MESMO bem liquidadas no MESMO mês (1 a
+    /// 3 — testa que a soma de várias parcelas nunca duplica), valor de um movimento operacional
+    /// não relacionado (R$0 a R$200.000, pode ser ausente) e o mês-alvo dentro do ano.</summary>
+    public static IEnumerable<object[]> CombinacoesAleatoriasDeCapexEMovimentos()
+    {
+        var rng = new Random(20260718);
+        for (var i = 0; i < 30; i++)
+        {
+            var capexCentavos = rng.Next(1_00, 500_000_00);
+            var numParcelas = rng.Next(1, 4);
+            var outroMovimentoCentavos = rng.Next(0, 200_000_00);
+            var mesOffset = rng.Next(0, 12);
+            yield return [capexCentavos, numParcelas, outroMovimentoCentavos, mesOffset];
+        }
+    }
+
+    /// <summary>Property test (§7.2/§14.4) — versão N-combinações do
+    /// <see cref="AntiDuplaContagem_MovimentoDeCapexEExcluidoDeFmENuncaContadoDuasVezes"/>: para
+    /// QUALQUER combinação de valor de capex, quantidade de parcelas do bem liquidadas no mesmo
+    /// mês, valor de um movimento operacional não relacionado e mês-alvo, a propriedade se
+    /// mantém — <c>Capex_m</c> soma o bem EXATAMENTE uma vez (nunca por parcela em duplicidade) e
+    /// <c>F_m</c> nunca inclui um centavo do capex, só o movimento não relacionado.</summary>
+    [Theory]
+    [MemberData(nameof(CombinacoesAleatoriasDeCapexEMovimentos))]
+    public async Task AntiDuplaContagem_Property_QualquerCombinacaoDeParcelasEMovimentos_NuncaContaDuasVezes(
+        long capexCentavos, int numParcelas, long outroMovimentoCentavos, int mesOffset)
+    {
+        var mesAlvo = M0.AddMonths(mesOffset);
+        var agora = new DateTimeOffset(mesAlvo.Year, mesAlvo.Month, 20, 12, 0, 0, TimeSpan.Zero).AddMonths(3);
+        var ambiente = NovoAmbiente(agora);
+        await LigarToggleAsync(ambiente);
+
+        // Distribui capexCentavos em numParcelas parcelas (resto na última — mesmo desempate
+        // Hamilton do CronogramaLinear), descartando parcelas que ficariam com valor zero.
+        var baseParcela = capexCentavos / numParcelas;
+        var resto = capexCentavos - baseParcela * numParcelas;
+        var valoresParcelas = Enumerable.Range(0, numParcelas)
+            .Select(i => i == numParcelas - 1 ? baseParcela + resto : baseParcela)
+            .Where(v => v > 0)
+            .ToArray();
+
+        var vencimento = new DateTimeOffset(mesAlvo.Year, mesAlvo.Month, 20, 0, 0, 0, TimeSpan.Zero);
+        var parcelas = valoresParcelas
+            .Select((v, idx) => Parcela.Criar(idx + 1, vencimento, new Money(v)))
+            .ToList();
+        var conta = ContaAPagar.Criar(
+            Biz, new SourceRef("financeiro-ativo", $"property-{capexCentavos}-{numParcelas}-{mesOffset}"),
+            "Investimento — property", CategoriaFinanceiraPadrao.AtivoDeCapital, vencimento, new Money(capexCentavos), parcelas).Valor;
+        foreach (var parcela in conta.Parcelas)
+            conta.RegistrarLiquidacaoParcela(parcela.Id, parcela.Valor, vencimento, "pix");
+        await ambiente.ContasAPagar.SalvarAsync(conta);
+
+        var ativo = AtivoDeCapital.Criar(
+            Biz, "Bem property", NaturezaAtivo.Tangivel, CategoriaAtivo.Equipamento,
+            new Money(capexCentavos), Money.Zero, mesAlvo, mesAlvo, vidaUtilMeses: 60,
+            criadoEm: agora, contaAPagarId: conta.Id).Valor;
+        await ambiente.Ativos.SalvarAsync(ativo);
+
+        // Um movimento por parcela liquidada, todos com ContaOrigemId = conta.Id (trilho de capex).
+        for (var idx = 0; idx < valoresParcelas.Length; idx++)
+            await RegistrarMovimentoAsync(ambiente, TipoMovimentoFinanceiro.Saida, new Money(valoresParcelas[idx]), mesAlvo, $"capex-{idx}", conta.Id);
+
+        // Movimento operacional NÃO relacionado, no MESMO mês (ausente quando outroMovimentoCentavos == 0).
+        if (outroMovimentoCentavos > 0)
+            await RegistrarMovimentoAsync(ambiente, TipoMovimentoFinanceiro.Entrada, new Money(outroMovimentoCentavos), mesAlvo, "operacional");
+
+        var resultado = (await NovoServico(ambiente).CalcularAsync(Biz)).Valor;
+        var mesDaSerie = resultado.Serie.Single(s => s.Competencia == mesAlvo);
+
+        // A PROPRIEDADE: o capex aparece EXATAMENTE uma vez (em Capex_m, somando todas as
+        // parcelas) e NUNCA em F_m — independente de valor, quantidade de parcelas ou mês.
+        Assert.Equal(capexCentavos, mesDaSerie.CapexCentavos);
+        Assert.Equal(outroMovimentoCentavos, mesDaSerie.FluxoOperacionalCentavos);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────────────────
+    // I4 — Alienação de ativo (docs/financeiro/design-imobilizado-roi.md §4.6/§12): "proceeds
+    // aparecem em F_m" e o painel por categoria enriquecido (Vendidos/ResultadoAlienacaoCentavos).
+    // ─────────────────────────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task Alienacao_ProceedsDaVendaEntramNoFluxoOperacionalDoMes()
+    {
+        var agora = new DateTimeOffset(2026, 8, 20, 12, 0, 0, TimeSpan.Zero);
+        var ambiente = NovoAmbiente(agora);
+        await LigarToggleAsync(ambiente);
+
+        var ativo = AtivoDeCapital.Criar(
+            Biz, "Bancada ESD", NaturezaAtivo.Tangivel, CategoriaAtivo.Equipamento,
+            Money.DeReais(12_000), Money.Zero, M0, M0, vidaUtilMeses: 60, criadoEm: agora).Valor;
+        ativo.Baixar("Upgrade", new DateOnly(2026, 8, 1), 1_180_000, agora, Money.DeReais(9_000));
+        await ambiente.Ativos.SalvarAsync(ativo);
+
+        // O MovimentoFinanceiro de Entrada que liquida a ContaAReceber da alienação — mesmo
+        // mecanismo de qualquer outro recebimento, SEM ContaOrigemId de categoria ativo-de-capital
+        // (o anti-dupla-contagem só exclui o CAPEX, nunca os proceeds da venda).
+        await RegistrarMovimentoAsync(ambiente, TipoMovimentoFinanceiro.Entrada, Money.DeReais(9_000), new DateOnly(2026, 8, 1), "proceeds-venda");
+
+        var resultado = (await NovoServico(ambiente).CalcularAsync(Biz)).Valor;
+        var mesAgosto = resultado.Serie.Single(s => s.Competencia == new DateOnly(2026, 8, 1));
+
+        Assert.Equal(900_000, mesAgosto.FluxoOperacionalCentavos);
+    }
+
+    [Fact]
+    public async Task Alienacao_PainelPorCategoria_ContaVendidoEResultadoAlienacao()
+    {
+        var agora = new DateTimeOffset(2026, 8, 20, 12, 0, 0, TimeSpan.Zero);
+        var ambiente = NovoAmbiente(agora);
+        await LigarToggleAsync(ambiente);
+
+        var vendido = AtivoDeCapital.Criar(
+            Biz, "Bancada ESD", NaturezaAtivo.Tangivel, CategoriaAtivo.Equipamento,
+            Money.DeReais(12_000), Money.Zero, M0, M0, vidaUtilMeses: 60, criadoEm: agora).Valor;
+        vendido.Baixar("Upgrade", new DateOnly(2026, 8, 1), 1_180_000, agora, Money.DeReais(12_800)); // ganho de 1.000
+        await ambiente.Ativos.SalvarAsync(vendido);
+
+        var emUso = AtivoDeCapital.Criar(
+            Biz, "Bancada nova", NaturezaAtivo.Tangivel, CategoriaAtivo.Equipamento,
+            Money.DeReais(15_000), Money.Zero, M0, M0, vidaUtilMeses: 60, criadoEm: agora).Valor;
+        await ambiente.Ativos.SalvarAsync(emUso);
+
+        var resultado = (await NovoServico(ambiente).CalcularAsync(Biz)).Valor;
+        var categoria = resultado.Investimento.PorCategoria.Single(c => c.Categoria == CategoriaAtivo.Equipamento.ToString());
+
+        Assert.Equal(1, categoria.Vendidos); // dos 2 bens da categoria, só 1 foi vendido
+        Assert.Equal(100_000, categoria.ResultadoAlienacaoCentavos); // R$1.000,00 de ganho
+        Assert.Equal(100_000, resultado.Investimento.ResultadoAlienacaoTotalCentavos);
+    }
+
     [Fact]
     public async Task ToggleDesligado_RetornaFalhaComCodigoDesativado()
     {

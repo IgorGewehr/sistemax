@@ -806,11 +806,23 @@ null sem mudança de sinal; descontado ≥ simples em fixtures canônicas; anti-
 capex (bem com conta × sem conta); nominal §7.8 ponta-a-ponta; `mesesAteRoiCompleto = 0` quando
 `Acum ≥ 0`.
 
-**I4 — Alienação e refinamentos.**
+**I4 — Alienação e refinamentos. IMPLEMENTADO.**
 Transição `→ Vendido` com `valorVenda`; categoria `alienacao-de-ativo` + exclusão da
 `ReceitaBruta`; `ResultadoAlienacao` informativo no DRE; lançamentos contábeis da venda; painel
 por categoria de bem enriquecido. Testes: razão 1.3 zera na venda/baixa; venda não infla
 `ReceitaBruta` nem o Radar; proceeds aparecem em `F_m`.
+
+Divergência vs. o texto acima, resolvida na implementação (`AtivoDeCapital.Baixar` ganhou o
+parâmetro opcional `valorVenda`, mesmo método de I1–I3, não um novo caso de uso): `SomaNaJanela`
+diverge deliberadamente entre write-off (`Baixado`, lump sum do valor contábil inteiro — DENTRO do
+D&A) e venda (`Vendido`, só a fatia linear normal do mês da saída — o restante vira
+`ResultadoAlienacao`, FORA); `ValorContabilAtualCentavos` zera nos dois casos por curto-circuito
+explícito (não depende de `SomaNaJanela` ter ou não reconhecido o resíduo). `LancamentoContabilFactory
+.DeVendaDeAtivoDeCapital` é UM lançamento auto-contido (Dr 1.2 pelo preço de venda, Cr 1.3 pelo
+valor contábil, e a diferença fecha a partida — Cr 3.1 se ganho, Dr 4.1 se perda) — nunca dois
+lançamentos concorrentes. `BaixarAtivoDeCapitalUseCase` ganhou `IContaAReceberRepository`/
+`ILancamentoContabilRepository`; `ValorVendaCentavos` não-nulo é o único diferencial de "um handler
+só" nas duas rotas (`/financeiro/ativos/{id}/baixar` e `/financeiro/imobilizado/{id}/baixar`).
 
 ---
 

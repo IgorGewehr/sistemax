@@ -103,7 +103,10 @@ public sealed record CriarAtivoDeCapitalRequest(
     long ValorResidualCentavos = 0, DateOnly? InicioDepreciacao = null, int QuantidadeUnidades = 1,
     string? ProjetoId = null, IReadOnlyCollection<ParcelaInvestimentoRequest>? Parcelas = null, string? ContaAPagarId = null);
 
-public sealed record BaixarAtivoDeCapitalRequest(string Motivo, DateOnly Competencia);
+/// <summary><paramref name="ValorVendaCentavos"/> não-nulo ⇒ alienação/venda (fatia I4,
+/// docs/financeiro/design-imobilizado-roi.md §8.1: "!= null ⇒ Vendido"); nulo (default) ⇒ baixa
+/// antecipada/write-off comum, comportamento intocado.</summary>
+public sealed record BaixarAtivoDeCapitalRequest(string Motivo, DateOnly Competencia, long? ValorVendaCentavos = null);
 
 /// <summary>Request de fio de <c>AporteDeCapital</c> (docs/financeiro/design-imobilizado-roi.md
 /// §8.2) — valor+data+descrição, o gesto de um campo.</summary>
@@ -906,7 +909,7 @@ public sealed class FinanceiroEndpointsModule : IModule, IModuleEndpoints
             CancellationToken ct) =>
         {
             var businessId = http.ObterBusinessId();
-            var resultado = await useCase.ExecutarAsync(new BaixarAtivoDeCapitalComando(businessId, id, corpo.Motivo, corpo.Competencia), ct).ConfigureAwait(false);
+            var resultado = await useCase.ExecutarAsync(new BaixarAtivoDeCapitalComando(businessId, id, corpo.Motivo, corpo.Competencia, corpo.ValorVendaCentavos), ct).ConfigureAwait(false);
             return resultado.Sucesso ? Results.Ok(AtivoDeCapitalDto.DeDominio(resultado.Valor)) : resultado.Erro.ParaRespostaHttp();
         }).RequerPermissao(Modulo.Financeiro, Acao.Editar);
 
@@ -967,7 +970,7 @@ public sealed class FinanceiroEndpointsModule : IModule, IModuleEndpoints
             var gating = await FinanceiroOptInGuard.ExigirImobilizadoRoiAsync(businessId, configuracoes, ct).ConfigureAwait(false);
             if (gating.Falha) return gating.Erro.ParaRespostaHttp();
 
-            var resultado = await useCase.ExecutarAsync(new BaixarAtivoDeCapitalComando(businessId, id, corpo.Motivo, corpo.Competencia), ct).ConfigureAwait(false);
+            var resultado = await useCase.ExecutarAsync(new BaixarAtivoDeCapitalComando(businessId, id, corpo.Motivo, corpo.Competencia, corpo.ValorVendaCentavos), ct).ConfigureAwait(false);
             return resultado.Sucesso ? Results.Ok(AtivoDeCapitalDto.DeDominio(resultado.Valor)) : resultado.Erro.ParaRespostaHttp();
         }).RequerPermissao(Modulo.Financeiro, Acao.Editar);
 

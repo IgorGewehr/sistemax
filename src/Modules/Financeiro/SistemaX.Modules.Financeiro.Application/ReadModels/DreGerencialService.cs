@@ -3,6 +3,7 @@ using SistemaX.Modules.Financeiro.Application.Categorias;
 using SistemaX.Modules.Financeiro.Application.Comum;
 using SistemaX.Modules.Financeiro.Application.Ports;
 using SistemaX.Modules.Financeiro.Application.Quant;
+using SistemaX.Modules.Financeiro.Domain.Ativos;
 using SistemaX.Modules.Financeiro.Domain.Comum;
 using SistemaX.Modules.Financeiro.Domain.ContasAPagarReceber;
 using SistemaX.SharedKernel;
@@ -63,9 +64,14 @@ namespace SistemaX.Modules.Financeiro.Application.ReadModels;
 /// pura sobre o calendário, nunca depende do cron ter rodado). <c>Money.Zero</c> para tenant sem
 /// nenhum ativo — invariante de caracterização: <see cref="DreResultado"/> byte-idêntico ao de antes
 /// desta fatia quando não há nenhum <c>AtivoDeCapital</c> cadastrado.</param>
+/// <param name="ResultadoAlienacao">Fatia I4 (docs/financeiro/design-imobilizado-roi.md §4.6, DI6) —
+/// Σ (ValorVenda − ValorContábil) de todo <c>AtivoDeCapital</c> <c>Vendido</c> cuja competência de
+/// saída caia na janela; ganho ou perda. Linha INFORMATIVA — NÃO entra em
+/// <see cref="ResultadoOperacional"/> (vender a bancada usada não é performance operacional).
+/// <c>Money.Zero</c> para tenant sem nenhuma venda de ativo na janela.</param>
 public sealed record DreResultado(
     Money ReceitaBruta, Money CustoDireto, Money DespesaOperacional, Money DespesaFinanceira, Money ResultadoOperacional,
-    Money ReceitaRecorrente, Money ReceitaOperacional, Money DepreciacaoEAmortizacao,
+    Money ReceitaRecorrente, Money ReceitaOperacional, Money DepreciacaoEAmortizacao, Money ResultadoAlienacao,
     IReadOnlyList<DrePorCorrente> PorCorrente);
 
 /// <summary>
@@ -99,7 +105,12 @@ public sealed class DreGerencialService(
         var cmvReal = new Money(fatosCusto.Sum(f => f.CustoCentavos));
         var despesaFinanceira = await CalcularMdrDoPeriodoAsync(businessId, inicio, fim, ct);
 
-        var receitasReconhecidas = receitas.Where(c => c.Status != StatusFinanceiro.Cancelado).ToList();
+        // Fatia I4 (§4.6) — alienação de ativo (venda) EXCLUÍDA da ReceitaBruta, mesmo padrão do
+        // desvio de cmv-fornecedor/ativo-de-capital na despesa: vender a bancada usada não é
+        // performance operacional (DI6), e naturalmente fora do Radar do Simples também.
+        var receitasReconhecidas = receitas
+            .Where(c => c.Status != StatusFinanceiro.Cancelado && c.CategoriaId != CategoriaFinanceiraPadrao.AlienacaoDeAtivo)
+            .ToList();
         var receitaBruta = SomarReconhecida(receitasReconhecidas, inicio, fim);
         var receitaRecorrente = SomarReconhecida(receitasReconhecidas.Where(c => c.CategoriaId == CategoriaFinanceiraPadrao.ReceitaRecorrente), inicio, fim);
         var receitaOperacional = receitaBruta - receitaRecorrente;
@@ -114,15 +125,16 @@ public sealed class DreGerencialService(
             c.CategoriaId != CategoriaFinanceiraPadrao.Comissoes &&
             c.CategoriaId != CategoriaFinanceiraPadrao.AtivoDeCapital));
 
-        var depreciacaoEAmortizacao = await CalcularDepreciacaoEAmortizacaoAsync(businessId, inicio, fim, ct).ConfigureAwait(false);
+        var (depreciacaoEAmortizacao, resultadoAlienacao) = await CalcularDaEResultadoAlienacaoAsync(businessId, inicio, fim, ct).ConfigureAwait(false);
 
+        // ResultadoAlienacao é INFORMATIVO (DI6, §4.6) — nunca entra aqui, mesmo em ganho.
         var resultadoOperacional = receitaBruta - custoDireto - despesaOperacional - despesaFinanceira - depreciacaoEAmortizacao;
 
         var porCorrente = CalcularPorCorrente(receitasReconhecidas, despesas, fatosCusto, inicio, fim);
 
         return new DreResultado(
             receitaBruta, custoDireto, despesaOperacional, despesaFinanceira, resultadoOperacional,
-            receitaRecorrente, receitaOperacional, depreciacaoEAmortizacao, porCorrente);
+            receitaRecorrente, receitaOperacional, depreciacaoEAmortizacao, resultadoAlienacao, porCorrente);
     }
 
     /// <summary>
@@ -131,16 +143,35 @@ public sealed class DreGerencialService(
     /// de TODOS os ativos do tenant na janela [inicio, fim]. Função PURA sobre o calendário: não
     /// depende do cron ter rodado (§4.5 — "cron atrasado nunca produz um número errado no DRE").
     /// Tenant sem nenhum <c>AtivoDeCapital</c> → <c>Money.Zero</c> (invariante de caracterização).
+    ///
+    /// Fatia I4 (§4.7 item 4/§14.9) — junto, Σ <c>AtivoDeCapital.ResultadoAlienacaoCentavos</c> de
+    /// todo bem <c>Vendido</c> cuja competência de saída (<c>UltimaCompetenciaReconhecida</c>) caia
+    /// na mesma janela — linha SEPARADA, nunca somada a <see cref="DreResultado.DepreciacaoEAmortizacao"/>
+    /// (a alienação já saiu do D&A em <c>SomaNaJanela</c>, DI6).
     /// </summary>
-    private async Task<Money> CalcularDepreciacaoEAmortizacaoAsync(string businessId, DateTimeOffset inicio, DateTimeOffset fim, CancellationToken ct)
+    private async Task<(Money DepreciacaoEAmortizacao, Money ResultadoAlienacao)> CalcularDaEResultadoAlienacaoAsync(
+        string businessId, DateTimeOffset inicio, DateTimeOffset fim, CancellationToken ct)
     {
         var ativos = await ativosDeCapital.ListarAsync(businessId, ct: ct).ConfigureAwait(false);
-        if (ativos.Count == 0) return Money.Zero;
+        if (ativos.Count == 0) return (Money.Zero, Money.Zero);
 
         var de = DateOnly.FromDateTime(inicio.Date);
         var ate = DateOnly.FromDateTime(fim.Date);
-        var totalCentavos = ativos.Sum(a => AtivoDeCapitalQuant.SomaNaJanela(a, de, ate));
-        return new Money(totalCentavos);
+
+        var depreciacaoCentavos = ativos.Sum(a => AtivoDeCapitalQuant.SomaNaJanela(a, de, ate));
+
+        // Comparação em DateOnly, NUNCA no instante DateTimeOffset bruto: UltimaCompetenciaReconhecida
+        // é normalizada para meia-noite UTC pelo agregado (AtivoDeCapital.Baixar), enquanto
+        // inicio/fim chegam no offset local do tenant — comparar os instantes diretamente sub-conta
+        // o mês da própria janela (mesma armadilha que SomaNaJanela evita ao trabalhar só em DateOnly).
+        var resultadoAlienacaoCentavos = ativos
+            .Where(a => a.Status == StatusAtivoDeCapital.Vendido
+                        && a.UltimaCompetenciaReconhecida is { } ultima
+                        && new DateOnly(ultima.Year, ultima.Month, 1) is var competenciaSaida
+                        && competenciaSaida >= de && competenciaSaida <= ate)
+            .Sum(a => a.ResultadoAlienacaoCentavos ?? 0);
+
+        return (new Money(depreciacaoCentavos), new Money(resultadoAlienacaoCentavos));
     }
 
     /// <summary>

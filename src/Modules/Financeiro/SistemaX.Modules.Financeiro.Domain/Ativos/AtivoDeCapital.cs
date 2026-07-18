@@ -38,9 +38,9 @@ public enum MetodoDeCronograma
 }
 
 /// <summary>
-/// VALORES PINADOS — persistidos como INTEGER; nunca reordenar. <see cref="Vendido"/> é reservado
-/// para a fatia I4 do design de Imobilizado (alienação) — nenhum caminho de código desta fatia
-/// transiciona para ele ainda, mas o valor nasce pinado para não colidir depois.
+/// VALORES PINADOS — persistidos como INTEGER; nunca reordenar. <see cref="Vendido"/> é a
+/// alienação do bem (fatia I4 do design de Imobilizado, §3.2/§4.6) — <see cref="AtivoDeCapital.Baixar"/>
+/// transiciona para ele quando chamado com <c>valorVenda</c> não nulo.
 /// </summary>
 public enum StatusAtivoDeCapital
 {
@@ -111,14 +111,28 @@ public sealed class AtivoDeCapital : AggregateRoot<string>
     public DateTimeOffset? BaixadoEm { get; private set; }
     public string? MotivoBaixa { get; private set; }
 
-    /// <summary>Valor CONTÁBIL (resíduo inclusive) reconhecido de uma vez na competência da baixa
-    /// antecipada (§4.5/§4.6 dos dois designs) — substitui a fatia linear daquele mês nas leituras de
-    /// <c>Application.Ativos.AtivoDeCapitalQuant</c>. <c>null</c> fora de <see cref="StatusAtivoDeCapital.Baixado"/>.</summary>
+    /// <summary>Valor CONTÁBIL (resíduo inclusive) no instante da saída — mesmo insumo para
+    /// <see cref="StatusAtivoDeCapital.Baixado"/> (write-off) e <see cref="StatusAtivoDeCapital.Vendido"/>
+    /// (venda), mas com leitura diferente em <c>Application.Ativos.AtivoDeCapitalQuant.SomaNaJanela</c>:
+    /// no write-off SUBSTITUI a fatia linear daquele mês (perda real, §4.5); na venda é só o insumo
+    /// de <see cref="ResultadoAlienacaoCentavos"/> — o D&A daquele mês continua a fatia linear normal
+    /// (§4.6, DI6: resultado da venda é linha fora do resultado operacional). <c>null</c> fora de
+    /// <see cref="StatusAtivoDeCapital.Baixado"/>/<see cref="StatusAtivoDeCapital.Vendido"/>.</summary>
     public long? ValorReconhecidoNaBaixaCentavos { get; private set; }
 
-    /// <summary>Reservado para a fatia I4 (venda do bem) do design de Imobilizado — nenhum caminho
-    /// de código desta fatia o preenche.</summary>
+    /// <summary>Preço de venda do bem (fatia I4, §4.6) — preenchido só na transição para
+    /// <see cref="StatusAtivoDeCapital.Vendido"/> via <see cref="Baixar"/>.</summary>
     public Money? ValorVenda { get; private set; }
+
+    /// <summary>Ganho (positivo) ou perda (negativo) na alienação — <c>ValorVenda − ValorContábil(T)</c>
+    /// (§4.6, DI6): informativo, calculado on-the-fly a partir de <see cref="ValorVenda"/> e
+    /// <see cref="ValorReconhecidoNaBaixaCentavos"/> (o valor contábil capturado no instante da
+    /// venda, ANTES da baixa) — nunca persistido separadamente. <c>null</c> fora de
+    /// <see cref="StatusAtivoDeCapital.Vendido"/>.</summary>
+    public long? ResultadoAlienacaoCentavos
+        => Status == StatusAtivoDeCapital.Vendido && ValorVenda is { } venda && ValorReconhecidoNaBaixaCentavos is { } valorContabil
+            ? venda.Centavos - valorContabil
+            : null;
 
     public DateTimeOffset CriadoEm { get; }
 
@@ -276,17 +290,22 @@ public sealed class AtivoDeCapital : AggregateRoot<string>
 
     /// <summary>
     /// Baixa antecipada (impairment/write-off — design-pai §4.6, generalizado em
-    /// docs/financeiro/design-imobilizado-roi.md §4.5): reconhece de uma vez, na
-    /// <paramref name="competencia"/> informada, o VALOR CONTÁBIL restante
-    /// (<paramref name="valorContabilCentavos"/> — calculado pela Application como
+    /// docs/financeiro/design-imobilizado-roi.md §4.5) OU alienação (venda — fatia I4, §4.6):
+    /// reconhece de uma vez, na <paramref name="competencia"/> informada, o VALOR CONTÁBIL
+    /// restante (<paramref name="valorContabilCentavos"/> — calculado pela Application como
     /// <c>CustoAquisicao − Σ competências já reconhecidas</c>, que inclui o residual nunca
-    /// escalonado no cronograma). Esse valor SUBSTITUI a fatia linear daquele mês nas leituras de
-    /// <c>Application.Ativos.AtivoDeCapitalQuant</c> — nenhuma competência posterior à baixa
-    /// reconhece mais nada (invariante de teste: "baixa antecipada reconhece o resto exato").
-    /// Permitida a partir de <see cref="StatusAtivoDeCapital.EmUso"/> OU
-    /// <see cref="StatusAtivoDeCapital.Encerrado"/> (um bem 100% depreciado ainda pode ser baixado).
+    /// escalonado no cronograma) — o mesmo insumo nos dois casos, só o destino da FSM muda:
+    /// <paramref name="valorVenda"/> <c>null</c> → <see cref="StatusAtivoDeCapital.Baixado"/>
+    /// (write-off, perda real de capacidade, permanece DENTRO do D&A —
+    /// <c>Application.Ativos.AtivoDeCapitalQuant.SomaNaJanela</c>); não-nulo →
+    /// <see cref="StatusAtivoDeCapital.Vendido"/> (o valor contábil some do D&A — o resultado da
+    /// venda vira linha informativa FORA do resultado operacional, DI6). Nenhuma competência
+    /// posterior à baixa/venda reconhece mais nada (invariante de teste: "baixa antecipada
+    /// reconhece o resto exato"). Permitida a partir de <see cref="StatusAtivoDeCapital.EmUso"/> OU
+    /// <see cref="StatusAtivoDeCapital.Encerrado"/> (um bem 100% depreciado ainda pode ser
+    /// baixado/vendido).
     /// </summary>
-    public Result Baixar(string motivo, DateOnly competencia, long valorContabilCentavos, DateTimeOffset quando)
+    public Result Baixar(string motivo, DateOnly competencia, long valorContabilCentavos, DateTimeOffset quando, Money? valorVenda = null)
     {
         if (string.IsNullOrWhiteSpace(motivo))
             return Result.Falhar(new Error("financeiro.ativo.motivo_obrigatorio", "Motivo da baixa é obrigatório."));
@@ -297,15 +316,22 @@ public sealed class AtivoDeCapital : AggregateRoot<string>
                 "financeiro.ativo.baixa_competencia_invalida",
                 "Competência da baixa não pode ser anterior à última competência já reconhecida."));
 
-        var transicao = StatusAtivoDeCapitalFsm.AssertirTransicao(Status, StatusAtivoDeCapital.Baixado);
+        var statusDestino = valorVenda is null ? StatusAtivoDeCapital.Baixado : StatusAtivoDeCapital.Vendido;
+        var transicao = StatusAtivoDeCapitalFsm.AssertirTransicao(Status, statusDestino);
         if (transicao.Falha) return transicao;
 
-        Status = StatusAtivoDeCapital.Baixado;
+        Status = statusDestino;
         BaixadoEm = quando;
         MotivoBaixa = motivo;
         ValorReconhecidoNaBaixaCentavos = valorContabilCentavos;
+        ValorVenda = valorVenda;
         UltimaCompetenciaReconhecida = new DateTimeOffset(competenciaNormalizada.Year, competenciaNormalizada.Month, 1, 0, 0, 0, TimeSpan.Zero);
-        Raise(new AtivoDeCapitalBaixadoAntecipadamente(Id, BusinessId, ProjetoId, valorContabilCentavos, quando));
+
+        if (valorVenda is { } venda)
+            Raise(new AtivoDeCapitalVendido(Id, BusinessId, ProjetoId, valorContabilCentavos, venda.Centavos, quando));
+        else
+            Raise(new AtivoDeCapitalBaixadoAntecipadamente(Id, BusinessId, ProjetoId, valorContabilCentavos, quando));
+
         return Result.Ok();
     }
 }

@@ -459,4 +459,84 @@ public class DreGerencialServiceTests
         Assert.Equal(antes.ReceitaOperacional, depois.ReceitaOperacional);
         Assert.Equal(antes.PorCorrente, depois.PorCorrente);
     }
+
+    // ─────────────────────────────────────────────────────────────────────────────────────────
+    // I4 — Alienação de ativo (docs/financeiro/design-imobilizado-roi.md §4.6/§4.7/§14, DI6): a
+    // venda NÃO infla ReceitaBruta (mesmo desvio de cmv-fornecedor/ativo-de-capital, na direção
+    // inversa) e ResultadoAlienacao é informativo — nunca entra em ResultadoOperacional.
+    // ─────────────────────────────────────────────────────────────────────────────────────────
+
+    [Fact]
+    public async Task CalcularAsync_ContaAReceberDeAlienacao_NaoEntraNaReceitaBruta()
+    {
+        var contasAReceber = new InMemoryContaAReceberRepository();
+        var contasAPagar = new InMemoryContaAPagarRepository();
+        var fatoCustoDiario = new InMemoryFatoCustoDiarioRepository();
+        var fatoRecebiveis = new InMemoryFatoRecebiveisRepository();
+        var ativosDeCapital = new InMemoryAtivoDeCapitalRepository();
+
+        var dataVenda = new DateTimeOffset(2026, 8, 15, 12, 0, 0, TimeSpan.FromHours(-3));
+
+        // Receita operacional normal (deve continuar contando).
+        var vendaNormal = ContaAReceber.Criar(
+            "business-1", new SourceRef("teste", "venda-normal"), "Venda", CategoriaFinanceiraPadrao.Servicos,
+            dataVenda, Money.DeReais(500), ContaFinanceiraBase.ParcelaUnica(Money.DeReais(500), dataVenda)).Valor;
+        await contasAReceber.SalvarAsync(vendaNormal);
+
+        // Proceeds da alienação de um AtivoDeCapital — categoria alienacao-de-ativo, EXCLUÍDA.
+        var vendaDeAtivo = ContaAReceber.Criar(
+            "business-1", new SourceRef("financeiro-ativo-venda", "ativo-1"), "Venda — Bancada",
+            CategoriaFinanceiraPadrao.AlienacaoDeAtivo, dataVenda, Money.DeReais(9_000),
+            ContaFinanceiraBase.ParcelaUnica(Money.DeReais(9_000), dataVenda)).Valor;
+        await contasAReceber.SalvarAsync(vendaDeAtivo);
+
+        var service = new DreGerencialService(contasAReceber, contasAPagar, fatoCustoDiario, fatoRecebiveis, ativosDeCapital);
+        var resultado = await service.CalcularAsync("business-1", Inicio, Fim);
+
+        // Só a venda normal — os R$9.000 da alienação NUNCA aparecem na ReceitaBruta.
+        Assert.Equal(Money.DeReais(500), resultado.ReceitaBruta);
+    }
+
+    [Fact]
+    public async Task CalcularAsync_AtivoVendidoNaJanela_PopulaResultadoAlienacaoInformativo_ForaDoResultadoOperacional()
+    {
+        var contasAReceber = new InMemoryContaAReceberRepository();
+        var contasAPagar = new InMemoryContaAPagarRepository();
+        var fatoCustoDiario = new InMemoryFatoCustoDiarioRepository();
+        var fatoRecebiveis = new InMemoryFatoRecebiveisRepository();
+        var ativosDeCapital = new InMemoryAtivoDeCapitalRepository();
+
+        var dataAquisicao = new DateTimeOffset(2026, 7, 1, 0, 0, 0, TimeSpan.FromHours(-3));
+        var ativo = Domain.Ativos.AtivoDeCapital.Criar(
+            "business-1", "Bancada ESD", Domain.Ativos.NaturezaAtivo.Tangivel, Domain.Ativos.CategoriaAtivo.Equipamento,
+            Money.DeReais(12_000), Money.Zero, new DateOnly(2026, 7, 1), new DateOnly(2026, 7, 1), 60, dataAquisicao).Valor;
+
+        // Vende dentro da janela [Inicio,Fim] (agosto/2026) com ganho de R$1.000 sobre o contábil informado.
+        ativo.Baixar("Upgrade", new DateOnly(2026, 8, 1), 1_180_000, Inicio, Money.DeReais(12_800));
+        await ativosDeCapital.SalvarAsync(ativo);
+
+        var service = new DreGerencialService(contasAReceber, contasAPagar, fatoCustoDiario, fatoRecebiveis, ativosDeCapital);
+        var resultado = await service.CalcularAsync("business-1", Inicio, Fim);
+
+        Assert.Equal(Money.DeReais(1_000), resultado.ResultadoAlienacao); // 12.800 - 11.800 = 1.000 (ganho)
+
+        // Informativo: NÃO entra no resultado operacional. Sem receita/despesa no mês, só a fatia
+        // linear normal de D&A do mês da venda (R$200,00 — 12.000/60m) reduz ResultadoOperacional.
+        Assert.Equal(Money.DeReais(-200), resultado.ResultadoOperacional);
+    }
+
+    [Fact]
+    public async Task CalcularAsync_SemNenhumaVenda_ResultadoAlienacaoEhZero()
+    {
+        var contasAReceber = new InMemoryContaAReceberRepository();
+        var contasAPagar = new InMemoryContaAPagarRepository();
+        var fatoCustoDiario = new InMemoryFatoCustoDiarioRepository();
+        var fatoRecebiveis = new InMemoryFatoRecebiveisRepository();
+        var ativosDeCapital = new InMemoryAtivoDeCapitalRepository();
+
+        var service = new DreGerencialService(contasAReceber, contasAPagar, fatoCustoDiario, fatoRecebiveis, ativosDeCapital);
+        var resultado = await service.CalcularAsync("business-1", Inicio, Fim);
+
+        Assert.Equal(Money.Zero, resultado.ResultadoAlienacao);
+    }
 }
